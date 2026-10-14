@@ -713,7 +713,7 @@ function render(){
   const topId=b?b.res.pts[b.res.top].id:null;
   for(const h of act){
     const [x,y]=P(h.u,h.v),r=h.rho*dh;
-    if(h.id===topId) tagAt(x,y-r-14,'TOP','#ffd43b','#211c0a');
+    if(h.id===topId){ const ty=y-r-14; tagAt(x,ty<12?y+r+14:ty,'TOP','#ffd43b','#211c0a'); }
     const n=used.get(h.id); if(n!=null) tagAt(x+r*0.85+7,y-r*0.85-6,String(n),'#ffd43b','#211c0a');
     if(isStart(h)) tagAt(x-r-10,y,'S','#ffffff','#14181c');
   }
