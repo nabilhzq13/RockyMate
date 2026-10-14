@@ -1,0 +1,17 @@
+{
+  "name": "beta-lens",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Colour-route reader for bouldering: finds the holds of one colour and plans the hand and foot moves to the top.",
+  "scripts": {
+    "build": "python build.py",
+    "media": "bash test/make_media.sh",
+    "eval": "node test/eval.js",
+    "eval:old": "node -e \"process.env.OLDMODE='1';require('./test/eval.js')\"",
+    "inspect": "node test/inspect.js",
+    "e2e": "python test/e2e.py"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.4"
+  }
+}

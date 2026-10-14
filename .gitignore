@@ -1,0 +1,5 @@
+node_modules/
+test/data/
+test/media/
+test/out/
+__pycache__/

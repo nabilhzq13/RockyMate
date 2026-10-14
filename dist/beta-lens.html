@@ -1,0 +1,1976 @@
+<meta charset="utf-8">
+<title>Beta Lens</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&family=Permanent+Marker&display=swap">
+<style>
+/* Layout: one-screen tool. The wall view (photo, clip or live camera) is the stage on the left; a numbered control rail runs beside it and stacks under it on phones. Setter's-tape labels in marker are the one loud element. */
+:root{
+  --wall:#e7eaed;
+  --panel:#ffffff;
+  --stage:#d3d8dd;
+  --ink:#14181c;
+  --muted:#57626c;
+  --line:#cfd5db;
+  --soft:#eef1f3;
+  --accent:#1662b8;
+  --tape:#ffd43b;
+  --tape-ink:#211c0a;
+  --lh:#18a7e0; --rh:#ec3b74; --lf:#58b52b; --rf:#f59f00;
+  --live:#e5383b;
+  --warn:#a85600; --warn-bg:#fff2de;
+  --f-display:"Permanent Marker","Marker Felt","Chalkboard SE",cursive;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-label:"Barlow Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
+    --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
+  --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--wall);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+.app{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 48px}
+
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding-block:4px 18px}
+.brand{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.tape{display:inline-block;background:var(--tape);color:var(--tape-ink);font-family:var(--f-display);font-weight:400;line-height:1.1;padding:.34em .85em .24em;transform:rotate(-1.6deg);clip-path:polygon(1.5% 6%,99% 0,97.5% 34%,100% 62%,98% 100%,2% 95%,0 66%,2% 38%)}
+.logo{font-size:1.7rem;margin:0}
+.brand-sub{font-family:var(--f-label);text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-size:.9rem;font-weight:600}
+.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px}
+.tabs button{font:600 .95rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.07em;border:0;background:transparent;color:var(--muted);padding:10px 16px;border-radius:999px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--wall)}
+
+.wall-view{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:20px;align-items:start}
+.stage{display:grid;gap:12px;min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 8px)}
+@media (max-width:920px){.wall-view{grid-template-columns:minmax(0,1fr)}.stage{position:static}}
+.canvas-wrap{position:relative;background:var(--stage);border-radius:var(--radius);display:flex;justify-content:center;align-items:center;overflow:hidden;min-height:280px}
+.canvas-wrap.drag{outline:3px dashed var(--accent);outline-offset:-6px}
+#cv{display:block;touch-action:manipulation;cursor:crosshair;max-width:100%}
+.badge{position:absolute;left:10px;bottom:10px;font:600 .8rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.08em;background:rgba(10,12,14,.74);color:#fff;padding:7px 10px;border-radius:6px;pointer-events:none}
+.live-tag{position:absolute;left:10px;top:10px;display:flex;align-items:center;gap:7px;font:700 .8rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.09em;background:rgba(10,12,14,.78);color:#fff;padding:7px 10px;border-radius:6px;pointer-events:none;font-variant-numeric:tabular-nums}
+.live-tag i{width:9px;height:9px;border-radius:50%;background:var(--live);box-shadow:0 0 0 3px rgba(229,56,59,.3)}
+.busy{position:absolute;left:50%;top:12px;transform:translateX(-50%);font:600 .85rem/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;background:rgba(10,12,14,.8);color:#fff;padding:9px 14px;border-radius:999px;pointer-events:none;white-space:nowrap}
+.toast{position:absolute;left:50%;top:48px;transform:translateX(-50%);max-width:calc(100% - 24px);background:var(--ink);color:var(--wall);padding:9px 14px;border-radius:8px;font-size:.92rem;pointer-events:none;text-align:center}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--muted)}
+
+.vbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px}
+.vbar input[type=range]{flex:1 1 140px;min-width:0}
+.player{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px 14px;display:grid;gap:10px}
+.player-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.step-count{font:600 .9rem/1 var(--f-label);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
+.caption{display:grid;gap:2px;min-width:0}
+.caption h3{font:700 1.3rem/1.15 var(--f-label);margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.caption .sub{margin:0;color:var(--muted)}
+.tips{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:6px}
+.tips li{padding-left:16px;position:relative;max-width:70ch}
+.tips li::before{content:"";position:absolute;left:2px;top:.62em;width:7px;height:2px;background:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font:600 .82rem/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;display:inline-block}
+.dot.foot{border-radius:3px}
+
+.rail{display:grid;gap:14px;min-width:0}
+.blk{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px 16px;display:grid;gap:12px;min-width:0}
+.blk h2{margin:0;display:flex;align-items:center;gap:10px;font:700 1.05rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.08em}
+.blk h2 .n{font-family:var(--f-display);font-weight:400;font-size:1rem;letter-spacing:0;background:var(--tape);color:var(--tape-ink);width:30px;height:26px;display:grid;place-items:center;transform:rotate(-4deg);clip-path:polygon(4% 4%,96% 0,100% 50%,96% 100%,2% 96%,0 48%)}
+.hint{font-size:.92rem;color:var(--muted);margin:0}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:600 .95rem/1 var(--f-body);padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;min-height:42px;text-decoration:none}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--tape);color:var(--tape-ink);border-color:transparent}
+.btn.primary:hover{filter:brightness(.96)}
+.btn.live{background:var(--live);color:#fff;border-color:transparent}
+.btn[disabled]{opacity:.45;cursor:default}
+.btn.icon{min-width:42px;padding:10px 12px}
+.btn svg{width:18px;height:18px;flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:7px 12px 7px 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:500 .92rem/1 var(--f-body);cursor:pointer;text-transform:capitalize}
+.chip .sw{width:18px;height:18px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.28)}
+.chip .ct{color:var(--muted);font-variant-numeric:tabular-nums;text-transform:none}
+.chip[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-right:1px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 4px;font:600 .88rem/1.1 var(--f-label);text-transform:uppercase;letter-spacing:.05em;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.field{display:grid;gap:5px;min-width:0}
+.lbl{font:600 .8rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.unit{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--soft);overflow:hidden}
+.unit input{border:0;background:transparent;padding:9px 0 9px 10px;width:100%;min-width:0;font-variant-numeric:tabular-nums}
+.unit span{padding:0 10px;color:var(--muted);font-size:.9rem}
+select{padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--soft);width:100%;min-width:0}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.range-row{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.check{display:flex;align-items:center;gap:10px;font-size:.95rem;cursor:pointer}
+.check input{width:20px;height:20px;accent-color:var(--accent);flex:none}
+.stat{font-size:.95rem;font-variant-numeric:tabular-nums;margin:0}
+.stat b{font-weight:700}
+.note{background:var(--warn-bg);border:1px solid var(--warn);color:var(--ink);padding:9px 11px;border-radius:8px;font-size:.92rem;margin:0}
+.mask-key{display:grid;gap:6px;font-size:.88rem;color:var(--muted);margin:0;padding:0;list-style:none}
+.mask-key li{display:flex;align-items:center;gap:8px}
+.mask-key i{width:14px;height:14px;border-radius:3px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)}
+
+.beta-sum{font-size:.95rem;margin:0}
+.moves{position:relative;list-style:none;margin:0;padding:0;display:grid;gap:1px;max-height:430px;overflow:auto;overscroll-behavior:contain}
+.moves button{width:100%;text-align:left;display:grid;grid-template-columns:26px 14px minmax(0,1fr) auto;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;border:0;background:transparent;color:var(--ink);font:500 .93rem/1.25 var(--f-body);cursor:pointer}
+.moves button:hover{background:var(--soft)}
+.moves button[aria-current="step"]{background:var(--soft);box-shadow:inset 0 0 0 1px var(--line)}
+.moves .k{font:600 .85rem/1 var(--f-label);color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.moves .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crux{font:700 .72rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.08em;color:var(--tape-ink);background:var(--tape);padding:4px 6px 3px;border-radius:3px}
+.coach-out{white-space:pre-wrap;font-size:.95rem;background:var(--soft);border-radius:8px;padding:10px 12px;max-height:380px;overflow:auto;margin:0}
+details.how summary{cursor:pointer;font:600 .9rem/1.2 var(--f-label);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
+
+.learn{display:grid;gap:22px}
+.learn-hero{display:grid;gap:10px;max-width:74ch;padding-block:6px 4px}
+.learn-hero h1{font:700 clamp(2rem,5vw,3rem)/1 var(--f-label);text-transform:uppercase;letter-spacing:.01em;margin:0;text-wrap:balance}
+.learn-hero p{margin:0;font-size:1.08rem;color:var(--muted)}
+.learn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px;align-items:start}
+.lcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 20px;display:grid;gap:12px;align-content:start;min-width:0}
+.lcard h2{margin:0;justify-self:start;font-size:1.15rem}
+.lcard ul{margin:0;padding-left:1.1em;display:grid;gap:8px}
+.lcard p{margin:0}
+.lcard b{font-weight:700}
+.holds{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;margin:0}
+.holds dt{font:700 1rem/1.3 var(--f-label);text-transform:uppercase;letter-spacing:.05em}
+.holds dd{margin:0}
+.gloss{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:10px;margin:0}
+.gloss div{background:var(--soft);border-radius:8px;padding:10px 12px}
+.gloss dt{font:700 .95rem/1.2 var(--f-label);text-transform:uppercase;letter-spacing:.06em}
+.gloss dd{margin:2px 0 0;font-size:.92rem;color:var(--muted)}
+.sources{font-size:.92rem;color:var(--muted)}
+.sources ol{margin:6px 0 0;padding-left:1.2em;display:grid;gap:4px}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1 class="tape logo">Beta Lens</h1>
+      <span class="brand-sub">Colour-route reader for bouldering</span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button id="tab-wall" role="tab" aria-selected="true" aria-controls="view-wall">Read the wall</button>
+      <button id="tab-learn" role="tab" aria-selected="false" aria-controls="view-learn">Learn to climb</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="view-wall" class="wall-view" role="tabpanel" aria-labelledby="tab-wall">
+      <div class="stage">
+        <div class="canvas-wrap" id="wrap">
+          <canvas id="cv" aria-label="Climbing wall with the detected route holds and planned moves drawn on top"></canvas>
+          <div class="badge" id="badge">Sample wall · take a photo of yours</div>
+          <div class="live-tag" id="liveTag" hidden><i></i><span id="liveTxt">Live</span></div>
+          <div class="busy" id="busy" hidden>Reading the wall…</div>
+          <div class="toast" id="toast" role="status" hidden></div>
+        </div>
+        <div class="vbar" id="vbar" hidden>
+          <button class="btn icon" id="vPlay" aria-label="Pause video"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4.5h4v15H6zM14 4.5h4v15h-4z"/></svg></button>
+          <input type="range" id="vSeek" min="0" max="1000" value="0" aria-label="Position in the clip">
+          <button class="btn primary" id="vFreeze">Freeze frame</button>
+          <button class="btn" id="vStop">Stop</button>
+        </div>
+        <div class="player" id="player">
+          <div class="player-row">
+            <button class="btn icon" id="prev" aria-label="Previous move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <button class="btn primary" id="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg><span>Play moves</span></button>
+            <button class="btn icon" id="next" aria-label="Next move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+            <span class="step-count" id="count">—</span>
+          </div>
+          <div class="caption" aria-live="polite">
+            <h3 id="capTitle">Pick a route colour</h3>
+            <p class="sub" id="capSub">Tap one hold of your route on the photo.</p>
+            <ul class="tips" id="capTips"></ul>
+          </div>
+          <div class="legend" aria-label="Legend">
+            <span><i class="dot" style="background:var(--lh)"></i>Left hand</span>
+            <span><i class="dot" style="background:var(--rh)"></i>Right hand</span>
+            <span><i class="dot foot" style="background:var(--lf)"></i>Left foot</span>
+            <span><i class="dot foot" style="background:var(--rf)"></i>Right foot</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="rail">
+        <div class="blk">
+          <h2><span class="n">1</span>Wall</h2>
+          <div class="btn-row">
+            <button class="btn live" id="goLive" data-only="standalone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Live camera</button>
+            <label class="btn primary" for="fileCam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take photo</label>
+            <label class="btn" for="fileVid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Record video</label>
+            <label class="btn" for="fileUp">Upload</label>
+            <button class="btn" id="useSample">Sample wall</button>
+          </div>
+          <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
+          <input type="file" id="fileVid" accept="video/*" capture="environment" hidden>
+          <input type="file" id="fileUp" accept="image/*,video/*" hidden>
+          <p class="hint">Stand back so the whole route and the floor fit in frame. Hold the phone upright, face the wall straight on, and skip the flash.</p>
+          <p class="hint" data-only="artifact">Inside Claude the page can't open a live camera feed, so <b>Record video</b> films a short clip and reads the wall frame by frame as it plays. For a true live view, use the standalone page.</p>
+          <p class="hint" data-only="standalone"><b>Live camera</b> reads the wall as you point the phone. Hold steady for a second and the moves appear. <b>Freeze frame</b> keeps the current view so you can edit holds or mark the wall.</p>
+        </div>
+
+        <div class="blk">
+          <h2><span class="n">2</span>Route colour</h2>
+          <p class="hint">Tap one hold of your route. Beta Lens learns that hold's exact colour, then only keeps blobs of that colour that stand out from the wall around them.</p>
+          <div class="chips" id="chips" role="group" aria-label="Hold colours found"></div>
+          <div class="field">
+            <label class="lbl" for="tol">Colour match</label>
+            <input type="range" id="tol" min="1" max="10" step="1" value="5">
+            <div class="range-row"><span>Strict</span><span id="tolVal">5</span><span>Loose</span></div>
+          </div>
+          <label class="check"><input type="checkbox" id="showMask">Show what matched</label>
+          <ul class="mask-key" id="maskKey" hidden>
+            <li><i style="background:#fff"></i>Bright: kept as a route hold</li>
+            <li><i style="background:#ff3b3b"></i>Red: right colour, but it's the wall</li>
+            <li><i style="background:#ff2bd0"></i>Pink: rejected, not hold-shaped or not on the wall</li>
+            <li><i style="background:#ffbe0b"></i>Amber: unsure, tap it in Add / remove to keep it</li>
+          </ul>
+          <p class="stat" id="holdStat">—</p>
+          <p class="note" id="holdWarn" hidden></p>
+          <div class="field">
+            <span class="lbl" id="modeLbl">Tapping the wall will…</span>
+            <div class="seg" role="group" aria-labelledby="modeLbl">
+              <button data-mode="pick" aria-pressed="true">Pick colour</button>
+              <button data-mode="edit" aria-pressed="false">Add / remove</button>
+              <button data-mode="start" aria-pressed="false">Set start</button>
+              <button data-mode="top" aria-pressed="false">Set top</button>
+            </div>
+          </div>
+          <p class="hint" id="modeHint">Tap a hold to use its colour as the route.</p>
+        </div>
+
+        <div class="blk">
+          <h2><span class="n">3</span>About you</h2>
+          <div class="two">
+            <div class="field">
+              <label class="lbl" for="height">Your height</label>
+              <div class="unit"><input type="number" id="height" min="110" max="215" step="1" value="170" inputmode="numeric"><span>cm</span></div>
+            </div>
+            <div class="field">
+              <label class="lbl" for="wallM">Wall height</label>
+              <div class="unit"><input type="number" id="wallM" min="1.5" max="9" step="0.1" value="4.2" inputmode="decimal"><span>m</span></div>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn" id="markWall">Mark wall bottom and top</button>
+            <button class="btn" id="clearMarks" hidden>Clear marks</button>
+          </div>
+          <p class="hint" id="markHint">Without marks, the whole picture counts as the wall: bottom edge is the floor, top edge is the top of the wall.</p>
+          <div class="field">
+            <label class="lbl" for="feet">Feet rule</label>
+            <select id="feet">
+              <option value="strict">Feet on this colour only</option>
+              <option value="open">Open feet: smear anywhere on the wall</option>
+            </select>
+          </div>
+          <label class="check"><input type="checkbox" id="callout">Call out each move aloud</label>
+          <p class="hint">Bouldering walls are usually 4 to 4.5 m. Marking the wall also ignores anything on the mat or above the wall.</p>
+        </div>
+
+        <div class="blk">
+          <h2><span class="n">4</span>Your beta</h2>
+          <p class="beta-sum" id="betaSum">—</p>
+          <p class="note" id="betaWarn" hidden></p>
+          <ol class="moves" id="moves" aria-label="Move list"></ol>
+          <details class="how">
+            <summary>How the wall is read</summary>
+            <p>Beta Lens converts the picture to a colour space that matches how eyes see colour, then estimates the wall's own colour in every small patch. A blob only counts as a hold when it matches the colour of the hold you tapped, clearly differs from the wall right around it, has a real edge, and sits on the same wall. Everything else is shown in red or pink in "Show what matched". The moves come from a search for the fewest, least stretched sequence that starts on the lowest holds and ends with both hands matched on the top hold. It can't see the wall's angle or feel how good a hold is, so treat it as a first plan.</p>
+          </details>
+        </div>
+
+        <div class="blk" id="coach" hidden>
+          <h2><span class="n">5</span>Ask Claude</h2>
+          <p class="hint">Sends this view with numbered holds and the moves above. Claude names each hold type, how to grip it, and the crux. It uses your own Claude usage.</p>
+          <div class="btn-row">
+            <button class="btn primary" id="coachAsk">Get grip advice</button>
+            <button class="btn" id="coachStop" hidden>Stop</button>
+          </div>
+          <pre class="coach-out" id="coachOut" hidden></pre>
+        </div>
+      </aside>
+    </section>
+
+    <section id="view-learn" class="learn" role="tabpanel" aria-labelledby="tab-learn" hidden>
+      <div class="learn-hero">
+        <h1>How to climb a colour route</h1>
+        <p>The basics that matter most in your first sessions. Beta Lens plans moves with the same ideas: feet first, straight arms, hips in, and both hands on the top hold to finish.</p>
+      </div>
+      <div class="learn-grid">
+        <article class="lcard">
+          <h2 class="tape">How a colour route works</h2>
+          <ul>
+            <li>A route (in bouldering, a <b>problem</b>) uses holds of one colour. Your hands, and at most gyms your feet, stay on that colour.</li>
+            <li><b>Start:</b> tags or tape mark the start holds. Put one hand on each tagged hold. Two tags on one hold means both hands start there. Then lift your feet off the mat.</li>
+            <li><b>Finish:</b> bring both hands to the top hold and hold it under control. A quick slap on the way down doesn't count. Some routes finish by climbing over the top instead.</li>
+            <li>Rules vary. Some gyms let you use any foothold on easy routes. Ask staff, then set the feet rule in step 3 to match.</li>
+            <li>Grades use the V-scale (V0, V1, V2…) or Font (4, 5, 6A…). Colour only sometimes means difficulty, so check the tag.</li>
+          </ul>
+        </article>
+        <article class="lcard">
+          <h2 class="tape">Read it before you climb</h2>
+          <ul>
+            <li>Stand back and find three things: the start, the finish, and the hardest-looking section (the <b>crux</b>).</li>
+            <li>Look for rests: big holds where you can hang on straight arms and shake out.</li>
+            <li>Trace the moves with your hands from the ground. Decide which hand goes where, then where your feet must be for each reach.</li>
+            <li>Stuck? Practise the crux on its own, watch someone else try it, or test a second method before you give up.</li>
+          </ul>
+        </article>
+        <article class="lcard">
+          <h2 class="tape">Footwork first</h2>
+          <ul>
+            <li>Your legs are stronger than your arms. Move your feet up, then stand up to reach, instead of pulling up with your arms.</li>
+            <li><b>Edging:</b> stand on the hold with the inside edge of your shoe, under the big toe. The outside edge is for back-steps.</li>
+            <li><b>Smearing:</b> no foothold? Press the sole flat on the wall, heel low, and push into the wall for friction. Works best on walls that lean back.</li>
+            <li><b>Toe point</b> for pockets and tiny dimples.</li>
+            <li><b>Silent feet:</b> watch the foothold until your toe is on it and place it without a sound. Quiet feet are accurate feet.</li>
+          </ul>
+        </article>
+        <article class="lcard">
+          <h2 class="tape">Body position</h2>
+          <ul>
+            <li>Hang on straight arms. Bent arms tire fast; bend them only to make a move.</li>
+            <li>Keep your hips close to the wall. Turn your knees out on vertical walls; on steep walls, twist one hip into the wall.</li>
+            <li>The best handholds sit roughly above your feet.</li>
+            <li><b>Barn door:</b> when your hand and foot are both on one side, your body swings open like a door. Fix it with a <b>flag</b>: hold the free leg out the other way as a counterweight.</li>
+            <li>Moves to learn next: drop knee, back-step, stemming, mantle, heel hook, toe hook.</li>
+          </ul>
+        </article>
+        <article class="lcard">
+          <h2 class="tape">Hand holds</h2>
+          <dl class="holds">
+            <dt>Jug</dt><dd>Big and deep. Wrap your fingers over it. A place to rest.</dd>
+            <dt>Edge</dt><dd>A flat lip. Open hand or half crimp.</dd>
+            <dt>Crimp</dt><dd>A small edge for your fingertips. Use an open or half crimp. The full crimp (thumb over your index finger) is strongest but hardest on fingers.</dd>
+            <dt>Sloper</dt><dd>Round with no lip. Open hand, as much skin on it as you can, and keep your body below it.</dd>
+            <dt>Pinch</dt><dd>Squeeze between thumb and fingers. Grab the width that fits your hand.</dd>
+            <dt>Pocket</dt><dd>A hole. Put in your strongest fingers, usually middle and ring.</dd>
+            <dt>Sidepull</dt><dd>Faces sideways. Pull across and lean away from it. Underclings face down (palm up); gastons push outward like opening a sliding door.</dd>
+          </dl>
+        </article>
+        <article class="lcard">
+          <h2 class="tape">Fall safely</h2>
+          <ul>
+            <li>Warm up shoulders, wrists, hips and fingers before you climb.</li>
+            <li>Check the mat under the route: no bottles, chalk bags or people.</li>
+            <li>Climb down from the top when you can, rather than jumping.</li>
+            <li>If you fall, land on both feet with your knees bent, then sit back and roll. Don't throw your arms out to catch yourself.</li>
+            <li>Never walk or sit under someone who is climbing.</li>
+          </ul>
+        </article>
+        <article class="lcard">
+          <h2 class="tape">Words you'll hear</h2>
+          <dl class="gloss">
+            <div><dt>Beta</dt><dd>The way to climb a route: which holds, which limb, in what order.</dd></div>
+            <div><dt>Crux</dt><dd>The hardest move or section.</dd></div>
+            <div><dt>Send</dt><dd>Finish a route without falling.</dd></div>
+            <div><dt>Flash</dt><dd>Send on your first try, with beta.</dd></div>
+            <div><dt>Onsight</dt><dd>Send on your first try with no beta at all.</dd></div>
+            <div><dt>Project</dt><dd>A route you keep working on.</dd></div>
+            <div><dt>Match</dt><dd>Both hands on one hold.</dd></div>
+            <div><dt>Flag</dt><dd>A leg held out for balance, not on a hold.</dd></div>
+            <div><dt>Dyno</dt><dd>A jump to a hold you can't reach statically.</dd></div>
+            <div><dt>Top out</dt><dd>Finish by climbing over the top of the wall.</dd></div>
+          </dl>
+        </article>
+      </div>
+      <div class="sources">
+        <span class="lbl">Sources</span>
+        <ol>
+          <li><a href="https://www.rei.com/learn/expert-advice/climbing-techniques.html" target="_blank" rel="noopener">REI: Climbing techniques and moves</a></li>
+          <li><a href="https://www.vdiffclimbing.com/sport-technique-footwork/" target="_blank" rel="noopener">VDiff Climbing: Footwork</a></li>
+          <li><a href="https://en.wikibooks.org/wiki/Rock_Climbing/Technique" target="_blank" rel="noopener">Wikibooks: Rock climbing technique</a></li>
+          <li><a href="https://theclimbingdoctor.com/?p=21057" target="_blank" rel="noopener">The Climbing Doctor: Three common errors made by new climbers</a></li>
+          <li><a href="https://www.thebmc.co.uk/cy/get-to-grips-with-route-reading" target="_blank" rel="noopener">BMC: Get to grips with route reading</a></li>
+          <li><a href="https://warwick.ac.uk/services/sport/blog/feed/bouldering-for-beginners/" target="_blank" rel="noopener">Warwick Sport: Bouldering for beginners</a></li>
+          <li><a href="https://boulderbox.in/blog/a-beginners-guide-to-climbing-at-boulderbox" target="_blank" rel="noopener">BoulderBox: A beginner's guide</a></li>
+          <li><a href="https://blog.movementgyms.com/how-to-use-common-climbing-holds" target="_blank" rel="noopener">Movement: How to use common climbing holds</a></li>
+          <li><a href="https://www.vdiffclimbing.com/boulder-basics/" target="_blank" rel="noopener">VDiff Climbing: Bouldering basics and safety</a></li>
+        </ol>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+/* Hold-vs-wall vision core. Self-contained so it can run in a Web Worker.
+   Pipeline: sRGB -> CIELAB, local wall model on a coarse grid, per-pixel
+   "how different from the wall right here", a colour model learned from the
+   hold the user taps, a route-vs-wall decision per pixel, then blob checks
+   (contrast with the ring of wall around it, edge strength, shape, size). */
+function VisionCore(){
+  const LIN=new Float32Array(256);
+  for(let i=0;i<256;i++){ const c=i/255; LIN[i]=c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4); }
+  const fl=t=>t>0.008856?Math.cbrt(t):7.787*t+0.1379310345;
+  const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+
+  function lab2rgb(L,a,b){
+    const fy=(L+16)/116,fx=fy+a/500,fz=fy-b/200;
+    const fi=t=>{ const t3=t*t*t; return t3>0.008856?t3:(t-0.1379310345)/7.787; };
+    const X=0.95047*fi(fx),Y=fi(fy),Z=1.08883*fi(fz);
+    const r=3.2406*X-1.5372*Y-0.4986*Z,g=-0.9689*X+1.8758*Y+0.0415*Z,bb=0.0557*X-0.2040*Y+1.0570*Z;
+    const gm=c=>{ c=clamp(c,0,1); return Math.round(255*(c<=0.0031308?12.92*c:1.055*Math.pow(c,1/2.4)-0.055)); };
+    return [gm(r),gm(g),gm(bb)];
+  }
+  function nameOf(L,a,b){
+    const C=Math.hypot(a,b);
+    if(C<9){ if(L<28) return 'black'; if(L>82) return 'white'; return 'grey'; }
+    const [r,g,bl]=lab2rgb(L,a,b),mx=Math.max(r,g,bl),mn=Math.min(r,g,bl),d=mx-mn;
+    let h=0;
+    if(d){ if(mx===r) h=((g-bl)/d)%6; else if(mx===g) h=(bl-r)/d+2; else h=(r-g)/d+4; h*=60; if(h<0) h+=360; }
+    const v=mx/255;
+    let n;
+    if(h<12||h>=342) n=(L>62&&C<45)?'pink':'red';
+    else if(h<42) n=(L<52||C<30)?'brown':'orange';
+    else if(h<68) n=(C<28)?'beige':'yellow';
+    else if(h<88) n='lime';
+    else if(h<165) n='green';
+    else if(h<196) n='teal';
+    else if(h<258) n='blue';
+    else if(h<292) n='purple';
+    else n='pink';
+    if(v<0.32&&n!=='brown') n='dark '+n;
+    return n;
+  }
+  function inv3(m){
+    const [a,b,c,d,e,f,g,h,i]=m;
+    const A=e*i-f*h,B=-(d*i-f*g),C=d*h-e*g,det=a*A+b*B+c*C||1e-9;
+    return [A/det,-(b*i-c*h)/det,(b*f-c*e)/det,B/det,(a*i-c*g)/det,-(a*f-c*d)/det,C/det,-(a*h-b*g)/det,(a*e-b*d)/det];
+  }
+
+  /* Lab conversion + local wall estimate + difference-from-wall map. */
+  function prepare(rgba,w,h){
+    const n=w*h,L=new Float32Array(n),A=new Float32Array(n),B=new Float32Array(n);
+    for(let i=0,j=0;i<n;i++,j+=4){
+      const r=LIN[rgba[j]],g=LIN[rgba[j+1]],b=LIN[rgba[j+2]];
+      const fx=fl((r*0.4124+g*0.3576+b*0.1805)/0.95047),fy=fl(r*0.2126+g*0.7152+b*0.0722),fz=fl((r*0.0193+g*0.1192+b*0.9505)/1.08883);
+      L[i]=116*fy-16; A[i]=500*(fx-fy); B[i]=200*(fy-fz);
+    }
+    const cs=Math.max(10,Math.round(Math.max(w,h)/18)),gw=Math.ceil(w/cs),gh=Math.ceil(h/cs),G=gw*gh;
+    const cL=new Float32Array(G),cA=new Float32Array(G),cB=new Float32Array(G);
+    const cnt=new Int32Array(1000),touched=new Int32Array(1000);
+    for(let gy=0;gy<gh;gy++) for(let gx=0;gx<gw;gx++){
+      const x0=gx*cs,x1=Math.min(w,x0+cs),y0=gy*cs,y1=Math.min(h,y0+cs);
+      let nt=0;
+      for(let y=y0;y<y1;y++) for(let i=y*w+x0,e=y*w+x1;i<e;i++){
+        const k=clamp(L[i]/10|0,0,9)*100+clamp((A[i]+60)/12|0,0,9)*10+clamp((B[i]+60)/12|0,0,9);
+        if(cnt[k]===0) touched[nt++]=k;
+        cnt[k]++;
+      }
+      let best=0,bs=-1;
+      for(let t=0;t<nt;t++){
+        const k=touched[t],bl=k/100|0,ba=(k/10|0)%10,bb=k%10;
+        let s=cnt[k]*2;
+        if(bl>0) s+=cnt[k-100]; if(bl<9) s+=cnt[k+100];
+        if(ba>0) s+=cnt[k-10]; if(ba<9) s+=cnt[k+10];
+        if(bb>0) s+=cnt[k-1]; if(bb<9) s+=cnt[k+1];
+        if(s>bs){ bs=s; best=k; }
+      }
+      let mL=(best/100|0)*10+5,mA=((best/10|0)%10)*12-54,mB=(best%10)*12-54;
+      for(let it=0;it<3;it++){
+        const R2=it===0?196:81;
+        let sL=0,sA=0,sB=0,c=0;
+        for(let y=y0;y<y1;y++) for(let i=y*w+x0,e=y*w+x1;i<e;i++){
+          const dl=(L[i]-mL)*0.5,da=A[i]-mA,db=B[i]-mB;
+          if(dl*dl+da*da+db*db<R2){ sL+=L[i]; sA+=A[i]; sB+=B[i]; c++; }
+        }
+        if(c){ mL=sL/c; mA=sA/c; mB=sB/c; }
+      }
+      const g=gy*gw+gx; cL[g]=mL; cA[g]=mA; cB[g]=mB;
+      for(let t=0;t<nt;t++) cnt[touched[t]]=0;
+    }
+    /* A cell filled by one big hold would call that hold "wall": compare each
+       cell with the median of its neighbours and replace outliers. */
+    const fL=cL.slice(),fA=cA.slice(),fB=cB.slice(),vl=[],va=[],vb=[];
+    const med=v=>{ v.sort((p,q)=>p-q); return v[v.length>>1]; };
+    for(let gy=0;gy<gh;gy++) for(let gx=0;gx<gw;gx++){
+      vl.length=va.length=vb.length=0;
+      for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+        const yy=gy+dy,xx=gx+dx; if(yy<0||yy>=gh||xx<0||xx>=gw) continue;
+        const g=yy*gw+xx; vl.push(cL[g]); va.push(cA[g]); vb.push(cB[g]);
+      }
+      const g=gy*gw+gx,ml=med(vl),ma=med(va),mb=med(vb);
+      const d=Math.sqrt(0.25*(cL[g]-ml)*(cL[g]-ml)+(cA[g]-ma)*(cA[g]-ma)+(cB[g]-mb)*(cB[g]-mb));
+      if(d>11){ fL[g]=ml; fA[g]=ma; fB[g]=mb; }
+    }
+    const bL=new Float32Array(n),bA=new Float32Array(n),bB=new Float32Array(n);
+    const X0=new Int32Array(w),X1=new Int32Array(w),TX=new Float32Array(w);
+    for(let x=0;x<w;x++){ const f=(x+0.5)/cs-0.5,g0=Math.floor(f); TX[x]=f<0?0:(g0>=gw-1?0:f-g0); X0[x]=clamp(g0,0,gw-1); X1[x]=clamp(g0+1,0,gw-1); }
+    for(let y=0;y<h;y++){
+      const f=(y+0.5)/cs-0.5,g0=Math.floor(f),ty=f<0?0:(g0>=gh-1?0:f-g0),r0=clamp(g0,0,gh-1)*gw,r1=clamp(g0+1,0,gh-1)*gw;
+      for(let x=0,i=y*w;x<w;x++,i++){
+        const tx=TX[x],a=r0+X0[x],b=r0+X1[x],c=r1+X0[x],d=r1+X1[x];
+        const w00=(1-tx)*(1-ty),w01=tx*(1-ty),w10=(1-tx)*ty,w11=tx*ty;
+        bL[i]=fL[a]*w00+fL[b]*w01+fL[c]*w10+fL[d]*w11;
+        bA[i]=fA[a]*w00+fA[b]*w01+fA[c]*w10+fA[d]*w11;
+        bB[i]=fB[a]*w00+fB[b]*w01+fB[c]*w10+fB[d]*w11;
+      }
+    }
+    const dfg=new Float32Array(n),hist=new Int32Array(240);
+    for(let i=0;i<n;i++){
+      const dl=0.5*(L[i]-bL[i]),da=A[i]-bA[i],db=B[i]-bB[i],d=Math.sqrt(dl*dl+da*da+db*db);
+      dfg[i]=d; hist[Math.min(239,d*2|0)]++;
+    }
+    let acc=0,p50=0; for(let k=0;k<240;k++){ acc+=hist[k]; if(acc>=n*0.5){ p50=k/2; break; } }
+    const Tfg=clamp(2.8*p50+5,9,24);
+    const gs=[];
+    for(let y=1;y<h-1;y+=4) for(let x=1;x<w-1;x+=4) gs.push(grad(L,A,B,y*w+x,w));
+    gs.sort((p,q)=>p-q);
+    const gRef=gs.length?gs[gs.length>>1]:4;
+    let wl=0,wa=0,wb=0; const mid=[];
+    for(let g=0;g<G;g++) mid.push(g);
+    mid.sort((p,q)=>fL[p]-fL[q]);
+    const gm=mid[mid.length>>1]; wl=fL[gm]; wa=fA[gm]; wb=fB[gm];
+    const rgb=lab2rgb(wl,wa,wb);
+    return {w,h,n,L,A,B,bL,bA,bB,dfg,Tfg,gRef,cs,gw,gh,cellL:fL,cellA:fA,cellB:fB,wall:{L:wl,a:wa,b:wb,css:`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`,name:nameOf(wl,wa,wb)}};
+  }
+  /* Grid cells that look like the climbing wall the user tapped on: similar
+     colour, joined up, plus a one-cell margin. Ceilings, mats, people and
+     the gym behind the wall fall outside it. */
+  function wallRegion(I,W){
+    const {gw,gh,cellL,cellA,cellB}=I,G=gw*gh,sim=new Uint8Array(G);
+    for(let g=0;g<G;g++){ const d0=0.5*(cellL[g]-W[0]),d1=cellA[g]-W[1],d2=cellB[g]-W[2]; if(d0*d0+d1*d1+d2*d2<15*15) sim[g]=1; }
+    const lab=new Int32Array(G),sizes=[0];
+    let id=0;
+    for(let s=0;s<G;s++){
+      if(!sim[s]||lab[s]) continue;
+      id++; let sz=0; const st=[s]; lab[s]=id;
+      while(st.length){ const g=st.pop(),x=g%gw,y=(g-x)/gw; sz++;
+        for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){ const xx=x+dx,yy=y+dy; if(xx<0||yy<0||xx>=gw||yy>=gh) continue; const q=yy*gw+xx; if(sim[q]&&!lab[q]){ lab[q]=id; st.push(q); } } }
+      sizes.push(sz);
+    }
+    const big=Math.max(0,...sizes),keep=new Uint8Array(G);
+    if(big<3){ keep.fill(1); return keep; }
+    for(let g=0;g<G;g++) if(lab[g]&&sizes[lab[g]]>=big*0.3) keep[g]=1;
+    const out=keep.slice();
+    for(let g=0;g<G;g++) if(keep[g]){ const x=g%gw,y=(g-x)/gw; for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){ const xx=x+dx,yy=y+dy; if(xx>=0&&yy>=0&&xx<gw&&yy<gh) out[yy*gw+xx]=1; } }
+    return out;
+  }
+  function grad(L,A,B,i,w){
+    return Math.abs(L[i+1]-L[i-1])+Math.abs(L[i+w]-L[i-w])+0.8*(Math.abs(A[i+1]-A[i-1])+Math.abs(A[i+w]-A[i-w])+Math.abs(B[i+1]-B[i-1])+Math.abs(B[i+w]-B[i-w]));
+  }
+
+  /* Colour model from a set of "core" hold pixels: Lab mean + covariance,
+     plus hue angle, chroma and lightness spread. Hue and chroma gates keep
+     shading on the hold while shutting out the grey or tinted wall. */
+  function modelFrom(I,idx,count){
+    const {L,A,B}=I;
+    count=count==null?idx.length:count;
+    if(count<4) return null;
+    const step=Math.max(1,Math.floor(count/4000));
+    let n=0,sL=0,sA=0,sB=0,hx=0,hy=0,sC=0;
+    const Ls=[];
+    for(let k=0;k<count;k+=step){
+      const i=idx[k],c=Math.hypot(A[i],B[i]);
+      sL+=L[i]; sA+=A[i]; sB+=B[i]; n++; sC+=c; Ls.push(L[i]);
+      if(c>1e-6){ hx+=A[i]; hy+=B[i]; }
+    }
+    const m=[sL/n,sA/n,sB/n],Cm=sC/n,hm=Math.atan2(hy,hx)*180/Math.PI;
+    let c00=0,c01=0,c02=0,c11=0,c12=0,c22=0,vh=0,vc=0,wh=0;
+    for(let k=0;k<count;k+=step){
+      const i=idx[k],d0=L[i]-m[0],d1=A[i]-m[1],d2=B[i]-m[2],c=Math.hypot(A[i],B[i]);
+      c00+=d0*d0; c01+=d0*d1; c02+=d0*d2; c11+=d1*d1; c12+=d1*d2; c22+=d2*d2;
+      vc+=(c-Cm)*(c-Cm);
+      if(c>6){ let dh=Math.atan2(B[i],A[i])*180/Math.PI-hm; dh=((dh+540)%360)-180; vh+=c*dh*dh; wh+=c; }
+    }
+    Ls.sort((p,q)=>p-q);
+    const st={n,hue:hm,hueSd:wh?Math.sqrt(vh/wh):30,chroma:Cm,chromaSd:Math.sqrt(vc/n),Llo:Ls[Math.floor(n*0.05)],Lhi:Ls[Math.floor(n*0.95)]};
+    return modelFromStats(m,[c00/n,c01/n,c02/n,c01/n,c11/n,c12/n,c02/n,c12/n,c22/n],st);
+  }
+  function modelFromStats(m,c,st){
+    const cov=c.slice();
+    cov[0]=Math.min(cov[0]+40,500); cov[4]+=9; cov[8]+=9;
+    const achro=st.chroma<11;
+    const rgb=lab2rgb(m[0],m[1],m[2]);
+    return Object.assign({mean:m,cov,inv:inv3(cov),achro,css:`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`,name:nameOf(m[0],m[1],m[2])},st);
+  }
+  /* Pixels of a region that are not on its rim and clearly differ from the
+     wall: the rim mixes hold and wall colour and would teach the model the
+     wall colour too. */
+  function coreOf(I,inRegion,list,count){
+    const {w,h,dfg,Tfg}=I,core=[];
+    for(let k=0;k<count;k++){
+      const i=list[k],x=i%w,y=(i-x)/w;
+      if(x<1||y<1||x>=w-1||y>=h-1) continue;
+      if(!inRegion(i-1)||!inRegion(i+1)||!inRegion(i-w)||!inRegion(i+w)) continue;
+      if(dfg[i]<Tfg*1.3) continue;
+      core.push(i);
+    }
+    return core;
+  }
+  function ringColour(I,inRegion,box,pad){
+    const {w,h,L,A,B,dfg,Tfg}=I;
+    let l=0,a=0,b=0,c=0;
+    const X0=Math.max(0,box[0]-pad),X1=Math.min(w-1,box[2]+pad),Y0=Math.max(0,box[1]-pad),Y1=Math.min(h-1,box[3]+pad);
+    for(let y=Y0;y<=Y1;y++) for(let x=X0,i=y*w+X0;x<=X1;x++,i++){ if(inRegion(i)||dfg[i]>Tfg) continue; l+=L[i]; a+=A[i]; b+=B[i]; c++; }
+    return c>8?[l/c,a/c,b/c]:null;
+  }
+
+  /* Learn the route colour from the hold the user tapped. */
+  function pick(I,x,y){
+    const {w,h,L,A,B,dfg,Tfg}=I;
+    const r=Math.max(3,Math.round(Math.max(w,h)*0.012)),cand=[];
+    x=Math.round(x); y=Math.round(y);
+    for(let yy=y-r;yy<=y+r;yy++){ if(yy<0||yy>=h) continue;
+      for(let xx=x-r;xx<=x+r;xx++){ if(xx<0||xx>=w) continue; if((xx-x)*(xx-x)+(yy-y)*(yy-y)>r*r) continue; const i=yy*w+xx; if(dfg[i]>Tfg*0.75) cand.push(i); } }
+    if(cand.length<4) return {error:'wall'};
+    const med=k=>{ const v=cand.map(i=>k[i]).sort((p,q)=>p-q); return v[v.length>>1]; };
+    const sL=med(L),sA=med(A),sB=med(B);
+    const seen=new Uint8Array(w*h),q=new Int32Array(w*h);
+    let qh=0,qt=0;
+    const ok=i=>{ const dl=0.35*(L[i]-sL),da=A[i]-sA,db=B[i]-sB; return dfg[i]>Tfg*0.5&&dl*dl+da*da+db*db<400; };
+    for(const i of cand) if(ok(i)&&!seen[i]){ seen[i]=1; q[qt++]=i; }
+    if(qt<3) return {error:'wall'};
+    const cap=Math.floor(w*h*0.05);
+    while(qh<qt&&qt<cap){
+      const i=q[qh++],px=i%w,py=(i-px)/w;
+      if(px>0&&!seen[i-1]&&ok(i-1)){ seen[i-1]=1; q[qt++]=i-1; }
+      if(px<w-1&&!seen[i+1]&&ok(i+1)){ seen[i+1]=1; q[qt++]=i+1; }
+      if(py>0&&!seen[i-w]&&ok(i-w)){ seen[i-w]=1; q[qt++]=i-w; }
+      if(py<h-1&&!seen[i+w]&&ok(i+w)){ seen[i+w]=1; q[qt++]=i+w; }
+    }
+    const inR=i=>seen[i]===1;
+    let core=coreOf(I,inR,q,qt);
+    if(core.length<8){ core=[]; for(let k=0;k<qt;k++) if(dfg[q[k]]>Tfg*1.2) core.push(q[k]); }
+    const model=modelFrom(I,core.length>=4?core:q,core.length>=4?core.length:qt);
+    if(!model) return {error:'wall'};
+    let x0=w,x1=0,y0=h,y1=0;
+    for(let k=0;k<qt;k++){ const i=q[k],px=i%w,py=(i-px)/w; if(px<x0)x0=px; if(px>x1)x1=px; if(py<y0)y0=py; if(py>y1)y1=py; }
+    model.seed={x,y,area:qt,box:[x0,y0,x1,y1]};
+    model.wall=ringColour(I,inR,[x0,y0,x1,y1],Math.max(3,Math.round(Math.sqrt(qt)*0.5)));
+    return {model};
+  }
+
+  function morph(m,w,h,op){
+    const o=new Uint8Array(w*h);
+    if(op==='d'){
+      for(let y=0;y<h;y++) for(let x=0,i=y*w;x<w;x++,i++){ if(!m[i]) continue;
+        o[i]=1; if(x>0) o[i-1]=1; if(x<w-1) o[i+1]=1; if(y>0) o[i-w]=1; if(y<h-1) o[i+w]=1; }
+    }else{
+      for(let y=1;y<h-1;y++) for(let x=1,i=y*w+1;x<w-1;x++,i++){ if(m[i]&&m[i-1]&&m[i+1]&&m[i-w]&&m[i+w]) o[i]=1; }
+    }
+    return o;
+  }
+
+  /* Classify every pixel as route / route-coloured-but-wall / other, then
+     score each blob. tol 1..10. opt.pxPerCm (optional) gates hold size. */
+  function classify(I,M,tol,opt){
+    opt=opt||{};
+    const {w,h,n,L,A,B,bL,bA,bB,Tfg,gRef}=I,inv=M.inv,mu=M.mean;
+    const tolS=0.5+0.1*tol,mmax=2+0.35*tol,m2max=mmax*mmax;
+    const wL2=M.achro?1:0.25,T=M.achro?Tfg*1.3:Tfg,sw=T/3,sw2=sw*sw,T2=T*T;
+    let cosTol=-2,Cfloor=0,Cceil=1e9,Llo=-1e9,Lhi=1e9;
+    const hr=M.hue*Math.PI/180,hc=Math.cos(hr),hs=Math.sin(hr);
+    if(!M.achro){ cosTol=Math.cos(clamp(3*M.hueSd,10,28)*tolS*Math.PI/180); Cfloor=Math.max(8,M.chroma*(0.55-0.025*tol)); }
+    else{ Cceil=Math.max(14,M.chroma+8)*tolS; const sdL=Math.max(6,(M.Lhi-M.Llo)/3.3); Llo=M.Llo-sdL*1.2*tolS; Lhi=M.Lhi+sdL*1.2*tolS; }
+    const cls=new Uint8Array(n);
+    let m=new Uint8Array(n);
+    for(let i=0;i<n;i++){
+      const a=A[i],b=B[i],C=Math.sqrt(a*a+b*b);
+      if(!M.achro){ if(C<Cfloor||a*hc+b*hs<cosTol*C) continue; }
+      else if(C>Cceil||L[i]<Llo||L[i]>Lhi) continue;
+      const dl=L[i]-mu[0],da=a-mu[1],db=b-mu[2];
+      const m2=dl*(inv[0]*dl+inv[1]*da+inv[2]*db)+da*(inv[3]*dl+inv[4]*da+inv[5]*db)+db*(inv[6]*dl+inv[7]*da+inv[8]*db);
+      if(m2>m2max) continue;
+      const el=L[i]-bL[i],ea=A[i]-bA[i],eb=B[i]-bB[i],f2=wL2*el*el+ea*ea+eb*eb;
+      if(f2>T2&&m2*sw2<f2){ cls[i]=1; m[i]=1; } else cls[i]=2;
+    }
+    const r=Math.max(1,Math.round(Math.max(w,h)/420));
+    for(let k=0;k<r+1;k++) m=morph(m,w,h,'d');
+    for(let k=0;k<r+1;k++) m=morph(m,w,h,'e');
+    for(let k=0;k<r;k++) m=morph(m,w,h,'e');
+    for(let k=0;k<r;k++) m=morph(m,w,h,'d');
+    const lab=new Int32Array(n),st=new Int32Array(n),comps=[];
+    const minA=Math.max(8,n*0.00008);
+    let id=0;
+    for(let s=0;s<n;s++){
+      if(!m[s]||lab[s]) continue;
+      id++; let sp=0; st[sp++]=s; lab[s]=id;
+      let c=0,sx=0,sy=0,sxx=0,syy=0,sxy=0,x0=w,x1=0,y0=h,y1=0,mL=0,mA=0,mB=0,per=0,eSum=0,border=false;
+      while(sp){
+        const p=st[--sp],x=p%w,y=(p-x)/w;
+        c++; sx+=x; sy+=y; sxx+=x*x; syy+=y*y; sxy+=x*y; mL+=L[p]; mA+=A[p]; mB+=B[p];
+        if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
+        if(x===0||y===0||x===w-1||y===h-1) border=true;
+        let edge=false;
+        if(x>0){ const q=p-1; if(m[q]){ if(!lab[q]){ lab[q]=id; st[sp++]=q; } } else edge=true; }
+        if(x<w-1){ const q=p+1; if(m[q]){ if(!lab[q]){ lab[q]=id; st[sp++]=q; } } else edge=true; }
+        if(y>0){ const q=p-w; if(m[q]){ if(!lab[q]){ lab[q]=id; st[sp++]=q; } } else edge=true; }
+        if(y<h-1){ const q=p+w; if(m[q]){ if(!lab[q]){ lab[q]=id; st[sp++]=q; } } else edge=true; }
+        if(edge&&x>1&&y>1&&x<w-2&&y<h-2){ per++; eSum+=Math.max(grad(L,A,B,p,w),grad(L,A,B,x>w/2?p-1:p+1,w)); }
+      }
+      if(c<minA) continue;
+      comps.push({id,c,sx,sy,sxx,syy,sxy,x0,x1,y0,y1,mL:mL/c,mA:mA/c,mB:mB/c,per,eSum,border});
+    }
+    const out=[],region=M.wall?wallRegion(I,M.wall):null;
+    for(const k of comps){
+      const cx=k.sx/k.c,cy=k.sy/k.c,vxx=k.sxx/k.c-cx*cx,vyy=k.syy/k.c-cy*cy,vxy=k.sxy/k.c-cx*cy;
+      const tr=vxx+vyy,det=vxx*vyy-vxy*vxy,disc=Math.sqrt(Math.max(0,tr*tr/4-det)),l1=tr/2+disc,l2=Math.max(0.25,tr/2-disc);
+      const req=Math.sqrt(k.c/Math.PI),mg=Math.max(2,Math.round(req*0.7));
+      let rl=0,ra=0,rb=0,rc=0,ringAll=0,ringSame=0;
+      const X0=Math.max(0,k.x0-mg),X1=Math.min(w-1,k.x1+mg),Y0=Math.max(0,k.y0-mg),Y1=Math.min(h-1,k.y1+mg);
+      for(let y=Y0;y<=Y1;y++) for(let x=X0,i=y*w+X0;x<=X1;x++,i++){
+        if(lab[i]===k.id) continue;
+        ringAll++;
+        if(cls[i]===2) ringSame++;
+        if(lab[i]||cls[i]===1) continue;
+        if(I.dfg[i]>T*1.2) continue;
+        rl+=L[i]; ra+=A[i]; rb+=B[i]; rc++;
+      }
+      const painted=ringAll?ringSame/ringAll:0;
+      if(rc<12){
+        rl=ra=rb=0; rc=0;
+        for(let y=k.y0;y<=k.y1;y++) for(let x=k.x0,i=y*w+k.x0;x<=k.x1;x++,i++){ if(lab[i]===k.id){ rl+=bL[i]; ra+=bA[i]; rb+=bB[i]; rc++; } }
+      }
+      rl/=rc; ra/=rc; rb/=rc;
+      const contrast=Math.sqrt(wL2*(k.mL-rl)*(k.mL-rl)+(k.mA-ra)*(k.mA-ra)+(k.mB-rb)*(k.mB-rb));
+      const edgeRatio=k.per?(k.eSum/k.per)/(gRef+2):0;
+      const bw=k.x1-k.x0+1,bh=k.y1-k.y0+1,fill=k.c/(Math.PI/4*bw*bh),elong=Math.sqrt(l1/l2);
+      const cC=clamp((contrast-8)/14,0,1),cE=clamp((edgeRatio-1.1)/2.4,0,1);
+      const cS=clamp((fill-0.3)/0.35,0,1)*(elong>7?0.3:elong>4.5?0.7:1);
+      let ringSim=1;
+      if(M.wall){ const d0=0.5*(rl-M.wall[0]),d1=ra-M.wall[1],d2=rb-M.wall[2]; ringSim=clamp(1-(Math.sqrt(d0*d0+d1*d1+d2*d2)-10)/22,0,1); }
+      let conf=(0.5*cC+0.3*cE+0.2*cS)*(0.5+0.5*ringSim),reason='';
+      const onWall=!region||region[Math.min(I.gh-1,cy/I.cs|0)*I.gw+Math.min(I.gw-1,cx/I.cs|0)]===1;
+      if(!onWall){ conf*=0.45; reason='outside the climbing wall'; }
+      if(painted>0.25){ conf*=0.3; reason='edge of a painted wall area in the same colour'; }
+      const dcm=opt.pxPerCm?2*req/opt.pxPerCm:null;
+      if(k.c>n*0.05||(dcm!=null&&dcm>110)){ conf=0; reason='too big for a hold'; }
+      else if(dcm!=null&&dcm<2){ conf=0; reason='too small'; }
+      else if(k.border&&k.c>n*0.008){ conf*=0.5; reason='cut off at the photo edge'; }
+      if(!reason){
+        if(ringSim<0.45) reason='not on the same wall as your route';
+        else { const worst=Math.min(cC,cE,cS); reason=worst===cC?'blends into the wall around it':worst===cE?'no clear edge':'shape does not look like a hold'; }
+      }
+      const status=conf>=0.5?'hold':conf>=0.33?'unsure':'rejected';
+      out.push({x:cx,y:cy,area:k.c,r:req,elong,angle:0.5*Math.atan2(2*vxy,vxx-vyy),conf,status,reason:status==='hold'?'':reason,
+        contrast:Math.round(contrast*10)/10,edge:Math.round(edgeRatio*100)/100,fill:Math.round(fill*100)/100,id:k.id});
+    }
+    if(opt.mask){
+      const keep=new Map(out.map(b=>[b.id,b.status]));
+      for(let i=0;i<n;i++){
+        const l=lab[i];
+        if(l){ const s=keep.get(l); cls[i]=s==='hold'?1:s==='unsure'?4:3; }
+        else if(cls[i]===1) cls[i]=0;
+      }
+    }
+    return {blobs:out,mask:opt.mask?cls:null,lab};
+  }
+
+  /* Re-learn the colour model from the confident holds so holds in other
+     lighting are found too. */
+  function refine(I,M,res){
+    const good=new Set(res.blobs.filter(b=>b.status==='hold'&&b.conf>=0.6).map(b=>b.id));
+    if(good.size<2) return M;
+    const lab=res.lab,list=[];
+    for(let i=0;i<I.n;i++) if(good.has(lab[i])) list.push(i);
+    const core=coreOf(I,i=>good.has(lab[i]),list,list.length);
+    const m2=modelFrom(I,core.length>=20?core:list);
+    if(!m2) return M;
+    const dm=Math.hypot(0.5*(m2.mean[0]-M.mean[0]),m2.mean[1]-M.mean[1],m2.mean[2]-M.mean[2]);
+    if(dm>12||m2.achro!==M.achro) return M;
+    m2.hueSd=Math.min(m2.hueSd,M.hueSd*1.5+2);
+    m2.seed=M.seed; m2.css=M.css; m2.name=M.name; m2.wall=M.wall;
+    return m2;
+  }
+
+  /* Colours of things that stand out from the wall, for the colour chips. */
+  function palette(I){
+    const {n,L,A,B,dfg,Tfg}=I,fg=[];
+    for(let i=0;i<n;i++) if(dfg[i]>Tfg*1.3) fg.push(i);
+    if(fg.length<60) return [];
+    const step=Math.max(1,Math.floor(fg.length/5000)),S=[];
+    for(let k=0;k<fg.length;k+=step) S.push(fg[k]);
+    const N=S.length,X=new Float32Array(N*3);
+    for(let k=0;k<N;k++){ const i=S[k]; X[k*3]=0.5*L[i]; X[k*3+1]=A[i]; X[k*3+2]=B[i]; }
+    let seed=7; const rnd=()=>{ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return((t^t>>>14)>>>0)/4294967296; };
+    const K=Math.min(10,Math.max(2,Math.floor(N/40))),C=new Float32Array(K*3),D=new Float32Array(N).fill(1e9);
+    let first=Math.floor(rnd()*N); C[0]=X[first*3]; C[1]=X[first*3+1]; C[2]=X[first*3+2];
+    for(let c=1;c<K;c++){
+      let tot=0;
+      for(let k=0;k<N;k++){ const d0=X[k*3]-C[(c-1)*3],d1=X[k*3+1]-C[(c-1)*3+1],d2=X[k*3+2]-C[(c-1)*3+2],d=d0*d0+d1*d1+d2*d2; if(d<D[k]) D[k]=d; tot+=D[k]; }
+      let r=rnd()*tot,k=0; for(;k<N-1;k++){ r-=D[k]; if(r<=0) break; }
+      C[c*3]=X[k*3]; C[c*3+1]=X[k*3+1]; C[c*3+2]=X[k*3+2];
+    }
+    const asg=new Int32Array(N);
+    for(let it=0;it<12;it++){
+      const s=new Float64Array(K*3),cn=new Int32Array(K);
+      for(let k=0;k<N;k++){
+        let bd=1e18,bi=0;
+        for(let c=0;c<K;c++){ const d0=X[k*3]-C[c*3],d1=X[k*3+1]-C[c*3+1],d2=X[k*3+2]-C[c*3+2],d=d0*d0+d1*d1+d2*d2; if(d<bd){ bd=d; bi=c; } }
+        asg[k]=bi; cn[bi]++; s[bi*3]+=X[k*3]; s[bi*3+1]+=X[k*3+1]; s[bi*3+2]+=X[k*3+2];
+      }
+      for(let c=0;c<K;c++) if(cn[c]){ C[c*3]=s[c*3]/cn[c]; C[c*3+1]=s[c*3+1]/cn[c]; C[c*3+2]=s[c*3+2]/cn[c]; }
+    }
+    let groups=[];
+    for(let c=0;c<K;c++){ const mem=[]; for(let k=0;k<N;k++) if(asg[k]===c) mem.push(S[k]); if(mem.length>=N*0.015) groups.push({c:[C[c*3],C[c*3+1],C[c*3+2]],mem}); }
+    groups.sort((p,q)=>q.mem.length-p.mem.length);
+    const merged=[];
+    for(const g of groups){
+      const t=merged.find(m=>Math.hypot(m.c[0]-g.c[0],m.c[1]-g.c[1],m.c[2]-g.c[2])<10);
+      if(t){ t.mem=t.mem.concat(g.mem); } else merged.push({c:g.c,mem:g.mem.slice()});
+    }
+    const out=[];
+    for(const g of merged.slice(0,9)){
+      const mdl=modelFrom(I,g.mem);
+      if(!mdl) continue;
+      mdl.share=g.mem.length/N;
+      out.push(mdl);
+    }
+    const seen={};
+    for(const e of out){ if(seen[e.name]){ seen[e.name]++; e.name+=' '+seen[e.name]; } else seen[e.name]=1; }
+    return out;
+  }
+  /* Colour chips: palette colours that actually form several hold-shaped
+     blobs, most holds first. */
+  function suggest(I,max){
+    const out=[];
+    for(const M of palette(I)){
+      const res=classify(I,M,5,{});
+      const holds=res.blobs.filter(b=>b.status==='hold');
+      if(holds.length<2) continue;
+      let best=holds[0];
+      for(const b of holds) if(b.conf*b.area>best.conf*best.area) best=b;
+      const pk=pick(I,best.x,best.y);
+      const M2=pk.model&&!pk.model.achro===!M.achro?pk.model:M;
+      M2.count=holds.length;
+      out.push(M2);
+    }
+    out.sort((p,q)=>q.count-p.count);
+    const kept=[];
+    for(const m of out){
+      if(kept.some(k=>k.achro===m.achro&&(m.achro?Math.abs(k.mean[0]-m.mean[0])<12:Math.abs((((k.hue-m.hue)+540)%360)-180)<12))) continue;
+      kept.push(m);
+    }
+    const seen={};
+    for(const e of kept){ e.name=e.name.replace(/ \d+$/,''); if(seen[e.name]){ seen[e.name]++; e.name+=' '+seen[e.name]; } else seen[e.name]=1; }
+    return kept.slice(0,max||8);
+  }
+  return {prepare,pick,classify,refine,palette,suggest,modelFromStats,lab2rgb,nameOf};
+}
+
+function solveBeta(holds,o){
+  function circInt(a,b){
+    const dx=b[0]-a[0],dy=b[1]-a[1],d=Math.hypot(dx,dy);
+    if(d===0||d>a[2]+b[2]||d<Math.abs(a[2]-b[2])) return null;
+    const l=(a[2]*a[2]-b[2]*b[2]+d*d)/(2*d),hh=Math.sqrt(Math.max(0,a[2]*a[2]-l*l));
+    const mx=a[0]+dx*l/d,my=a[1]+dy*l/d;
+    return [[mx-dy*hh/d,my+dx*hh/d],[mx+dy*hh/d,my-dx*hh/d]];
+  }
+  const H=o.H,ARM=0.5*H,LEG=0.56*H,TORSO=0.3*H;
+  const pts=holds.map(h=>({X:h.X,Y:h.Y,r:h.r,kind:'hold',id:h.id}));
+  const nHold=pts.length;
+  if(nHold<2) return {ok:false,reason:'few'};
+  let top=-1;
+  if(o.topId!=null) top=pts.findIndex(p=>p.id===o.topId);
+  if(top<0){
+    /* The finish is the highest hold you can chain to from the low holds,
+       so a stray match on the ceiling never becomes the "top". */
+    const reach=new Uint8Array(nHold),stack=[];
+    for(let i=0;i<nHold;i++) if(pts[i].Y<=1.3*H){ reach[i]=1; stack.push(i); }
+    while(stack.length){ const i=stack.pop(); for(let j=0;j<nHold;j++) if(!reach[j]&&Math.hypot(pts[i].X-pts[j].X,pts[i].Y-pts[j].Y)<=1.1*H){ reach[j]=1; stack.push(j); } }
+    for(let i=0;i<nHold;i++) if(reach[i]&&(top<0||pts[i].Y>pts[top].Y)) top=i;
+    if(top<0){ top=0; for(let i=1;i<nHold;i++) if(pts[i].Y>pts[top].Y) top=i; }
+  }
+  const topY=pts[top].Y;
+  let minX=Infinity,maxX=-Infinity;
+  for(let i=0;i<nHold;i++){ if(pts[i].X<minX) minX=pts[i].X; if(pts[i].X>maxX) maxX=pts[i].X; }
+  if(o.feet==='open'){
+    const step=0.14*H;
+    for(let y=0.12*H;y<topY-0.3*H;y+=step) for(let x=minX-0.3*H;x<=maxX+0.3*H;x+=step){
+      let clash=false;
+      for(let i=0;i<nHold;i++) if(Math.hypot(pts[i].X-x,pts[i].Y-y)<pts[i].r+12){ clash=true; break; }
+      if(!clash) pts.push({X:x,Y:y,r:0,kind:'smear'});
+    }
+  }
+  const nFoot=pts.length,floor0=pts.length;
+  for(let x=minX-0.5*H;x<=maxX+0.5*H;x+=0.06*H) pts.push({X:x,Y:0,r:0,kind:'floor'});
+  const isFloor=i=>i>=floor0;
+  const key4=(a,b,c,d)=>((a*1024+b)*1024+(c+1))*1024+(d+1);
+
+  const memo=new Map();
+  function pose(lh,rh,lf,rf){
+    const key=key4(lh,rh,lf,rf);
+    if(memo.has(key)) return memo.get(key);
+    const A=pts[lh],B=pts[rh],D=[[A.X,A.Y-TORSO,ARM],[B.X,B.Y-TORSO,ARM]];
+    let fx=0,fy=0,nf=0,minFY=Infinity;
+    if(lf>=0){ const F=pts[lf]; D.push([F.X,F.Y,LEG]); fx+=F.X; fy+=F.Y; nf++; minFY=Math.min(minFY,F.Y); }
+    if(rf>=0){ const F=pts[rf]; D.push([F.X,F.Y,LEG]); fx+=F.X; fy+=F.Y; nf++; minFY=Math.min(minFY,F.Y); }
+    let res=null;
+    if(nf>0){
+      const ix=(A.X+B.X+fx*1.5)/(2+nf*1.5);
+      let iy=fy/nf+0.42*H;
+      const cap=Math.min(A.Y,B.Y)-TORSO-0.1*H; if(iy>cap) iy=cap;
+      const C=[[ix,iy]];
+      for(const d of D){ const dx=ix-d[0],dy=iy-d[1],dd=Math.hypot(dx,dy); if(dd>d[2]) C.push([d[0]+dx/dd*d[2],d[1]+dy/dd*d[2]]); }
+      for(let i=0;i<D.length;i++) for(let j=i+1;j<D.length;j++){ const q=circInt(D[i],D[j]); if(q){ C.push(q[0],q[1]); } }
+      let best=null,bd=Infinity;
+      for(const c of C){
+        if(c[1]<minFY-0.05*H) continue;
+        let ok=true;
+        for(const d of D){ if(Math.hypot(c[0]-d[0],c[1]-d[1])>d[2]+0.5){ ok=false; break; } }
+        if(!ok) continue;
+        const dd=Math.hypot(c[0]-ix,c[1]-iy);
+        if(dd<bd){ bd=dd; best=c; }
+      }
+      if(best){
+        const st=D.map(d=>Math.hypot(best[0]-d[0],best[1]-d[1])/d[2]);
+        let s=0; for(const v of st){ const e=Math.max(0,v-0.75); s+=e*e; }
+        res={C:best,cost:bd/H+10*s,st};
+      }
+    }
+    memo.set(key,res);
+    return res;
+  }
+
+  const nodes=[],heap=[],gBest=new Map(),closed=new Set();
+  const GAIN=0.42*H,W=o.feet==='open'?1.8:1.4;
+  const hf=(lh,rh)=>Math.max(0,((topY-pts[lh].Y)+(topY-pts[rh].Y))/GAIN);
+  function hpush(i){ heap.push(i); let k=heap.length-1; while(k>0){ const p=(k-1)>>1; if(nodes[heap[p]].f<=nodes[heap[k]].f) break; [heap[p],heap[k]]=[heap[k],heap[p]]; k=p; } }
+  function hpop(){ const t=heap[0],last=heap.pop(); if(heap.length){ heap[0]=last; let k=0; for(;;){ const l=2*k+1,r=l+1; let m=k; if(l<heap.length&&nodes[heap[l]].f<nodes[heap[m]].f) m=l; if(r<heap.length&&nodes[heap[r]].f<nodes[heap[m]].f) m=r; if(m===k) break; [heap[m],heap[k]]=[heap[k],heap[m]]; k=m; } } return t; }
+  function add(lh,rh,lf,rf,g,parent,move,ps){
+    ps=ps||pose(lh,rh,lf,rf); if(!ps) return;
+    g+=ps.cost;
+    const key=key4(lh,rh,lf,rf),pg=gBest.get(key);
+    if(pg!==undefined&&pg<=g) return;
+    gBest.set(key,g);
+    nodes.push({lh,rh,lf,rf,g,f:g+W*hf(lh,rh),parent,move,key,pose:ps});
+    hpush(nodes.length-1);
+  }
+  const nearestFloor=x=>{ let b=floor0,bd=Infinity; for(let i=floor0;i<pts.length;i++){ const d=Math.abs(pts[i].X-x); if(d<bd){ bd=d; b=i; } } return b; };
+
+  let pairs=[];
+  if(o.startIds&&o.startIds.length){
+    const ids=o.startIds.map(id=>pts.findIndex(p=>p.id===id)).filter(i=>i>=0&&i<nHold);
+    if(ids.length===1) pairs=[[ids[0],ids[0],0]];
+    else if(ids.length>=2){ const a=ids[0],b=ids[1]; pairs=[pts[a].X<=pts[b].X?[a,b,0]:[b,a,0]]; }
+  }
+  if(!pairs.length){
+    const cand=[];
+    for(let i=0;i<nHold;i++) if(pts[i].Y<=1.3*H&&pts[i].Y>=0.35*H) cand.push(i);
+    cand.sort((a,b)=>pts[a].Y-pts[b].Y);
+    const c=cand.slice(0,6);
+    for(let a=0;a<c.length;a++) for(let b=a;b<c.length;b++){
+      const i=c[a],j=c[b]; if(i===j&&pts[i].r<4) continue;
+      const L=pts[i].X<=pts[j].X?i:j,R=L===i?j:i;
+      pairs.push([L,R,0.25*(a+b)+(i===j?0.4:0)]);
+    }
+  }
+  for(const [L,R,g0] of pairs){
+    const mx=(pts[L].X+pts[R].X)/2;
+    add(L,R,nearestFloor(mx-0.1*H),nearestFloor(mx+0.1*H),g0,-1,null);
+  }
+  if(!nodes.length) return {ok:false,reason:'nostart',H};
+
+  const MAX=o.maxExpand||(o.feet==='open'?16000:26000);
+  let expanded=0,goal=-1,bestPartial=0,bestProg=-Infinity;
+  while(heap.length&&expanded<MAX){
+    const ni=hpop(),n=nodes[ni];
+    if(closed.has(n.key)||gBest.get(n.key)<n.g) continue;
+    closed.add(n.key); expanded++;
+    const onFloor=(n.lf>=0&&isFloor(n.lf))||(n.rf>=0&&isFloor(n.rf));
+    const prog=pts[n.lh].Y+pts[n.rh].Y-(onFloor?1e4:0)-n.g*0.5;
+    if(prog>bestProg){ bestProg=prog; bestPartial=ni; }
+    if(n.lh===top&&n.rh===top){ goal=ni; break; }
+    const C=n.pose.C,minHY=Math.min(pts[n.lh].Y,pts[n.rh].Y);
+    for(const limb of ['lf','rf']){
+      const cur=n[limb],other=limb==='lf'?n.rf:n.lf,side=limb==='lf'?-1:1;
+      const from=cur>=0?pts[cur]:{X:C[0]+side*0.35*H,Y:C[1]-0.2*H};
+      const holdsT=[],smearT=[];
+      for(let t=0;t<nFoot;t++){
+        if(t===cur||t===n.lh||t===n.rh) continue;
+        const p=pts[t];
+        if(p.Y>minHY-0.15*H) continue;
+        if(Math.hypot(p.X-C[0],p.Y-C[1])>LEG*1.1) continue;
+        if(p.kind==='smear') smearT.push([Math.hypot(p.X-(C[0]+side*0.1*H),p.Y-(C[1]-0.45*H)),t]); else holdsT.push(t);
+      }
+      smearT.sort((a,b)=>a[0]-b[0]);
+      for(const t of holdsT.concat(smearT.slice(0,5).map(e=>e[1]))){
+        const p=pts[t],d=Math.hypot(p.X-from.X,p.Y-from.Y);
+        let pen=0.8*(d/LEG)*(d/LEG);
+        if(p.kind==='smear') pen+=0.8;
+        if(t===other) pen+=0.7;
+        if(p.Y>C[1]) pen+=0.4;
+        if(cur>=0&&!isFloor(cur)&&p.Y<pts[cur].Y-0.06*H) pen+=0.6;
+        const nl=limb==='lf'?t:n.lf,nr=limb==='rf'?t:n.rf;
+        if(nl>=0&&nr>=0&&nl!==nr&&pts[nl].X>pts[nr].X+0.06*H) pen+=0.6;
+        add(n.lh,n.rh,nl,nr,n.g+0.5+pen,ni,{limb,from:cur,to:t});
+      }
+      if(cur>=0&&other>=0&&!onFloor){
+        const nl=limb==='lf'?-1:n.lf,nr=limb==='rf'?-1:n.rf;
+        add(n.lh,n.rh,nl,nr,n.g+1.8,ni,{limb,from:cur,to:-1});
+      }
+    }
+    if(onFloor||(n.lf<0&&n.rf<0)) continue;
+    const maxFY=Math.max(n.lf>=0?pts[n.lf].Y:-1e9,n.rf>=0?pts[n.rf].Y:-1e9);
+    for(const limb of ['lh','rh']){
+      const cur=n[limb],other=limb==='lh'?n.rh:n.lh;
+      for(let t=0;t<nHold;t++){
+        if(t===cur||t===n.lf||t===n.rf) continue;
+        const p=pts[t];
+        if(p.Y<maxFY+0.12*H) continue;
+        if(Math.hypot(p.X-C[0],p.Y-C[1])>TORSO+ARM+0.2*H) continue;
+        let pen=0;
+        if(t===other){ if(t!==top&&p.r<4) continue; if(t!==top) pen+=0.5; }
+        if(p.Y<pts[cur].Y-0.05*H) pen+=0.8;
+        const nl=limb==='lh'?t:n.lh,nr=limb==='rh'?t:n.rh;
+        if(nl!==nr&&pts[nl].X>pts[nr].X+0.04*H) pen+=0.8;
+        const ps=pose(nl,nr,n.lf,n.rf); if(!ps) continue;
+        const d=Math.hypot(p.X-pts[cur].X,p.Y-pts[cur].Y);
+        pen+=0.6*(d/ARM)*(d/ARM);
+        add(nl,nr,n.lf,n.rf,n.g+1+pen,ni,{limb,from:cur,to:t,reach:ps.st[limb==='lh'?0:1]},ps);
+      }
+    }
+  }
+  const end=goal>=0?goal:bestPartial,chain=[];
+  for(let i=end;i>=0;i=nodes[i].parent) chain.push(nodes[i]);
+  chain.reverse();
+  return {ok:goal>=0,reason:goal>=0?'':'stuck',top,H,TORSO,ARM,LEG,expanded,
+    pts:pts.map(p=>({X:p.X,Y:p.Y,r:p.r,kind:p.kind,id:p.id})),
+    steps:chain.map(n=>({lh:n.lh,rh:n.rh,lf:n.lf,rf:n.rf,C:n.pose.C,st:n.pose.st,move:n.move,g:n.g}))};
+}
+
+/* Turns solver output into numbered holds, captions and coaching tips. */
+function holdKind(h){
+  if(!h) return null;
+  const d=2*h.rCm,vertical=Math.abs(Math.sin(h.angle))>0.7;
+  if(d>=30) return {name:'volume or big sloper',grip:'Big rounded shape: open hand or palm, and keep your body under it. Great to stand on later.'};
+  if(h.elong>2.2) return vertical?{name:'sidepull or pinch',grip:'Long and upright: grip the side and lean away, or pinch it with your thumb on the far side.'}:{name:'edge or rail',grip:'Long and flat: grip along the top lip with an open hand or half crimp.'};
+  if(d<7) return {name:'small crimp',grip:'Small hold: half crimp on your fingertips and push hard with your feet to take weight off your fingers.'};
+  if(d<14) return {name:'edge or small pinch',grip:'Mid-size hold: try an open hand first, half crimp if it feels thin.'};
+  return {name:'jug or sloper',grip:'Big hold: wrap your fingers over the top. If it feels round, open your hand and keep your body below it.'};
+}
+function buildBeta(res,meta){
+  const {steps,pts,top,H}=res;
+  const num=new Map();let k=0;
+  const use=i=>{ if(i>=0&&pts[i].kind==='hold'&&!num.has(pts[i].id)) num.set(pts[i].id,++k); };
+  use(steps[0].lh); use(steps[0].rh);
+  for(let i=1;i<steps.length;i++) use(steps[i].move.to);
+  const hn=i=>`hold ${num.get(pts[i].id)}`;
+  const r5=v=>Math.max(5,Math.round(v/5)*5);
+  const dir=(dx,dy)=>{ const p=[]; if(Math.abs(dy)>=8) p.push(`${r5(Math.abs(dy))} cm ${dy>0?'up':'down'}`); if(Math.abs(dx)>=8) p.push(`${r5(Math.abs(dx))} cm ${dx>0?'right':'left'}`); return p.length?p.join(', '):'a small adjustment'; };
+  const footTips=['Watch your foot all the way onto the hold and place it quietly.','Stand on the inside edge of your big toe, then shift your weight over that foot.','Feet first: get this foot set before you reach with a hand.'];
+  let footTipN=0,restN=0;
+  const NAME={lh:'Left hand',rh:'Right hand',lf:'Left foot',rf:'Right foot'};
+  const out=[];
+  const posOf=(s)=>({lh:[pts[s.lh].X,pts[s.lh].Y],rh:[pts[s.rh].X,pts[s.rh].Y],lf:s.lf>=0?[pts[s.lf].X,pts[s.lf].Y]:null,rf:s.rf>=0?[pts[s.rf].X,pts[s.rf].Y]:null,C:s.C});
+  const s0=steps[0];
+  out.push({type:'start',title:'Start position',
+    sub:s0.lh===s0.rh?`Both hands on ${hn(s0.lh)}. Feet stay on the mat for now.`:`Left hand on ${hn(s0.lh)}, right hand on ${hn(s0.rh)}. Feet stay on the mat for now.`,
+    tips:['Read the whole route first: start, top, the hardest move and any good rest.','Hang on straight arms and keep your hips close to the wall.'],
+    pos:posOf(s0),limb:null,cost:0,list:'Start: hands on '+(s0.lh===s0.rh?hn(s0.lh):`${hn(s0.lh)} + ${hn(s0.rh)}`)});
+  let crux=-1,cruxC=-1;
+  for(let i=1;i<steps.length;i++){
+    const s=steps[i],p=steps[i-1],m=s.move,hand=m.limb[1]==='h';
+    const tips=[];let title,sub,ff=false;
+    const cost=s.g-p.g;
+    const from=m.from>=0?pts[m.from]:null,to=m.to>=0?pts[m.to]:null;
+    if(m.to===-1){
+      const side=m.limb==='lf'?'left':'right';
+      title=`${NAME[m.limb]} → flag`;
+      sub=`Take it off and hold it out to the ${side} as a counterweight.`;
+      tips.push('A flag keeps your body from swinging away from the wall when your other contacts are all on one side.');
+    }else if(hand){
+      const hold=meta.get(to.id),kind=holdKind(hold);
+      const other=m.limb==='lh'?s.rh:s.lh;
+      title=`${NAME[m.limb]} → ${hn(m.to)}`;
+      sub=`${dir(to.X-from.X,to.Y-from.Y)}${kind?' · looks like '+(/^[aeiou]/.test(kind.name)?'an ':'a ')+kind.name:''}`;
+      if(m.to===res.top&&other===res.top){ tips.push('Match the top hold with both hands and hold it still. That is the send.'); tips.push('Climb down if you can, or drop onto the mat with bent knees.'); }
+      else{
+        if(m.to===res.top) tips.push('Top hold! Bring your other hand across to match it.');
+        const supports=[pts[other]];
+        if(s.lf>=0) supports.push(pts[s.lf]); if(s.rf>=0) supports.push(pts[s.rf]);
+        const C=p.C,sideT=Math.sign(to.X-C[0]);
+        const feet=[s.lf,s.rf].filter(f=>f>=0).map(f=>pts[f]);
+        if(Math.abs(to.X-C[0])>0.12*H&&feet.length&&feet.every(f=>Math.sign(f.X-C[0])===-sideT&&Math.abs(f.X-C[0])>0.04*H)){
+          const leg=sideT<0?'left':'right',opp=sideT<0?'right':'left';
+          const flagged=(sideT<0&&s.lf<0)||(sideT>0&&s.rf<0);
+          tips.push(flagged?`Keep your ${leg} leg flagged out to the ${leg} as you reach. It stops your body swinging open.`
+            :`${feet.length===2?'Both feet are':'Your foot is'} on your ${opp} side, so you may swing open. Flag your ${leg} leg out to the ${leg} as you reach.`);
+        }
+        if(m.reach>0.9) tips.push('Long reach, close to your full arm length. Push up with your legs, straighten your arms and turn your hip into the wall.');
+        if(other===m.to) tips.push('Match: bring the second hand onto this hold and shuffle your fingers to make room.');
+        const nl=s.lh,nr=s.rh;
+        if(nl!==nr&&pts[nl].X>pts[nr].X+0.04*H) tips.push('Cross-through: reach across your body and keep the other arm straight.');
+        if(to.Y<from.Y-0.05*H) tips.push('This goes down a little. It sets up a better position for the next move.');
+        if(kind&&tips.length<2) tips.push(kind.grip);
+      }
+      if(cost>cruxC){ cruxC=cost; crux=out.length; }
+    }else{
+      const hold=to.kind==='hold'?meta.get(to.id):null,kind=holdKind(hold);
+      const fromFloor=from&&from.kind==='floor';
+      title=to.kind==='smear'?`${NAME[m.limb]} → smear on the wall`:`${NAME[m.limb]} → ${hn(m.to)}`;
+      sub=fromFloor?'Off the mat and onto the wall':(from?dir(to.X-from.X,to.Y-from.Y):'Back onto the wall');
+      if(kind&&!fromFloor) sub+=' · '+kind.name;
+      if(fromFloor&&!out.some(o=>o.fromFloor)) tips.push('Step on with your toe and stand up through your leg. Don\'t pull up with your arms.');
+      if(to.kind==='smear') tips.push('No foothold here: press the sole flat on the wall, heel low, and push into the wall.');
+      if(to.Y>p.C[1]-0.02*H) tips.push('High step: lift the foot, move your hip over it, then stand up.');
+      const otherF=m.limb==='lf'?s.rf:s.lf;
+      if(m.to===otherF) tips.push('Swap feet: slide one foot off as the other goes on.');
+      if(!tips.length){ tips.push(footTips[footTipN%footTips.length]); footTipN++; }
+      ff=fromFloor;
+    }
+    const lhH=meta.get(pts[s.lh].id),rhH=meta.get(pts[s.rh].id);
+    if(restN<2&&hand&&s.lf>=0&&s.rf>=0&&lhH&&rhH&&lhH.rCm>=8&&rhH.rCm>=8&&pts[s.lf].kind==='hold'&&pts[s.rf].kind==='hold'&&tips.length<3&&s.lh!==res.top){
+      tips.push('Good rest: hang on straight arms and shake out one hand at a time.'); restN++;
+    }
+    out.push({type:'move',limb:m.limb,title,sub,tips:tips.slice(0,3),pos:posOf(s),cost,fromFloor:ff,list:title});
+  }
+  if(crux>0) out[crux].crux=true;
+  const hands=out.filter(o=>o.limb&&o.limb[1]==='h').length,feet=out.filter(o=>o.limb&&o.limb[1]==='f').length;
+  return {steps:out,num,ok:res.ok,hands,feet,crux,res};
+}
+
+</script>
+<script>
+/* ===================== page ===================== */
+(function(){
+'use strict';
+const STANDALONE=false;
+const $=s=>document.querySelector(s);
+const MARKER='"Permanent Marker","Marker Felt",cursive';
+const LIMBCOL={lh:'#18a7e0',rh:'#ec3b74',lf:'#58b52b',rf:'#f59f00'};
+const reduceMotion=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+const store={get(k,d){try{const v=localStorage.getItem('betalens:'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem('betalens:'+k,JSON.stringify(v));}catch(e){}}};
+document.querySelectorAll('[data-only]').forEach(el=>{ el.hidden=(el.dataset.only==='standalone')!==STANDALONE; });
+
+/* ---------- workers (vision + move solver), with in-page fallback ---------- */
+function visionHandler(V,C,m){
+  function analyse(){
+    const I=C.I,out={rid:m.rid,w:I.w,h:I.h,wall:I.wall};
+    if(m.model){
+      const o={mask:!!m.mask,pxPerCm:m.pxPerCm};
+      let r=V.classify(I,m.model,m.tol,o);
+      if(m.refine){ const M2=V.refine(I,m.model,r); if(M2!==m.model){ r=V.classify(I,M2,m.tol,o); } }
+      out.blobs=r.blobs; if(r.mask) out.mask=r.mask;
+    }
+    if(m.suggest) out.suggest=V.suggest(I);
+    return out;
+  }
+  try{
+    if(m.t==='frame'){ C.I=V.prepare(new Uint8ClampedArray(m.buf),m.w,m.h); C.tag=m.tag; return analyse(); }
+    if(!C.I||C.tag!==m.tag) return {rid:m.rid,error:'noframe'};
+    if(m.t==='classify') return analyse();
+    if(m.t==='pick'){ const r=V.pick(C.I,m.u*C.I.w,m.v*C.I.h); return {rid:m.rid,model:r.model||null,error:r.error||null}; }
+    return {rid:m.rid,error:'unknown'};
+  }catch(err){ return {rid:m.rid,error:String(err&&err.message||err)}; }
+}
+function client(src,makeLocal){
+  let w=null,seq=0,local=null;
+  const pend=new Map();
+  const run=msg=>{ if(!local) local=makeLocal(); return local(msg); };
+  try{ w=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'}))); }catch(e){ w=null; }
+  if(w){
+    w.onmessage=e=>{ const p=pend.get(e.data.rid); if(p){ pend.delete(e.data.rid); p(e.data); } };
+    w.onerror=ev=>{ if(ev&&ev.preventDefault) ev.preventDefault(); w=null; for(const [rid,p] of pend){ pend.delete(rid); p({rid,error:'worker'}); } };
+  }
+  return {call(msg,transfer){
+    msg.rid=++seq;
+    if(w) return new Promise(res=>{ pend.set(msg.rid,res); try{ w.postMessage(msg,transfer||[]); }catch(e){ pend.delete(msg.rid); res({rid:msg.rid,error:'post'}); } });
+    return new Promise(res=>setTimeout(()=>{ let r; try{ r=run(msg); }catch(e){ r={rid:msg.rid,error:String(e)}; } res(r); },0));
+  }};
+}
+const vision=client(VisionCore.toString()+'\n'+visionHandler.toString()+'\nconst V=VisionCore(),C={};onmessage=function(e){const r=visionHandler(V,C,e.data);postMessage(r,r.mask?[r.mask.buffer]:[]);};',
+  ()=>{ const V=VisionCore(),C={}; return msg=>visionHandler(V,C,msg); });
+const solver=client(solveBeta.toString()+'\nonmessage=function(e){var r;try{r=solveBeta(e.data.holds,e.data.o);}catch(err){r={ok:false,reason:"error",msg:String(err)};}r.rid=e.data.rid;postMessage(r);};',
+  ()=>msg=>{ const r=solveBeta(msg.holds,msg.o); r.rid=msg.rid; return r; });
+
+/* ---------- state ---------- */
+const cv=$('#cv'),ctx=cv.getContext('2d'),wrap=$('#wrap');
+const veil=document.createElement('canvas'),maskCv=document.createElement('canvas'),grab=document.createElement('canvas');
+const gctx=grab.getContext('2d',{willReadFrequently:true});
+const video=document.createElement('video');
+video.muted=true; video.playsInline=true; video.setAttribute('playsinline',''); video.setAttribute('muted','');
+const newEdits=()=>({removed:[],confirmed:[],added:[],start:[],top:null,startT:[],topT:null});
+const S={src:null,token:0,lastStill:null,model:null,tol:5,showMask:false,suggest:[],wall:null,frameH:640,
+  holds:[],edits:newEdits(),tracks:[],nextTrack:1,shift:[0,0],mask:false,
+  beta:null,betaSnap:null,step:0,anim:null,playing:null,mode:'pick',view:{dw:1,dh:1,dpr:1},
+  heightCm:store.get('height',170),wallM:4.2,userWallM:store.get('wallM',4.2),feet:store.get('feet','strict'),callout:false,cal:{floor:1,top:0,marked:false},
+  live:{raf:0,busy:false,last:0,stream:null,url:null,frames:0,fpsT:0,sig:'',sigT:0,solvedSig:'',solving:false,lastSug:0,statT:0,wake:null}};
+window.__betaLens=S;
+const isMoving=()=>!!S.src&&(S.src.kind==='video'||S.src.kind==='live');
+const aspect=()=>S.src?S.src.w/S.src.h:1;
+
+/* ---------- sample wall (with a green-painted panel that must NOT count as holds) ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function drawHold(g,x,y,r,col,rnd){
+  const k=10+Math.floor(rnd()*4),rot=rnd()*6.283,sx=0.82+rnd()*0.4,sy=0.82+rnd()*0.4,pts=[];
+  for(let i=0;i<k;i++){ const a=rot+i/k*6.283,rr=r*(0.8+rnd()*0.28); pts.push([x+Math.cos(a)*rr*sx,y+Math.sin(a)*rr*sy]); }
+  const path=(dx,dy)=>{ g.beginPath(); pts.forEach((p,i)=>i?g.lineTo(p[0]+dx,p[1]+dy):g.moveTo(p[0]+dx,p[1]+dy)); g.closePath(); };
+  path(2,3); g.fillStyle='rgba(0,0,0,0.16)'; g.fill();
+  path(0,0); g.fillStyle=col; g.fill();
+  const rg=g.createRadialGradient(x-r*0.35,y-r*0.4,r*0.1,x,y,r*1.25);
+  rg.addColorStop(0,'rgba(255,255,255,0.26)'); rg.addColorStop(0.55,'rgba(255,255,255,0)'); rg.addColorStop(1,'rgba(0,0,0,0.2)');
+  path(0,0); g.fillStyle=rg; g.fill();
+  g.beginPath(); g.arc(x+r*0.05,y,Math.max(1.4,r*0.11),0,6.283); g.fillStyle='rgba(25,25,25,0.7)'; g.fill();
+}
+const SK=900/420,ROUTE=[[110,35,4.2],[165,52,4.5],[120,140,8],[160,146,8],[95,95,4.6],[182,104,5],[105,205,7],[176,232,8],[140,178,4.2],[124,286,7],[196,300,6],[150,252,4.6],[110,344,7],[172,362,6.5],[140,396,10]];
+const SAMPLE_TAP=[(160*SK+30)/600,(900-146*SK)/900];
+function makeSampleWall(){
+  const W=600,Hh=900,c=document.createElement('canvas'); c.width=W; c.height=Hh;
+  const g=c.getContext('2d'),rnd=mulberry32(11);
+  const bg=g.createLinearGradient(0,0,0,Hh); bg.addColorStop(0,'#c9ced4'); bg.addColorStop(1,'#b3b9c0'); g.fillStyle=bg; g.fillRect(0,0,W,Hh);
+  g.fillStyle='#3d9c58'; g.beginPath(); g.moveTo(452,0); g.lineTo(600,0); g.lineTo(600,520); g.lineTo(500,560); g.closePath(); g.fill();
+  for(let i=0;i<14000;i++){ const v=rnd()<0.5?255:0; g.fillStyle=`rgba(${v},${v},${v},0.05)`; g.fillRect(rnd()*W,rnd()*Hh,1.6,1.6); }
+  g.strokeStyle='rgba(60,66,74,0.35)'; g.lineWidth=1.5;
+  for(const x of [200,400]){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,Hh); g.stroke(); }
+  for(const y of [300,600]){ g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
+  g.fillStyle='rgba(40,44,50,0.5)';
+  for(let y=22;y<Hh;y+=43) for(let x=22;x<W;x+=43){ g.beginPath(); g.arc(x+(Math.floor(y/43)%2?21:0),y,1.6,0,6.283); g.fill(); }
+  g.fillStyle='rgba(150,156,163,0.95)'; g.beginPath(); g.moveTo(330,560); g.lineTo(450,520); g.lineTo(420,640); g.closePath(); g.fill();
+  g.fillStyle='rgba(120,126,134,0.7)'; g.beginPath(); g.moveTo(420,640); g.lineTo(450,520); g.lineTo(468,620); g.closePath(); g.fill();
+  const routeCol='#2fa84f',others=['#f2c12e','#2d6fd8','#d8383b','#8a4dcc','#f07b22','#ee62a6','#24262a'];
+  const taken=ROUTE.map(([X,Y,r])=>[X*SK+30,Hh-Y*SK,r*SK]);
+  for(const [x,y] of taken){ const cg=g.createRadialGradient(x,y,2,x,y,26); cg.addColorStop(0,'rgba(255,255,255,0.22)'); cg.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=cg; g.fillRect(x-28,y-28,56,56); }
+  const placed=[]; let tries=0;
+  while(placed.length<50&&tries<4000){
+    tries++;
+    const x=20+rnd()*(W-40),y=20+rnd()*(Hh-50),r=(4+rnd()*8)*SK*(rnd()<0.12?1.6:1);
+    if(taken.concat(placed).some(p=>Math.hypot(p[0]-x,p[1]-y)<p[2]+r+10)) continue;
+    placed.push([x,y,r,others[Math.floor(rnd()*others.length)]]);
+  }
+  for(const p of placed) drawHold(g,p[0],p[1],p[2],p[3],rnd);
+  for(const [x,y,r] of taken) drawHold(g,x,y,r,routeCol,rnd);
+  for(const i of [2,3]){
+    const [x,y,r]=taken[i];
+    g.save(); g.translate(x,y+r+12); g.rotate(-0.05+rnd()*0.1);
+    g.fillStyle='#f7f3e8'; g.fillRect(-16,-6,32,12);
+    g.fillStyle='#2b2b2b'; g.font='bold 9px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('V1',0,1);
+    g.restore();
+  }
+  return c;
+}
+
+/* ---------- sources: sample, photo, recorded clip, live camera ---------- */
+function setSource(src,opt){
+  opt=opt||{};
+  stopPlay();
+  if(!opt.keepVideo) stopMedia();
+  S.src=src; S.token++;
+  if(src.kind==='photo'||src.kind==='sample') S.lastStill=src;
+  S.holds=[]; S.tracks=[]; S.shift=[0,0]; S.mask=false; S.beta=null; S.betaSnap=null; S.step=0; S.anim=null;
+  S.edits=opt.edits||newEdits();
+  if(!opt.keepModel) S.model=null;
+  S.suggest=[];
+  S.wallM=src.kind==='sample'?4.2:S.userWallM; $('#wallM').value=S.wallM;
+  if(!opt.keepCal) S.cal={floor:1,top:0,marked:false};
+  updateMarkUi();
+  $('#badge').hidden=src.kind!=='sample';
+  $('#liveTag').hidden=!isMoving(); $('#liveTxt').textContent=src.kind==='live'?'Live':'Clip';
+  $('#vbar').hidden=!isMoving();
+  $('#vSeek').hidden=src.kind!=='video'; $('#vPlay').hidden=src.kind!=='video';
+  $('#vStop').textContent=src.kind==='live'?'Stop camera':'Close clip';
+  setMode('pick');
+  fit(); renderChips(); updateStats(); renderBeta();
+  if(opt.reveal!==false&&S.token>1){ const r=wrap.getBoundingClientRect(); if(r.top<0||r.top>window.innerHeight*0.5) wrap.scrollIntoView({block:'start',behavior:reduceMotion?'auto':'smooth'}); }
+  if(isMoving()){
+    const L=S.live; Object.assign(L,{busy:false,last:0,sig:'',sigT:0,solvedSig:'',solving:false,lastSug:0,frames:0,fpsT:performance.now()});
+    cancelAnimationFrame(L.raf); L.raf=requestAnimationFrame(loop);
+    if(S.model) setCaption('Reading the wall','Hold the phone steady for a second. The moves appear once the holds stop moving.',[]);
+    else setCaption('Pick a route colour','Tap one hold of your route on the picture.',[]);
+    keepAwake(true);
+  }else{
+    keepAwake(false);
+    if(!S.model) setCaption('Pick a route colour','Tap one hold of your route on the picture. Beta Lens learns that exact colour.',[]);
+    analysePhoto(true);
+  }
+}
+function stopMedia(){
+  const L=S.live;
+  cancelAnimationFrame(L.raf); L.raf=0;
+  if(L.stream){ L.stream.getTracks().forEach(t=>t.stop()); L.stream=null; }
+  try{ video.pause(); }catch(e){}
+  video.srcObject=null; video.removeAttribute('src');
+  try{ video.load(); }catch(e){}
+  if(L.url){ URL.revokeObjectURL(L.url); L.url=null; }
+}
+async function keepAwake(on){
+  const L=S.live;
+  try{
+    if(on&&!L.wake&&navigator.wakeLock) L.wake=await navigator.wakeLock.request('screen');
+    if(!on&&L.wake){ L.wake.release(); L.wake=null; }
+  }catch(e){ L.wake=null; }
+}
+function waitVideo(){
+  return new Promise(res=>{ const t0=performance.now(); (function chk(){ if(video.videoWidth>0&&video.readyState>=2) return res(true); if(performance.now()-t0>7000) return res(false); requestAnimationFrame(chk); })(); });
+}
+function loadFile(file){
+  if(!file) return;
+  if(/^video\//.test(file.type)) return loadVideo(file);
+  if(!/^image\//.test(file.type)){ toast('That file is not a photo or video. Choose a JPEG, PNG or MP4.'); return; }
+  const fr=new FileReader();
+  fr.onload=()=>{ const im=new Image(); im.onload=()=>setSource({kind:'photo',el:im,w:im.naturalWidth,h:im.naturalHeight},{keepModel:false}); im.onerror=()=>toast('This photo could not be opened. Try a JPEG or PNG.'); im.src=fr.result; };
+  fr.readAsDataURL(file);
+}
+async function loadVideo(file){
+  stopMedia();
+  const url=URL.createObjectURL(file); S.live.url=url;
+  video.loop=true; video.src=url;
+  busy('Opening clip…');
+  try{ await video.play(); }catch(e){}
+  const ok=await waitVideo(); busy(false);
+  if(!ok){ stopMedia(); toast('This clip could not be played here. Try a short MP4, or take a photo instead.'); return; }
+  setSource({kind:'video',el:video,w:video.videoWidth,h:video.videoHeight},{keepModel:true,keepVideo:true});
+  setVPlayIcon();
+}
+async function startCamera(){
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){ toast('This browser can\'t open the camera here. Open the page over https in Chrome or Safari.'); return; }
+  busy('Starting camera…');
+  let stream;
+  try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false}); }
+  catch(e){
+    busy(false);
+    const n=e&&e.name;
+    toast(n==='NotAllowedError'||n==='SecurityError'?'Camera access was blocked. Allow the camera for this page in your browser settings, then try again.':n==='NotFoundError'||n==='OverconstrainedError'?'No camera was found on this device.':'The camera could not start. Close other apps that use it and try again.');
+    return;
+  }
+  stopMedia();
+  S.live.stream=stream; video.loop=false; video.srcObject=stream;
+  try{ await video.play(); }catch(e){}
+  const ok=await waitVideo(); busy(false);
+  if(!ok){ stopMedia(); toast('The camera started but sent no picture. Try again.'); return; }
+  setSource({kind:'live',el:video,w:video.videoWidth,h:video.videoHeight},{keepModel:true,keepVideo:true});
+}
+function freeze(){
+  if(!isMoving()||!video.videoWidth) return;
+  const sw=video.videoWidth,sh=video.videoHeight,sc=Math.min(1,1600/Math.max(sw,sh));
+  const c=document.createElement('canvas'); c.width=Math.round(sw*sc); c.height=Math.round(sh*sc);
+  c.getContext('2d').drawImage(video,0,0,c.width,c.height);
+  const E=newEdits();
+  for(const t of S.tracks){
+    if(t.removed) E.removed.push({u:t.u,v:t.v});
+    if(t.userOk) E.confirmed.push({u:t.u,v:t.v});
+    if(S.edits.startT.includes(t.id)) E.start.push({u:t.u,v:t.v});
+    if(S.edits.topT===t.id) E.top={u:t.u,v:t.v};
+  }
+  stopMedia();
+  setSource({kind:'photo',el:c,w:c.width,h:c.height},{keepModel:true,edits:E,keepCal:true});
+  toast('Frame frozen. You can now add or remove holds.');
+}
+$('#fileCam').addEventListener('change',e=>{ loadFile(e.target.files[0]); e.target.value=''; });
+$('#fileVid').addEventListener('change',e=>{ loadFile(e.target.files[0]); e.target.value=''; });
+$('#fileUp').addEventListener('change',e=>{ loadFile(e.target.files[0]); e.target.value=''; });
+$('#useSample').addEventListener('click',()=>setSource({kind:'sample',el:makeSampleWall(),w:600,h:900}));
+$('#goLive').addEventListener('click',startCamera);
+$('#vFreeze').addEventListener('click',freeze);
+$('#vStop').addEventListener('click',()=>{ stopMedia(); keepAwake(false); setSource(S.lastStill||{kind:'sample',el:makeSampleWall(),w:600,h:900},{keepModel:true}); });
+function setVPlayIcon(){
+  const p=$('#vPlay'),paused=video.paused;
+  p.setAttribute('aria-label',paused?'Play video':'Pause video');
+  p.querySelector('path').setAttribute('d',paused?'M7 4.5v15l13-7.5z':'M6 4.5h4v15H6zM14 4.5h4v15h-4z');
+}
+$('#vPlay').addEventListener('click',()=>{ if(video.paused) video.play().catch(()=>{}); else video.pause(); setTimeout(setVPlayIcon,0); });
+$('#vSeek').addEventListener('input',e=>{ if(video.duration) video.currentTime=e.target.value/1000*video.duration; });
+wrap.addEventListener('dragover',e=>{ e.preventDefault(); wrap.classList.add('drag'); });
+wrap.addEventListener('dragleave',()=>wrap.classList.remove('drag'));
+wrap.addEventListener('drop',e=>{ e.preventDefault(); wrap.classList.remove('drag'); const f=e.dataTransfer&&e.dataTransfer.files[0]; if(f) loadFile(f); });
+document.addEventListener('paste',e=>{ const f=e.clipboardData&&e.clipboardData.files&&e.clipboardData.files[0]; if(f) loadFile(f); });
+
+/* ---------- reading the wall ---------- */
+function grabFrame(el,maxSide){
+  const sw=el.videoWidth||el.naturalWidth||el.width,sh=el.videoHeight||el.naturalHeight||el.height;
+  const sc=Math.min(1,maxSide/Math.max(sw,sh)),w=Math.max(1,Math.round(sw*sc)),h=Math.max(1,Math.round(sh*sc));
+  if(grab.width!==w||grab.height!==h){ grab.width=w; grab.height=h; }
+  gctx.drawImage(el,0,0,w,h);
+  return {buf:gctx.getImageData(0,0,w,h).data.buffer,w,h};
+}
+/* Height units (fractions of the picture height) per cm of real wall. */
+const kU=()=>(S.cal.floor-S.cal.top)/(S.wallM*100);
+const pxPerCmFor=h=>h*kU();
+async function analysePhoto(withSuggest){
+  const src=S.src,tok=S.token;
+  if(!src||isMoving()) return;
+  busy('Reading the wall…');
+  const f=grabFrame(src.el,640); S.frameH=f.h;
+  const r=await vision.call({t:'frame',tag:tok,buf:f.buf,w:f.w,h:f.h,model:S.model,tol:S.tol,mask:S.showMask,pxPerCm:pxPerCmFor(f.h),refine:true,suggest:withSuggest},[f.buf]);
+  busy(false);
+  if(tok!==S.token) return;
+  onPhotoResult(r);
+  if(src.kind==='sample'&&!S.model) pickAt(SAMPLE_TAP[0],SAMPLE_TAP[1],true);
+}
+async function reclassify(){
+  if(!S.src||isMoving()) return;
+  if(!S.model){ S.holds=[]; S.mask=false; updateStats(); render(); return; }
+  const tok=S.token;
+  busy('Matching colour…');
+  const r=await vision.call({t:'classify',tag:tok,model:S.model,tol:S.tol,mask:S.showMask,pxPerCm:pxPerCmFor(S.frameH),refine:true});
+  busy(false);
+  if(tok!==S.token) return;
+  if(r.error==='noframe'){ analysePhoto(false); return; }
+  onPhotoResult(r);
+}
+function onPhotoResult(r){
+  if(r.error){ toast('Something went wrong reading this picture. Try another photo.'); return; }
+  S.wall=r.wall;
+  if(r.suggest){ S.suggest=r.suggest; renderChips(); }
+  setMask(r.mask||null,r.w,r.h);
+  S.holds=(r.blobs||[]).map((b,i)=>({id:i+1,u:b.x/r.w,v:b.y/r.h,rho:b.r/r.h,conf:b.conf,status:b.status,reason:b.reason,elong:b.elong,angle:b.angle}));
+  applyEdits();
+  updateStats(); render();
+  if(S.model) solveSoon(); else { S.beta=null; renderBeta(); }
+}
+async function pickAt(u,v,quiet,retry){
+  const tok=S.token;
+  const r=await vision.call({t:'pick',tag:tok,u,v});
+  if(tok!==S.token) return;
+  if(r.error==='noframe'){
+    if(!isMoving()&&!retry){ await analysePhoto(false); return pickAt(u,v,quiet,true); }
+    toast('Hold the camera still for a moment, then tap again.'); return;
+  }
+  if(!r.model){ if(!quiet) toast('That spot looks like bare wall. Tap the middle of a coloured hold.'); return; }
+  r.model.tapped=true;
+  S.model=r.model;
+  renderChips();
+  if(isMoving()){ S.tracks=[]; S.beta=null; S.live.solvedSig=''; renderBeta(); setCaption('Reading the wall','Hold the phone steady for a second. The moves appear once the holds stop moving.',[]); }
+  else reclassify();
+}
+
+/* Live / clip: analyse frames in the worker while the picture keeps playing. */
+function loop(t){
+  const L=S.live;
+  if(!isMoving()) return;
+  L.raf=requestAnimationFrame(loop);
+  if(video.videoWidth&&(video.videoWidth!==S.src.w||video.videoHeight!==S.src.h)){ S.src.w=video.videoWidth; S.src.h=video.videoHeight; fit(); }
+  if(video.readyState>=2&&!L.busy&&t-L.last>(S.model?70:260)) sendLive();
+  if(S.src.kind==='video'&&video.duration) $('#vSeek').value=Math.round(video.currentTime/video.duration*1000);
+  render();
+}
+async function sendLive(){
+  const L=S.live,tok=S.token;
+  L.busy=true; L.last=performance.now();
+  let f;
+  try{ f=grabFrame(video,400); }catch(e){ L.busy=false; return; }
+  const now=performance.now(),sug=!S.model&&now-L.lastSug>2500;
+  if(sug) L.lastSug=now;
+  const r=await vision.call({t:'frame',tag:tok,buf:f.buf,w:f.w,h:f.h,model:S.model,tol:S.tol,mask:S.showMask&&!!S.model,pxPerCm:pxPerCmFor(f.h),refine:false,suggest:sug},[f.buf]);
+  L.busy=false;
+  if(tok!==S.token||!isMoving()||r.error) return;
+  L.frames++;
+  const t2=performance.now();
+  if(t2-L.fpsT>1000){ $('#liveTxt').textContent=(S.src.kind==='live'?'Live':'Clip')+' · '+Math.round(L.frames*1000/(t2-L.fpsT))+' scans/s'; L.frames=0; L.fpsT=t2; }
+  S.wall=r.wall;
+  if(r.suggest){ S.suggest=r.suggest; renderChips(); }
+  if(S.model&&r.blobs){ setMask(r.mask||null,r.w,r.h); updateTracks(r.blobs,r.w,r.h); checkLiveSolve(); }
+  if(t2-L.statT>300){ L.statT=t2; updateStats(); }
+}
+/* Follow holds between frames so they don't flicker: match each new blob to
+   the nearest known hold, keep a running average, drop holds that vanish. */
+function updateTracks(blobs,w,h){
+  const a=w/h,cand=blobs.filter(b=>b.status!=='rejected').map(b=>({u:b.x/w,v:b.y/h,rho:b.r/h,conf:b.conf,elong:b.elong,angle:b.angle,used:false}));
+  const T=S.tracks,pairs=[];
+  for(const t of T){ t.pu=t.u+S.shift[0]; t.pv=t.v+S.shift[1]; t.m=null; }
+  for(const t of T) for(const c of cand){ const d=Math.hypot((t.pu-c.u)*a,t.pv-c.v); if(d<Math.max(0.03,2.2*Math.max(t.rho,c.rho))) pairs.push([d,t,c]); }
+  pairs.sort((p,q)=>p[0]-q[0]);
+  const du=[],dv=[];
+  for(const [,t,c] of pairs){ if(t.m||c.used) continue; t.m=c; c.used=true; du.push(c.u-t.u); dv.push(c.v-t.v); }
+  const med=v=>{ if(!v.length) return 0; const s=v.slice().sort((p,q)=>p-q); return s[s.length>>1]; };
+  S.shift=[med(du)*0.8,med(dv)*0.8];
+  const keep=[];
+  for(const t of T){
+    if(t.m){ const c=t.m; t.u=t.pu+(c.u-t.pu)*0.7; t.v=t.pv+(c.v-t.pv)*0.7; t.rho=t.rho*0.7+c.rho*0.3; t.conf=t.conf*0.65+c.conf*0.35; t.elong=c.elong; t.angle=c.angle; t.hits++; t.miss=0; }
+    else { t.u=t.pu; t.v=t.pv; t.miss++; }
+    t.status=t.conf>=0.5?'hold':t.conf>=0.33?'unsure':'rejected';
+    if(t.miss<=(t.hits>=4?7:2)&&t.u>-0.1&&t.u<1.1&&t.v>-0.1&&t.v<1.1) keep.push(t);
+  }
+  for(const c of cand) if(!c.used) keep.push({id:S.nextTrack++,u:c.u,v:c.v,rho:c.rho,conf:c.conf,elong:c.elong,angle:c.angle,hits:1,miss:0,status:c.conf>=0.5?'hold':c.conf>=0.33?'unsure':'rejected'});
+  S.tracks=keep;
+}
+function checkLiveSolve(){
+  const L=S.live,act=activeHolds(),sig=act.map(t=>t.id).sort((p,q)=>p-q).join(','),now=performance.now();
+  if(sig!==L.sig){ L.sig=sig; L.sigT=now; }
+  if(S.playing||L.solving||act.length<2) return;
+  if(sig!==L.solvedSig&&now-L.sigT>800){ L.solvedSig=sig; solveNow(true); }
+}
+
+/* ---------- holds, edits ---------- */
+function nearPos(h,p){ return Math.hypot((h.u-p.u)*aspect(),h.v-p.v)<Math.max(h.rho,0.01)*1.3; }
+function applyEdits(){
+  const E=S.edits;
+  S.holds=S.holds.filter(h=>!h.manual);
+  for(const h of S.holds){ h.removed=E.removed.some(p=>nearPos(h,p)); h.userOk=E.confirmed.some(p=>nearPos(h,p)); }
+  E.added.forEach((p,k)=>S.holds.push({id:5000+k,u:p.u,v:p.v,rho:p.rho,conf:1,status:'hold',manual:true,elong:1,angle:0}));
+}
+const isActive=h=>!h.removed&&(h.manual||h.userOk||h.status==='hold');
+function currentHolds(){ return isMoving()?S.tracks.filter(t=>t.hits>=3&&t.miss<=2):S.holds; }
+function onWall(h){ return h.v<=S.cal.floor+0.005&&h.v>=S.cal.top-0.02; }
+function activeHolds(){ return currentHolds().filter(h=>isActive(h)&&onWall(h)); }
+function isStart(h){ return isMoving()?S.edits.startT.includes(h.id):S.edits.start.some(p=>nearPos(h,p)); }
+function hitHold(x,y){
+  let best=null,bd=Infinity;
+  for(const h of currentHolds()){ if(h.removed) continue; const [hx,hy]=P(h.u,h.v),d=Math.hypot(hx-x,hy-y); if(d<h.rho*S.view.dh+12&&d<bd){ bd=d; best=h; } }
+  return best;
+}
+
+/* ---------- solving ---------- */
+let solveT=0;
+function solveSoon(){ if(isMoving()){ S.live.solvedSig=''; S.live.sigT=0; return; } clearTimeout(solveT); solveT=setTimeout(()=>solveNow(false),60); }
+async function solveNow(live){
+  stopPlay();
+  const act=activeHolds(),tok=S.token;
+  if(act.length<2){
+    S.beta=null; renderBeta(); render();
+    if(S.model&&!live) setCaption('Not enough holds','Beta Lens needs at least two holds of the route colour. Move the colour slider toward Loose, or tap a hold again.',[]);
+    return;
+  }
+  const k=kU(),a=aspect(),fl=S.cal.floor;
+  const holds=act.map(h=>({id:h.id,X:h.u*a/k,Y:(fl-h.v)/k,r:h.rho/k}));
+  const nearestId=p=>{ let b=null,bd=1e9; for(const h of act){ const d=Math.hypot((h.u-p.u)*a,h.v-p.v); if(d<bd){ bd=d; b=h; } } return b&&bd<0.06?b.id:null; };
+  const startIds=live?S.edits.startT.filter(id=>act.some(h=>h.id===id)):S.edits.start.map(nearestId).filter(x=>x!=null);
+  const topId=live?(act.some(h=>h.id===S.edits.topT)?S.edits.topT:null):(S.edits.top?nearestId(S.edits.top):null);
+  const snap=new Map(act.map(h=>[h.id,{u:h.u,v:h.v}]));
+  if(live) S.live.solving=true; else busy('Working out your moves…');
+  const res=await solver.call({holds,o:{H:S.heightCm,feet:S.feet,startIds,topId}});
+  if(live) S.live.solving=false; else busy(false);
+  if(tok!==S.token) return;
+  if(!res||!res.steps){
+    S.beta=null; renderBeta(res); render();
+    setCaption('No starting position found','None of the low holds can be reached from the floor at your height. Use Set start to tap your start holds, or check Wall in view.',[]);
+    return;
+  }
+  const meta=new Map(act.map(h=>[h.id,{rCm:h.rho/kU(),elong:h.elong||1,angle:h.angle||0}]));
+  S.beta=buildBeta(res,meta); S.betaSnap=snap; S.step=0; S.anim=null;
+  renderBeta(); showStep(0,false);
+}
+
+/* ---------- beta panel + player ---------- */
+function renderBeta(failRes){
+  const sum=$('#betaSum'),warn=$('#betaWarn'),list=$('#moves');
+  list.textContent=''; warn.hidden=true;
+  const b=S.beta;
+  if(!b){ sum.textContent=S.model?(failRes?'No route found from the floor.':(isMoving()?'Hold steady while the holds are found.':'Waiting for holds.')):'Choose a route colour to see the moves.'; updateCount(); return; }
+  sum.textContent=`${b.hands} hand moves and ${b.feet} foot moves to the top${b.crux>0?`. Crux: move ${b.crux}.`:'.'}`;
+  if(!b.ok){
+    const last=b.res.steps[b.res.steps.length-1],y=Math.max(b.res.pts[last.lh].Y,b.res.pts[last.rh].Y);
+    sum.textContent=`${b.hands} hand moves and ${b.feet} foot moves before getting stuck.`;
+    warn.hidden=false;
+    warn.textContent=`Stuck at about ${(y/100).toFixed(1)} m: the next hold is out of reach for ${S.heightCm} cm, or a hold wasn't found. Try Open feet, a looser colour match, or add the missing hold with Add / remove.`;
+  }
+  b.steps.forEach((s,i)=>{
+    const li=document.createElement('li'),bt=document.createElement('button');
+    bt.type='button';
+    const k=document.createElement('span'); k.className='k'; k.textContent=i===0?'S':i;
+    const d=document.createElement('i'); d.className='dot'+(s.limb&&s.limb[1]==='f'?' foot':'');
+    d.style.background=s.limb?LIMBCOL[s.limb]:'var(--muted)';
+    const t=document.createElement('span'); t.className='t'; t.textContent=s.list;
+    bt.append(k,d,t);
+    if(s.crux){ const c=document.createElement('span'); c.className='crux'; c.textContent='Crux'; bt.append(c); } else bt.append(document.createElement('span'));
+    bt.addEventListener('click',()=>{ stopPlay(); showStep(i,true); });
+    li.append(bt); list.append(li);
+  });
+}
+function updateCount(){
+  const b=S.beta;
+  $('#count').textContent=b?(S.step===0?`Start · ${b.steps.length-1} moves`:`Move ${S.step} of ${b.steps.length-1}`):'—';
+  $('#prev').disabled=!b||S.step===0;
+  $('#next').disabled=!b||S.step>=b.steps.length-1;
+  $('#play').disabled=!b;
+}
+function setCaption(title,sub,tips,crux){
+  const h=$('#capTitle'); h.textContent=title;
+  if(crux){ const c=document.createElement('span'); c.className='crux'; c.textContent='Crux'; h.append(c); }
+  $('#capSub').textContent=sub;
+  const ul=$('#capTips'); ul.textContent='';
+  for(const t of tips){ const li=document.createElement('li'); li.textContent=t; ul.append(li); }
+}
+function speak(text){
+  if(!S.callout||!('speechSynthesis' in window)) return;
+  try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text.replace(/→/g,' to ')); u.rate=1.03; speechSynthesis.speak(u); }catch(e){}
+}
+function showStep(i,animate){
+  const b=S.beta; if(!b) return;
+  i=Math.max(0,Math.min(b.steps.length-1,i));
+  const fromPos=S.anim?currentPos():b.steps[Math.min(S.step,b.steps.length-1)].pos;
+  S.step=i;
+  const s=b.steps[i];
+  setCaption(s.title,s.sub,s.tips,s.crux);
+  const list=$('#moves'),items=list.children;
+  for(let k=0;k<items.length;k++){
+    const bt=items[k].firstChild;
+    if(k!==i){ bt.removeAttribute('aria-current'); continue; }
+    bt.setAttribute('aria-current','step');
+    const top=bt.offsetTop,bot=top+bt.offsetHeight;
+    if(top<list.scrollTop) list.scrollTop=top; else if(bot>list.scrollTop+list.clientHeight) list.scrollTop=bot-list.clientHeight;
+  }
+  updateCount();
+  if(animate) speak(s.title);
+  if(animate&&!reduceMotion){ S.anim={from:fromPos,to:s.pos,t0:performance.now(),dur:520}; if(!isMoving()) requestAnimationFrame(tick); }
+  else { S.anim=null; if(!isMoving()) render(); }
+}
+function tick(){ if(!S.anim) return; render(); if(performance.now()-S.anim.t0<S.anim.dur) requestAnimationFrame(tick); else { S.anim=null; render(); } }
+function flagPos(limb,C){ const H=S.beta.res.H,sd=limb==='lf'?-1:1; return [C[0]+sd*0.4*H,C[1]-0.16*H]; }
+const lerp=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+function currentPos(){
+  const s=S.beta.steps[S.step].pos;
+  if(!S.anim) return s;
+  const {from,to,t0,dur}=S.anim;
+  let t=Math.min(1,(performance.now()-t0)/dur); t=t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+  if(t>=1&&isMoving()) S.anim=null;
+  const o={C:lerp(from.C,to.C,t)};
+  for(const k of ['lh','rh','lf','rf']){ const a=from[k]||flagPos(k,from.C),b=to[k]||flagPos(k,to.C); o[k]=(!to[k]&&t>=1)?null:lerp(a,b,t); }
+  return o;
+}
+$('#prev').addEventListener('click',()=>{ stopPlay(); showStep(S.step-1,true); });
+$('#next').addEventListener('click',()=>{ stopPlay(); showStep(S.step+1,true); });
+$('#play').addEventListener('click',()=>{ if(S.playing){ stopPlay(); return; } startPlay(); });
+function startPlay(){
+  const b=S.beta; if(!b) return;
+  if(S.step>=b.steps.length-1) showStep(0,false);
+  setPlayBtn(true);
+  S.playing=setInterval(()=>{ if(!S.beta||S.step>=S.beta.steps.length-1){ stopPlay(); return; } showStep(S.step+1,true); },S.callout?2600:1900);
+}
+function stopPlay(){ if(S.playing){ clearInterval(S.playing); S.playing=null; } setPlayBtn(false); }
+function setPlayBtn(on){
+  const p=$('#play');
+  p.querySelector('span').textContent=on?'Pause':'Play moves';
+  p.querySelector('path').setAttribute('d',on?'M6 4.5h4v15H6zM14 4.5h4v15h-4z':'M7 4.5v15l13-7.5z');
+}
+document.addEventListener('keydown',e=>{
+  if($('#view-wall').hidden) return;
+  if(/INPUT|SELECT|TEXTAREA/.test((e.target&&e.target.tagName)||'')) return;
+  if(e.key==='ArrowRight'){ stopPlay(); showStep(S.step+1,true); e.preventDefault(); }
+  if(e.key==='ArrowLeft'){ stopPlay(); showStep(S.step-1,true); e.preventDefault(); }
+});
+
+/* ---------- colour chips + controls ---------- */
+const sameModel=(a,b)=>a===b||(!!a&&!!b&&a.achro===b.achro&&Math.abs(a.mean[0]-b.mean[0])<4&&Math.abs(a.mean[1]-b.mean[1])<3&&Math.abs(a.mean[2]-b.mean[2])<3);
+function renderChips(){
+  const box=$('#chips'); box.textContent='';
+  const rank=m=>m.achro?2:/brown|beige/.test(m.name)?1:0;
+  const list=S.suggest.slice().sort((p,q)=>rank(p)-rank(q)||(q.count||0)-(p.count||0)).slice(0,7);
+  const cur=S.model;
+  if(cur&&!list.some(m=>sameModel(m,cur))) list.unshift(cur);
+  if(!list.length){ const p=document.createElement('p'); p.className='hint'; p.textContent=S.src?(isMoving()?'Looking for hold colours…':'No clear hold colours yet. Tap a hold on the picture.'):''; box.append(p); return; }
+  for(const m of list){
+    const b=document.createElement('button'); b.className='chip'; b.type='button';
+    b.setAttribute('aria-pressed',String(!!cur&&sameModel(m,cur)));
+    const sw=document.createElement('span'); sw.className='sw'; sw.style.background=m.css;
+    b.append(sw,document.createTextNode(m.tapped?m.name+' (tapped)':m.name));
+    if(m.count){ const c=document.createElement('span'); c.className='ct'; c.textContent='· '+m.count; b.append(c); }
+    b.addEventListener('click',()=>chooseModel(m));
+    box.append(b);
+  }
+}
+function chooseModel(m){
+  S.model=m; renderChips();
+  if(isMoving()){ S.tracks=[]; S.beta=null; S.live.solvedSig=''; renderBeta(); }
+  else reclassify();
+}
+let tolT=0;
+$('#tol').addEventListener('input',e=>{ S.tol=+e.target.value; $('#tolVal').textContent=S.tol; clearTimeout(tolT); tolT=setTimeout(()=>{ if(!isMoving()) reclassify(); },180); });
+$('#showMask').addEventListener('change',e=>{ S.showMask=e.target.checked; $('#maskKey').hidden=!S.showMask; if(!S.showMask){ S.mask=false; render(); } if(!isMoving()) reclassify(); });
+function setMask(arr,w,h){
+  if(!arr||!S.showMask){ S.mask=false; return; }
+  if(maskCv.width!==w||maskCv.height!==h){ maskCv.width=w; maskCv.height=h; }
+  const mc=maskCv.getContext('2d'),img=mc.createImageData(w,h),d=img.data;
+  for(let i=0,j=0;i<arr.length;i++,j+=4){
+    const c=arr[i];
+    if(c===1) continue;
+    if(c===2){ d[j]=255; d[j+1]=50; d[j+2]=50; d[j+3]=170; }
+    else if(c===3){ d[j]=255; d[j+1]=40; d[j+2]=210; d[j+3]=160; }
+    else if(c===4){ d[j]=255; d[j+1]=190; d[j+2]=11; d[j+3]=170; }
+    else { d[j]=8; d[j+1]=10; d[j+2]=12; d[j+3]=150; }
+  }
+  mc.putImageData(img,0,0); S.mask=true;
+}
+function updateStats(){
+  const st=$('#holdStat'),wn=$('#holdWarn');
+  if(!S.model){ st.textContent=S.src?'Tap a hold of your route to start.':'—'; wn.hidden=true; return; }
+  const hs=currentHolds(),act=hs.filter(isActive).length,uns=hs.filter(h=>!isActive(h)&&!h.removed&&h.status==='unsure').length;
+  st.textContent='';
+  const b=document.createElement('b'); b.textContent=act;
+  st.append(b,document.createTextNode(` ${S.model.name} hold${act===1?'':'s'} ${isMoving()?'tracked':'found'}${uns?` · ${uns} unsure (dashed amber)`:''}${S.wall?` · wall looks ${S.wall.name}`:''}`));
+  let msg='';
+  if(S.wall&&S.model){ const w=S.wall,m=S.model.mean,d=Math.hypot(0.5*(w.L-m[0]),w.a-m[1],w.b-m[2]); if(d<16) msg='This colour is close to the wall\'s own colour, so holds that blend in can be missed. Check the dashed ones.'; }
+  if(!act&&!isMoving()) msg='No holds of this colour stand out from the wall. Tap a hold again, or move the slider toward Loose.';
+  else if(act>45) msg='A lot of matches. Move the slider toward Strict, or turn on Show what matched to see what is being picked up.';
+  wn.hidden=!msg; wn.textContent=msg;
+}
+const heightEl=$('#height'),wallEl=$('#wallM'),feetEl=$('#feet');
+heightEl.value=S.heightCm; feetEl.value=S.feet;
+heightEl.addEventListener('change',()=>{ const v=Math.max(110,Math.min(215,+heightEl.value||170)); heightEl.value=v; S.heightCm=v; store.set('height',v); solveSoon(); });
+wallEl.addEventListener('change',()=>{ const v=Math.max(1.5,Math.min(9,+wallEl.value||4)); wallEl.value=v; S.wallM=v; if(S.src&&S.src.kind!=='sample'){ S.userWallM=v; store.set('wallM',v); } solveSoon(); });
+feetEl.addEventListener('change',()=>{ S.feet=feetEl.value; store.set('feet',S.feet); solveSoon(); });
+$('#callout').addEventListener('change',e=>{ S.callout=e.target.checked; if(S.callout&&S.beta) speak(S.beta.steps[S.step].title); });
+const MODEHINT={floor:'Tap where the wall meets the floor or mat.',walltop:'Now tap the top edge of the wall.',pick:'Tap a hold to use its colour as the route.',edit:'Tap a ringed hold to remove it, tap a dashed amber one to keep it, or tap an empty spot to add a missed hold.',start:'Tap one or two holds to fix the start. Tap a chosen hold again to unset it.',top:'Tap the hold that marks the finish.'};
+function setMode(m){
+  S.mode=m;
+  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===m)));
+  $('#modeHint').textContent=MODEHINT[m]+(isMoving()&&m==='edit'?' To add holds, freeze the frame first.':'');
+  if(S.src&&!isMoving()) render();
+}
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+function updateMarkUi(){
+  const m=S.cal.marked;
+  $('#clearMarks').hidden=!m;
+  $('#markWall').textContent=m?'Mark again':'Mark wall bottom and top';
+  $('#markHint').textContent=m?'Holds below the floor line or above the top line are ignored.':'Without marks, the whole picture counts as the wall: bottom edge is the floor, top edge is the top of the wall.';
+}
+$('#markWall').addEventListener('click',()=>{
+  if(!S.src) return;
+  setMode('floor');
+  const r=wrap.getBoundingClientRect(); if(r.top<0||r.bottom>window.innerHeight) wrap.scrollIntoView({block:'start',behavior:reduceMotion?'auto':'smooth'});
+  toast('Tap where the wall meets the floor or mat.');
+});
+$('#clearMarks').addEventListener('click',()=>{ S.cal={floor:1,top:0,marked:false}; updateMarkUi(); if(!isMoving()) render(); solveSoon(); });
+cv.addEventListener('click',e=>{
+  if(!S.src) return;
+  const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,u=x/S.view.dw,v=y/S.view.dh;
+  if(S.mode==='floor'){
+    S.cal.floor=Math.max(0.2,Math.min(1,v)); S.cal.marked=true;
+    if(S.cal.top>=S.cal.floor-0.1) S.cal.top=0;
+    setMode('walltop'); toast('Now tap the top edge of the wall.'); render(); return;
+  }
+  if(S.mode==='walltop'){
+    if(v>=S.cal.floor-0.08){ toast('Tap above the floor line.'); return; }
+    S.cal.top=Math.max(0,v); S.cal.marked=true;
+    setMode('pick'); updateMarkUi(); toast('Wall marked'); render(); solveSoon(); return;
+  }
+  if(S.mode==='pick'){ pickAt(u,v); return; }
+  if(!S.model){ toast('Pick a route colour first.'); return; }
+  const h=hitHold(x,y);
+  if(S.mode==='edit'){
+    if(isMoving()){
+      if(!h){ toast('Freeze the frame to add a missed hold.'); return; }
+      if(isActive(h)){ h.removed=true; h.userOk=false; toast('Hold removed'); } else { h.userOk=true; h.removed=false; toast('Hold kept'); }
+      updateStats(); solveSoon(); return;
+    }
+    const E=S.edits;
+    if(h){
+      if(isActive(h)){
+        E.confirmed=E.confirmed.filter(p=>!nearPos(h,p));
+        if(h.manual) E.added=E.added.filter(p=>!nearPos(h,p)); else E.removed.push({u:h.u,v:h.v});
+        toast('Hold removed');
+      }else{ E.confirmed.push({u:h.u,v:h.v}); E.removed=E.removed.filter(p=>!nearPos(h,p)); toast('Hold kept'); }
+    }else{
+      const rs=S.holds.filter(isActive).map(q=>q.rho).sort((p,q)=>p-q),rho=rs.length?rs[rs.length>>1]:0.012;
+      E.added.push({u,v,rho}); toast('Hold added');
+    }
+    applyEdits(); updateStats(); render(); solveSoon(); return;
+  }
+  if(!h||!isActive(h)){ toast('Tap on a ringed hold.'); return; }
+  const E=S.edits;
+  if(S.mode==='start'){
+    if(isMoving()){ if(E.startT.includes(h.id)) E.startT=E.startT.filter(id=>id!==h.id); else { E.startT.push(h.id); if(E.startT.length>2) E.startT.shift(); } }
+    else{ if(E.start.some(p=>nearPos(h,p))) E.start=E.start.filter(p=>!nearPos(h,p)); else { E.start.push({u:h.u,v:h.v}); if(E.start.length>2) E.start.shift(); } }
+  }else if(S.mode==='top'){
+    if(isMoving()) E.topT=h.id; else E.top={u:h.u,v:h.v};
+  }
+  render(); solveSoon();
+});
+let toastT=0;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>{ t.hidden=true; },2400); }
+function busy(text){ const b=$('#busy'); if(text){ b.textContent=text; b.hidden=false; } else b.hidden=true; }
+
+/* ---------- drawing ---------- */
+function fit(){
+  if(!S.src) return;
+  const a=aspect(),maxW=wrap.clientWidth||600,maxH=Math.max(300,Math.min(window.innerHeight-210,1000));
+  let dw=maxW,dh=dw/a; if(dh>maxH){ dh=maxH; dw=dh*a; }
+  dw=Math.max(1,Math.floor(dw)); dh=Math.max(1,Math.floor(dh));
+  const dpr=Math.min(window.devicePixelRatio||1,isMoving()?2:2.5);
+  cv.style.width=dw+'px'; cv.style.height=dh+'px';
+  cv.width=Math.round(dw*dpr); cv.height=Math.round(dh*dpr);
+  veil.width=cv.width; veil.height=cv.height;
+  S.view={dw,dh,dpr};
+}
+const P=(u,v)=>[u*S.view.dw,v*S.view.dh];
+function drift(){
+  if(!isMoving()||!S.betaSnap) return [0,0];
+  let du=0,dv=0,n=0;
+  for(const t of S.tracks){ const s=S.betaSnap.get(t.id); if(s&&t.miss<=3){ du+=t.u-s.u; dv+=t.v-s.v; n++; } }
+  return n?[du/n,dv/n]:[0,0];
+}
+function cmPx(q,dr){ const k=kU(); return P(q[0]*k/aspect()+dr[0],S.cal.floor-q[1]*k+dr[1]); }
+function tagAt(x,y,text,fill,ink){
+  ctx.font=`13px ${MARKER}`;
+  const w=ctx.measureText(text).width+9,h=17;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(-0.06);
+  ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillRect(-w/2+1.2,-h/2+1.6,w,h);
+  ctx.fillStyle=fill; ctx.fillRect(-w/2,-h/2,w,h);
+  ctx.fillStyle=ink; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text,0,1);
+  ctx.restore();
+}
+function render(){
+  if(!S.src) return;
+  const {dw,dh,dpr}=S.view;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,dw,dh);
+  try{ ctx.drawImage(S.src.el,0,0,dw,dh); }catch(e){}
+  const hs=currentHolds(),act=hs.filter(h=>isActive(h)&&onWall(h)),b=S.beta;
+  if(S.showMask&&S.mask){ ctx.imageSmoothingEnabled=false; ctx.drawImage(maskCv,0,0,dw,dh); ctx.imageSmoothingEnabled=true; }
+  else if(S.model&&act.length){
+    const v=veil.getContext('2d');
+    v.setTransform(1,0,0,1,0,0); v.clearRect(0,0,veil.width,veil.height);
+    v.fillStyle='rgba(8,10,12,0.55)'; v.fillRect(0,0,veil.width,veil.height);
+    v.setTransform(dpr,0,0,dpr,0,0); v.globalCompositeOperation='destination-out';
+    for(const h of act){
+      const [x,y]=P(h.u,h.v),r=h.rho*dh,R=r*1.55+6,g=v.createRadialGradient(x,y,r*1.05,x,y,R);
+      g.addColorStop(0,'rgba(0,0,0,1)'); g.addColorStop(1,'rgba(0,0,0,0)');
+      v.fillStyle=g; v.beginPath(); v.arc(x,y,R,0,6.283); v.fill();
+    }
+    v.globalCompositeOperation='source-over';
+    ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(veil,0,0); ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  const marking=S.mode==='floor'||S.mode==='walltop';
+  if(S.cal.marked||marking){
+    const lines=[];
+    if(S.cal.marked||S.mode==='walltop') lines.push([S.cal.floor,'Floor']);
+    if(S.cal.marked) lines.push([S.cal.top,'Top of wall']);
+    for(const [lv,txt] of lines){
+      const y=Math.min(dh-2,Math.max(2,lv*dh));
+      ctx.setLineDash([8,6]); ctx.lineWidth=3.5; ctx.strokeStyle='rgba(0,0,0,.7)'; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(dw,y); ctx.stroke();
+      ctx.lineWidth=1.8; ctx.strokeStyle='#ffd43b'; ctx.stroke(); ctx.setLineDash([]);
+      tagAt(44,y<24?y+14:y-12,txt,'#ffd43b','#211c0a');
+    }
+  }
+  const used=b?b.num:new Map();
+  for(const h of hs){
+    if(h.removed) continue;
+    const active=isActive(h)&&onWall(h);
+    if(!active&&h.status!=='unsure'&&!S.showMask) continue;
+    const [x,y]=P(h.u,h.v),r=h.rho*dh+3;
+    ctx.beginPath(); ctx.arc(x,y,r,0,6.283);
+    if(active){ ctx.setLineDash(!b||used.has(h.id)?[]:[4,4]); ctx.lineWidth=3.6; ctx.strokeStyle='rgba(0,0,0,.75)'; ctx.stroke(); ctx.lineWidth=1.8; ctx.strokeStyle='#ffffff'; ctx.stroke(); }
+    else if(h.status==='unsure'){ ctx.setLineDash([5,4]); ctx.lineWidth=3.4; ctx.strokeStyle='rgba(0,0,0,.7)'; ctx.stroke(); ctx.lineWidth=2; ctx.strokeStyle='#ffbe0b'; ctx.stroke(); }
+    else { ctx.setLineDash([3,4]); ctx.lineWidth=1.5; ctx.strokeStyle='#ff2bd0'; ctx.stroke(); }
+    ctx.setLineDash([]);
+  }
+  const topId=b?b.res.pts[b.res.top].id:null;
+  for(const h of act){
+    const [x,y]=P(h.u,h.v),r=h.rho*dh;
+    if(h.id===topId) tagAt(x,y-r-14,'TOP','#ffd43b','#211c0a');
+    const n=used.get(h.id); if(n!=null) tagAt(x+r*0.85+7,y-r*0.85-6,String(n),'#ffd43b','#211c0a');
+    if(isStart(h)) tagAt(x-r-10,y,'S','#ffffff','#14181c');
+  }
+  if(b&&b.steps.length) drawClimber();
+}
+function ik(Pt,T,L1,L2,pick){
+  const dx=T[0]-Pt[0],dy=T[1]-Pt[1]; let d=Math.hypot(dx,dy);
+  if(d<1e-6) return Pt;
+  if(d>=L1+L2) return [Pt[0]+dx*L1/(L1+L2),Pt[1]+dy*L1/(L1+L2)];
+  d=Math.max(d,Math.abs(L1-L2)+1e-3);
+  const a=(L1*L1-L2*L2+d*d)/(2*d),h=Math.sqrt(Math.max(0,L1*L1-a*a)),mx=Pt[0]+dx*a/d,my=Pt[1]+dy*a/d;
+  return pick([mx-dy*h/d,my+dx*h/d],[mx+dy*h/d,my-dx*h/d]);
+}
+function drawClimber(){
+  const b=S.beta,H=b.res.H,TORSO=b.res.TORSO,step=b.steps[S.step],p=currentPos(),C=p.C,dr=drift();
+  const editing=S.mode!=='pick';
+  ctx.save(); if(editing) ctx.globalAlpha=0.35;
+  const Sh=[C[0],C[1]+TORSO],head=[Sh[0],Sh[1]+0.105*H];
+  const sh={lh:[Sh[0]-0.11*H,Sh[1]],rh:[Sh[0]+0.11*H,Sh[1]]},hip={lf:[C[0]-0.07*H,C[1]],rf:[C[0]+0.07*H,C[1]]};
+  const segs=[[C,Sh]],ends={},flagged={};
+  for(const k of ['lh','rh']){ const T=p[k]; ends[k]=T; const E=ik(sh[k],T,0.19*H,0.26*H,(a,c)=>a[1]<c[1]?a:c); segs.push([sh[k],E],[E,T]); }
+  segs.push([sh.lh,sh.rh],[hip.lf,hip.rf]);
+  for(const k of ['lf','rf']){
+    let T=p[k]; if(!T){ T=flagPos(k,C); flagged[k]=true; }
+    ends[k]=T;
+    const side=k==='lf'?-1:1,K=ik(hip[k],T,0.27*H,0.29*H,(a,c)=>(a[0]-C[0])*side>(c[0]-C[0])*side?a:c);
+    segs.push([hip[k],K],[K,T]);
+  }
+  const Q=q=>cmPx(q,dr);
+  const line=(w,col)=>{ ctx.lineWidth=w; ctx.strokeStyle=col; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.beginPath(); for(const [a,c] of segs){ const A=Q(a),B=Q(c); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); } ctx.stroke(); };
+  line(8,'rgba(10,12,14,0.85)'); line(4.2,'#ffffff');
+  const hp=Q(head),hr=0.055*H*kU()*S.view.dh;
+  ctx.beginPath(); ctx.arc(hp[0],hp[1],hr,0,6.283); ctx.fillStyle='#ffffff'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='rgba(10,12,14,0.85)'; ctx.stroke();
+  if(step.limb&&S.step>0&&!editing){
+    const prev=b.steps[S.step-1].pos,a=prev[step.limb]||flagPos(step.limb,prev.C),z=step.pos[step.limb]||flagPos(step.limb,step.pos.C);
+    const A=Q(a),Z=Q(z),ang=Math.atan2(Z[1]-A[1],Z[0]-A[0]),len=Math.hypot(Z[0]-A[0],Z[1]-A[1]);
+    if(len>14){
+      ctx.save(); ctx.strokeStyle=LIMBCOL[step.limb]; ctx.lineWidth=2.6; ctx.setLineDash([6,5]);
+      const ex=Z[0]-Math.cos(ang)*12,ey=Z[1]-Math.sin(ang)*12;
+      ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(ex,ey); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle=LIMBCOL[step.limb]; ctx.beginPath(); ctx.moveTo(ex+Math.cos(ang)*6,ey+Math.sin(ang)*6);
+      ctx.lineTo(ex-Math.cos(ang-0.5)*9,ey-Math.sin(ang-0.5)*9); ctx.lineTo(ex-Math.cos(ang+0.5)*9,ey-Math.sin(ang+0.5)*9); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  }
+  for(const k of ['lh','rh','lf','rf']){
+    const q=Q(ends[k]),hand=k[1]==='h',r=7.5,active=step.limb===k;
+    ctx.beginPath();
+    if(hand) ctx.arc(q[0],q[1],r,0,6.283); else ctx.rect(q[0]-r,q[1]-r,2*r,2*r);
+    ctx.fillStyle=flagged[k]?'rgba(255,255,255,0.9)':LIMBCOL[k]; ctx.fill();
+    ctx.lineWidth=active?3:2; ctx.strokeStyle=active?'#ffffff':'rgba(10,12,14,0.9)'; ctx.stroke();
+    if(active){ ctx.beginPath(); ctx.arc(q[0],q[1],r+5,0,6.283); ctx.lineWidth=2; ctx.strokeStyle=LIMBCOL[k]; ctx.stroke(); }
+    ctx.fillStyle=flagged[k]?LIMBCOL[k]:'#ffffff'; ctx.font='700 9.5px "Barlow Condensed",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(k[0]==='l'?'L':'R',q[0],q[1]+0.5);
+  }
+  ctx.restore();
+}
+let lastW=0;
+new ResizeObserver(()=>{ const w=wrap.clientWidth; if(w&&w!==lastW){ lastW=w; fit(); render(); } }).observe(wrap);
+if(document.fonts&&document.fonts.load) document.fonts.load(`16px ${MARKER}`).then(()=>{ if(!isMoving()) render(); }).catch(()=>{});
+
+/* ---------- tabs ---------- */
+function showTab(name){
+  const learn=name==='learn';
+  $('#view-wall').hidden=learn; $('#view-learn').hidden=!learn;
+  $('#tab-wall').setAttribute('aria-selected',String(!learn)); $('#tab-learn').setAttribute('aria-selected',String(learn));
+  if(learn) stopPlay(); else { lastW=0; fit(); render(); }
+}
+$('#tab-wall').addEventListener('click',()=>showTab('wall'));
+$('#tab-learn').addEventListener('click',()=>showTab('learn'));
+
+/* ---------- Ask Claude (only inside Claude, when the viewer allows it) ---------- */
+let sampleFn=null,coachCtl=null;
+const COACH_ERR={rate_limited:'Too many requests right now. Try again in a minute.',session_expired:'Sign in to Claude again, then retry.',image_rejected:'Claude could not read this picture. Try a smaller photo.',refused:'Claude declined this request. Try a different photo.',empty_completion:'No answer came back. Try again.',invalid_request:'The request could not be sent. Try again.',prompt_too_large:'The request was too large. Try a smaller photo.'};
+const HIDE=['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed','images_unavailable'];
+(async()=>{
+  try{
+    if(STANDALONE||!window.claude||typeof window.claude.use!=='function') return;
+    const s=await window.claude.use('sample'); if(!s) return;
+    const lim=await s.limits().catch(()=>null); if(!lim||!lim.images) return;
+    sampleFn=s; $('#coach').hidden=false;
+  }catch(e){}
+})();
+function coachImage(){
+  const src=S.src,sw=src.w,sh=src.h,sc=Math.min(1,1100/Math.max(sw,sh));
+  const c=document.createElement('canvas'); c.width=Math.round(sw*sc); c.height=Math.round(sh*sc);
+  const g=c.getContext('2d'); g.drawImage(src.el,0,0,c.width,c.height);
+  const num=S.beta?S.beta.num:new Map();
+  for(const h of activeHolds()){
+    const x=h.u*c.width,y=h.v*c.height,r=h.rho*c.height+3;
+    g.beginPath(); g.arc(x,y,r,0,6.283); g.lineWidth=4; g.strokeStyle='#000'; g.stroke(); g.lineWidth=2; g.strokeStyle='#fff'; g.stroke();
+    const n=num.get(h.id); if(n==null) continue;
+    const tx=x+r+10,ty=y-r-8; g.font='bold 18px sans-serif'; const w=g.measureText(String(n)).width+10;
+    g.fillStyle='#ffd43b'; g.fillRect(tx-w/2,ty-12,w,24); g.fillStyle='#000'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(String(n),tx,ty+1);
+  }
+  return new Promise(res=>c.toBlob(b=>res(b),'image/jpeg',0.86));
+}
+$('#coachAsk').addEventListener('click',async()=>{
+  if(!sampleFn||!S.src) return;
+  if(!S.beta){ toast('Choose a route colour first so there are moves to check.'); return; }
+  const out=$('#coachOut'),ask=$('#coachAsk'),stop=$('#coachStop');
+  const lines=S.beta.steps.map((s,i)=>`${i===0?'S':i}. ${s.title} (${s.sub})`).join('\n');
+  const prompt=`You are an experienced bouldering coach helping a beginner. The image is a photo of an indoor climbing wall. The holds of one route (colour: ${S.model.name}) are circled, and the ones used are labelled with yellow numbers in the order they are first touched. The climber is ${S.heightCm} cm tall. The bottom of the photo is the floor and the photo shows about ${S.wallM} m of wall.\n\nPlanned sequence:\n${lines}\n\nReply in plain text with no markdown symbols, under 230 words, in three short parts:\n1. Holds: one line per numbered hold with your best guess of its type (jug, edge, crimp, sloper, pinch, pocket, sidepull, undercling, volume) and how to grip it.\n2. Crux: which move looks hardest and one hand or foot tip for it.\n3. Check: anything in the sequence that looks wrong for this wall (for example a circled blob that is not a hold of this colour, or a better foot), and what to do instead.\nIf the photo is unclear, say so briefly.`;
+  coachCtl=new AbortController();
+  out.hidden=false; out.textContent='Thinking…'; ask.disabled=true; stop.hidden=false;
+  try{
+    const img=await coachImage();
+    const {truncated}=await sampleFn(prompt,{images:img?[img]:undefined,signal:coachCtl.signal,onText:({text})=>{ out.textContent=text; }});
+    if(truncated) out.textContent+='\n\n(The answer was cut short.)';
+  }catch(e){
+    const code=e&&e.code;
+    if(HIDE.includes(code)){ $('#coach').hidden=true; return; }
+    if(code==='cancelled') out.textContent=e.text||'Stopped.';
+    else out.textContent=(e&&e.text?e.text+'\n\n':'')+(COACH_ERR[code]||'The connection dropped. Try again.');
+  }finally{ ask.disabled=false; stop.hidden=true; }
+});
+$('#coachStop').addEventListener('click',()=>{ if(coachCtl) coachCtl.abort(); });
+
+/* ---------- boot ---------- */
+if(location.hash==='#learn') showTab('learn');
+setSource({kind:'sample',el:makeSampleWall(),w:600,h:900});
+})();
+
+</script>
+

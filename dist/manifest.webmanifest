@@ -1,0 +1,16 @@
+{
+  "name": "Beta Lens",
+  "short_name": "Beta Lens",
+  "description": "Point your phone at a bouldering wall, tap one hold, and get the hand and foot moves to the top.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#e7eaed",
+  "theme_color": "#14181c",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,405 @@
+<meta charset="utf-8">
+<title>Beta Lens</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&family=Permanent+Marker&display=swap">
+<style>
+/* Layout: one-screen tool. The wall view (photo, clip or live camera) is the stage on the left; a numbered control rail runs beside it and stacks under it on phones. Setter's-tape labels in marker are the one loud element. */
+:root{
+  --wall:#e7eaed;
+  --panel:#ffffff;
+  --stage:#d3d8dd;
+  --ink:#14181c;
+  --muted:#57626c;
+  --line:#cfd5db;
+  --soft:#eef1f3;
+  --accent:#1662b8;
+  --tape:#ffd43b;
+  --tape-ink:#211c0a;
+  --lh:#18a7e0; --rh:#ec3b74; --lf:#58b52b; --rf:#f59f00;
+  --live:#e5383b;
+  --warn:#a85600; --warn-bg:#fff2de;
+  --f-display:"Permanent Marker","Marker Felt","Chalkboard SE",cursive;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-label:"Barlow Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
+    --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
+  --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--wall);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+.app{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 48px}
+
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding-block:4px 18px}
+.brand{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.tape{display:inline-block;background:var(--tape);color:var(--tape-ink);font-family:var(--f-display);font-weight:400;line-height:1.1;padding:.34em .85em .24em;transform:rotate(-1.6deg);clip-path:polygon(1.5% 6%,99% 0,97.5% 34%,100% 62%,98% 100%,2% 95%,0 66%,2% 38%)}
+.logo{font-size:1.7rem;margin:0}
+.brand-sub{font-family:var(--f-label);text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-size:.9rem;font-weight:600}
+.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px}
+.tabs button{font:600 .95rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.07em;border:0;background:transparent;color:var(--muted);padding:10px 16px;border-radius:999px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--wall)}
+
+.wall-view{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:20px;align-items:start}
+.stage{display:grid;gap:12px;min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 8px)}
+@media (max-width:920px){.wall-view{grid-template-columns:minmax(0,1fr)}.stage{position:static}}
+.canvas-wrap{position:relative;background:var(--stage);border-radius:var(--radius);display:flex;justify-content:center;align-items:center;overflow:hidden;min-height:280px}
+.canvas-wrap.drag{outline:3px dashed var(--accent);outline-offset:-6px}
+#cv{display:block;touch-action:manipulation;cursor:crosshair;max-width:100%}
+.badge{position:absolute;left:10px;bottom:10px;font:600 .8rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.08em;background:rgba(10,12,14,.74);color:#fff;padding:7px 10px;border-radius:6px;pointer-events:none}
+.live-tag{position:absolute;left:10px;top:10px;display:flex;align-items:center;gap:7px;font:700 .8rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.09em;background:rgba(10,12,14,.78);color:#fff;padding:7px 10px;border-radius:6px;pointer-events:none;font-variant-numeric:tabular-nums}
+.live-tag i{width:9px;height:9px;border-radius:50%;background:var(--live);box-shadow:0 0 0 3px rgba(229,56,59,.3)}
+.busy{position:absolute;left:50%;top:12px;transform:translateX(-50%);font:600 .85rem/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;background:rgba(10,12,14,.8);color:#fff;padding:9px 14px;border-radius:999px;pointer-events:none;white-space:nowrap}
+.toast{position:absolute;left:50%;top:48px;transform:translateX(-50%);max-width:calc(100% - 24px);background:var(--ink);color:var(--wall);padding:9px 14px;border-radius:8px;font-size:.92rem;pointer-events:none;text-align:center}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--muted)}
+
+.vbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px}
+.vbar input[type=range]{flex:1 1 140px;min-width:0}
+.player{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px 14px;display:grid;gap:10px}
+.player-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.step-count{font:600 .9rem/1 var(--f-label);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
+.caption{display:grid;gap:2px;min-width:0}
+.caption h3{font:700 1.3rem/1.15 var(--f-label);margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.caption .sub{margin:0;color:var(--muted)}
+.tips{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:6px}
+.tips li{padding-left:16px;position:relative;max-width:70ch}
+.tips li::before{content:"";position:absolute;left:2px;top:.62em;width:7px;height:2px;background:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font:600 .82rem/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;display:inline-block}
+.dot.foot{border-radius:3px}
+
+.rail{display:grid;gap:14px;min-width:0}
+.blk{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px 16px;display:grid;gap:12px;min-width:0}
+.blk h2{margin:0;display:flex;align-items:center;gap:10px;font:700 1.05rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.08em}
+.blk h2 .n{font-family:var(--f-display);font-weight:400;font-size:1rem;letter-spacing:0;background:var(--tape);color:var(--tape-ink);width:30px;height:26px;display:grid;place-items:center;transform:rotate(-4deg);clip-path:polygon(4% 4%,96% 0,100% 50%,96% 100%,2% 96%,0 48%)}
+.hint{font-size:.92rem;color:var(--muted);margin:0}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:600 .95rem/1 var(--f-body);padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;min-height:42px;text-decoration:none}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--tape);color:var(--tape-ink);border-color:transparent}
+.btn.primary:hover{filter:brightness(.96)}
+.btn.live{background:var(--live);color:#fff;border-color:transparent}
+.btn[disabled]{opacity:.45;cursor:default}
+.btn.icon{min-width:42px;padding:10px 12px}
+.btn svg{width:18px;height:18px;flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:7px 12px 7px 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:500 .92rem/1 var(--f-body);cursor:pointer;text-transform:capitalize}
+.chip .sw{width:18px;height:18px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.28)}
+.chip .ct{color:var(--muted);font-variant-numeric:tabular-nums;text-transform:none}
+.chip[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-right:1px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 4px;font:600 .88rem/1.1 var(--f-label);text-transform:uppercase;letter-spacing:.05em;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.field{display:grid;gap:5px;min-width:0}
+.lbl{font:600 .8rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.unit{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--soft);overflow:hidden}
+.unit input{border:0;background:transparent;padding:9px 0 9px 10px;width:100%;min-width:0;font-variant-numeric:tabular-nums}
+.unit span{padding:0 10px;color:var(--muted);font-size:.9rem}
+select{padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--soft);width:100%;min-width:0}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.range-row{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.check{display:flex;align-items:center;gap:10px;font-size:.95rem;cursor:pointer}
+.check input{width:20px;height:20px;accent-color:var(--accent);flex:none}
+.stat{font-size:.95rem;font-variant-numeric:tabular-nums;margin:0}
+.stat b{font-weight:700}
+.note{background:var(--warn-bg);border:1px solid var(--warn);color:var(--ink);padding:9px 11px;border-radius:8px;font-size:.92rem;margin:0}
+.mask-key{display:grid;gap:6px;font-size:.88rem;color:var(--muted);margin:0;padding:0;list-style:none}
+.mask-key li{display:flex;align-items:center;gap:8px}
+.mask-key i{width:14px;height:14px;border-radius:3px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)}
+
+.beta-sum{font-size:.95rem;margin:0}
+.moves{position:relative;list-style:none;margin:0;padding:0;display:grid;gap:1px;max-height:430px;overflow:auto;overscroll-behavior:contain}
+.moves button{width:100%;text-align:left;display:grid;grid-template-columns:26px 14px minmax(0,1fr) auto;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;border:0;background:transparent;color:var(--ink);font:500 .93rem/1.25 var(--f-body);cursor:pointer}
+.moves button:hover{background:var(--soft)}
+.moves button[aria-current="step"]{background:var(--soft);box-shadow:inset 0 0 0 1px var(--line)}
+.moves .k{font:600 .85rem/1 var(--f-label);color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.moves .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crux{font:700 .72rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.08em;color:var(--tape-ink);background:var(--tape);padding:4px 6px 3px;border-radius:3px}
+.coach-out{white-space:pre-wrap;font-size:.95rem;background:var(--soft);border-radius:8px;padding:10px 12px;max-height:380px;overflow:auto;margin:0}
+details.how summary{cursor:pointer;font:600 .9rem/1.2 var(--f-label);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
+
+.learn{display:grid;gap:22px}
+.learn-hero{display:grid;gap:10px;max-width:74ch;padding-block:6px 4px}
+.learn-hero h1{font:700 clamp(2rem,5vw,3rem)/1 var(--f-label);text-transform:uppercase;letter-spacing:.01em;margin:0;text-wrap:balance}
+.learn-hero p{margin:0;font-size:1.08rem;color:var(--muted)}
+.learn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px;align-items:start}
+.lcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 20px;display:grid;gap:12px;align-content:start;min-width:0}
+.lcard h2{margin:0;justify-self:start;font-size:1.15rem}
+.lcard ul{margin:0;padding-left:1.1em;display:grid;gap:8px}
+.lcard p{margin:0}
+.lcard b{font-weight:700}
+.holds{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;margin:0}
+.holds dt{font:700 1rem/1.3 var(--f-label);text-transform:uppercase;letter-spacing:.05em}
+.holds dd{margin:0}
+.gloss{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:10px;margin:0}
+.gloss div{background:var(--soft);border-radius:8px;padding:10px 12px}
+.gloss dt{font:700 .95rem/1.2 var(--f-label);text-transform:uppercase;letter-spacing:.06em}
+.gloss dd{margin:2px 0 0;font-size:.92rem;color:var(--muted)}
+.sources{font-size:.92rem;color:var(--muted)}
+.sources ol{margin:6px 0 0;padding-left:1.2em;display:grid;gap:4px}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1 class="tape logo">Beta Lens</h1>
+      <span class="brand-sub">Colour-route reader for bouldering</span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button id="tab-wall" role="tab" aria-selected="true" aria-controls="view-wall">Read the wall</button>
+      <button id="tab-learn" role="tab" aria-selected="false" aria-controls="view-learn">Learn to climb</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="view-wall" class="wall-view" role="tabpanel" aria-labelledby="tab-wall">
+      <div class="stage">
+        <div class="canvas-wrap" id="wrap">
+          <canvas id="cv" aria-label="Climbing wall with the detected route holds and planned moves drawn on top"></canvas>
+          <div class="badge" id="badge">Sample wall · take a photo of yours</div>
+          <div class="live-tag" id="liveTag" hidden><i></i><span id="liveTxt">Live</span></div>
+          <div class="busy" id="busy" hidden>Reading the wall…</div>
+          <div class="toast" id="toast" role="status" hidden></div>
+        </div>
+        <div class="vbar" id="vbar" hidden>
+          <button class="btn icon" id="vPlay" aria-label="Pause video"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4.5h4v15H6zM14 4.5h4v15h-4z"/></svg></button>
+          <input type="range" id="vSeek" min="0" max="1000" value="0" aria-label="Position in the clip">
+          <button class="btn primary" id="vFreeze">Freeze frame</button>
+          <button class="btn" id="vStop">Stop</button>
+        </div>
+        <div class="player" id="player">
+          <div class="player-row">
+            <button class="btn icon" id="prev" aria-label="Previous move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <button class="btn primary" id="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg><span>Play moves</span></button>
+            <button class="btn icon" id="next" aria-label="Next move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+            <span class="step-count" id="count">—</span>
+          </div>
+          <div class="caption" aria-live="polite">
+            <h3 id="capTitle">Pick a route colour</h3>
+            <p class="sub" id="capSub">Tap one hold of your route on the photo.</p>
+            <ul class="tips" id="capTips"></ul>
+          </div>
+          <div class="legend" aria-label="Legend">
+            <span><i class="dot" style="background:var(--lh)"></i>Left hand</span>
+            <span><i class="dot" style="background:var(--rh)"></i>Right hand</span>
+            <span><i class="dot foot" style="background:var(--lf)"></i>Left foot</span>
+            <span><i class="dot foot" style="background:var(--rf)"></i>Right foot</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="rail">
+        <div class="blk">
+          <h2><span class="n">1</span>Wall</h2>
+          <div class="btn-row">
+            <button class="btn live" id="goLive" data-only="standalone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Live camera</button>
+            <label class="btn primary" for="fileCam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take photo</label>
+            <label class="btn" for="fileVid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Record video</label>
+            <label class="btn" for="fileUp">Upload</label>
+            <button class="btn" id="useSample">Sample wall</button>
+          </div>
+          <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
+          <input type="file" id="fileVid" accept="video/*" capture="environment" hidden>
+          <input type="file" id="fileUp" accept="image/*,video/*" hidden>
+          <p class="hint">Stand back so the whole route and the floor fit in frame. Hold the phone upright, face the wall straight on, and skip the flash.</p>
+          <p class="hint" data-only="artifact">Inside Claude the page can't open a live camera feed, so <b>Record video</b> films a short clip and reads the wall frame by frame as it plays. For a true live view, use the standalone page.</p>
+          <p class="hint" data-only="standalone"><b>Live camera</b> reads the wall as you point the phone. Hold steady for a second and the moves appear. <b>Freeze frame</b> keeps the current view so you can edit holds or mark the wall.</p>
+        </div>
+
+        <div class="blk">
+          <h2><span class="n">2</span>Route colour</h2>
+          <p class="hint">Tap one hold of your route. Beta Lens learns that hold's exact colour, then only keeps blobs of that colour that stand out from the wall around them.</p>
+          <div class="chips" id="chips" role="group" aria-label="Hold colours found"></div>
+          <div class="field">
+            <label class="lbl" for="tol">Colour match</label>
+            <input type="range" id="tol" min="1" max="10" step="1" value="5">
+            <div class="range-row"><span>Strict</span><span id="tolVal">5</span><span>Loose</span></div>
+          </div>
+          <label class="check"><input type="checkbox" id="showMask">Show what matched</label>
+          <ul class="mask-key" id="maskKey" hidden>
+            <li><i style="background:#fff"></i>Bright: kept as a route hold</li>
+            <li><i style="background:#ff3b3b"></i>Red: right colour, but it's the wall</li>
+            <li><i style="background:#ff2bd0"></i>Pink: rejected, not hold-shaped or not on the wall</li>
+            <li><i style="background:#ffbe0b"></i>Amber: unsure, tap it in Add / remove to keep it</li>
+          </ul>
+          <p class="stat" id="holdStat">—</p>
+          <p class="note" id="holdWarn" hidden></p>
+          <div class="field">
+            <span class="lbl" id="modeLbl">Tapping the wall will…</span>
+            <div class="seg" role="group" aria-labelledby="modeLbl">
+              <button data-mode="pick" aria-pressed="true">Pick colour</button>
+              <button data-mode="edit" aria-pressed="false">Add / remove</button>
+              <button data-mode="start" aria-pressed="false">Set start</button>
+              <button data-mode="top" aria-pressed="false">Set top</button>
+            </div>
+          </div>
+          <p class="hint" id="modeHint">Tap a hold to use its colour as the route.</p>
+        </div>
+
+        <div class="blk">
+          <h2><span class="n">3</span>About you</h2>
+          <div class="two">
+            <div class="field">
+              <label class="lbl" for="height">Your height</label>
+              <div class="unit"><input type="number" id="height" min="110" max="215" step="1" value="170" inputmode="numeric"><span>cm</span></div>
+            </div>
+            <div class="field">
+              <label class="lbl" for="wallM">Wall height</label>
+              <div class="unit"><input type="number" id="wallM" min="1.5" max="9" step="0.1" value="4.2" inputmode="decimal"><span>m</span></div>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn" id="markWall">Mark wall bottom and top</button>
+            <button class="btn" id="clearMarks" hidden>Clear marks</button>
+          </div>
+          <p class="hint" id="markHint">Without marks, the whole picture counts as the wall: bottom edge is the floor, top edge is the top of the wall.</p>
+          <div class="field">
+            <label class="lbl" for="feet">Feet rule</label>
+            <select id="feet">
+              <option value="strict">Feet on this colour only</option>
+              <option value="open">Open feet: smear anywhere on the wall</option>
+            </select>
+          </div>
+          <label class="check"><input type="checkbox" id="callout">Call out each move aloud</label>
+          <p class="hint">Bouldering walls are usually 4 to 4.5 m. Marking the wall also ignores anything on the mat or above the wall.</p>
+        </div>
+
+        <div class="blk">
+          <h2><span class="n">4</span>Your beta</h2>
+          <p class="beta-sum" id="betaSum">—</p>
+          <p class="note" id="betaWarn" hidden></p>
+          <ol class="moves" id="moves" aria-label="Move list"></ol>
+          <details class="how">
+            <summary>How the wall is read</summary>
+            <p>Beta Lens converts the picture to a colour space that matches how eyes see colour, then estimates the wall's own colour in every small patch. A blob only counts as a hold when it matches the colour of the hold you tapped, clearly differs from the wall right around it, has a real edge, and sits on the same wall. Everything else is shown in red or pink in "Show what matched". The moves come from a search for the fewest, least stretched sequence that starts on the lowest holds and ends with both hands matched on the top hold. It can't see the wall's angle or feel how good a hold is, so treat it as a first plan.</p>
+          </details>
+        </div>
+
+        <div class="blk" id="coach" hidden>
+          <h2><span class="n">5</span>Ask Claude</h2>
+          <p class="hint">Sends this view with numbered holds and the moves above. Claude names each hold type, how to grip it, and the crux. It uses your own Claude usage.</p>
+          <div class="btn-row">
+            <button class="btn primary" id="coachAsk">Get grip advice</button>
+            <button class="btn" id="coachStop" hidden>Stop</button>
+          </div>
+          <pre class="coach-out" id="coachOut" hidden></pre>
+        </div>
+      </aside>
+    </section>
+
+    <section id="view-learn" class="learn" role="tabpanel" aria-labelledby="tab-learn" hidden>
+      <div class="learn-hero">
+        <h1>How to climb a colour route</h1>
+        <p>The basics that matter most in your first sessions. Beta Lens plans moves with the same ideas: feet first, straight arms, hips in, and both hands on the top hold to finish.</p>
+      </div>
+      <div class="learn-grid">
+        <article class="lcard">
+          <h2 class="tape">How a colour route works</h2>
+          <ul>
+            <li>A route (in bouldering, a <b>problem</b>) uses holds of one colour. Your hands, and at most gyms your feet, stay on that colour.</li>
+            <li><b>Start:</b> tags or tape mark the start holds. Put one hand on each tagged hold. Two tags on one hold means both hands start there. Then lift your feet off the mat.</li>
+            <li><b>Finish:</b> bring both hands to the top hold and hold it under control. A quick slap on the way down doesn't count. Some routes finish by climbing over the top instead.</li>
+            <li>Rules vary. Some gyms let you use any foothold on easy routes. Ask staff, then set the feet rule in step 3 to match.</li>
+            <li>Grades use the V-scale (V0, V1, V2…) or Font (4, 5, 6A…). Colour only sometimes means difficulty, so check the tag.</li>
+          </ul>
+        </article>
+        <article class="lcard">
+          <h2 class="tape">Read it before you climb</h2>
+          <ul>
+            <li>Stand back and find three things: the start, the finish, and the hardest-looking section (the <b>crux</b>).</li>
+            <li>Look for rests: big holds where you can hang on straight arms and shake out.</li>
+            <li>Trace the moves with your hands from the ground. Decide which hand goes where, then where your feet must be for each reach.</li>
+            <li>Stuck? Practise the crux on its own, watch someone else try it, or test a second method before you give up.</li>
+          </ul>
+        </article>
+        <article class="lcard">
+          <h2 class="tape">Footwork first</h2>
+          <ul>
+            <li>Your legs are stronger than your arms. Move your feet up, then stand up to reach, instead of pulling up with your arms.</li>
+            <li><b>Edging:</b> stand on the hold with the inside edge of your shoe, under the big toe. The outside edge is for back-steps.</li>
+            <li><b>Smearing:</b> no foothold? Press the sole flat on the wall, heel low, and push into the wall for friction. Works best on walls that lean back.</li>
+            <li><b>Toe point</b> for pockets and tiny dimples.</li>
+            <li><b>Silent feet:</b> watch the foothold until your toe is on it and place it without a sound. Quiet feet are accurate feet.</li>
+          </ul>
+        </article>
+        <article class="lcard">
+          <h2 class="tape">Body position</h2>
+          <ul>
+            <li>Hang on straight arms. Bent arms tire fast; bend them only to make a move.</li>
+            <li>Keep your hips close to the wall. Turn your knees out on vertical walls; on steep walls, twist one hip into the wall.</li>
+            <li>The best handholds sit roughly above your feet.</li>
+            <li><b>Barn door:</b> when your hand and foot are both on one side, your body swings open like a door. Fix it with a <b>flag</b>: hold the free leg out the other way as a counterweight.</li>
+            <li>Moves to learn next: drop knee, back-step, stemming, mantle, heel hook, toe hook.</li>
+          </ul>
+        </article>
+        <article class="lcard">
+          <h2 class="tape">Hand holds</h2>
+          <dl class="holds">
+            <dt>Jug</dt><dd>Big and deep. Wrap your fingers over it. A place to rest.</dd>
+            <dt>Edge</dt><dd>A flat lip. Open hand or half crimp.</dd>
+            <dt>Crimp</dt><dd>A small edge for your fingertips. Use an open or half crimp. The full crimp (thumb over your index finger) is strongest but hardest on fingers.</dd>
+            <dt>Sloper</dt><dd>Round with no lip. Open hand, as much skin on it as you can, and keep your body below it.</dd>
+            <dt>Pinch</dt><dd>Squeeze between thumb and fingers. Grab the width that fits your hand.</dd>
+            <dt>Pocket</dt><dd>A hole. Put in your strongest fingers, usually middle and ring.</dd>
+            <dt>Sidepull</dt><dd>Faces sideways. Pull across and lean away from it. Underclings face down (palm up); gastons push outward like opening a sliding door.</dd>
+          </dl>
+        </article>
+        <article class="lcard">
+          <h2 class="tape">Fall safely</h2>
+          <ul>
+            <li>Warm up shoulders, wrists, hips and fingers before you climb.</li>
+            <li>Check the mat under the route: no bottles, chalk bags or people.</li>
+            <li>Climb down from the top when you can, rather than jumping.</li>
+            <li>If you fall, land on both feet with your knees bent, then sit back and roll. Don't throw your arms out to catch yourself.</li>
+            <li>Never walk or sit under someone who is climbing.</li>
+          </ul>
+        </article>
+        <article class="lcard">
+          <h2 class="tape">Words you'll hear</h2>
+          <dl class="gloss">
+            <div><dt>Beta</dt><dd>The way to climb a route: which holds, which limb, in what order.</dd></div>
+            <div><dt>Crux</dt><dd>The hardest move or section.</dd></div>
+            <div><dt>Send</dt><dd>Finish a route without falling.</dd></div>
+            <div><dt>Flash</dt><dd>Send on your first try, with beta.</dd></div>
+            <div><dt>Onsight</dt><dd>Send on your first try with no beta at all.</dd></div>
+            <div><dt>Project</dt><dd>A route you keep working on.</dd></div>
+            <div><dt>Match</dt><dd>Both hands on one hold.</dd></div>
+            <div><dt>Flag</dt><dd>A leg held out for balance, not on a hold.</dd></div>
+            <div><dt>Dyno</dt><dd>A jump to a hold you can't reach statically.</dd></div>
+            <div><dt>Top out</dt><dd>Finish by climbing over the top of the wall.</dd></div>
+          </dl>
+        </article>
+      </div>
+      <div class="sources">
+        <span class="lbl">Sources</span>
+        <ol>
+          <li><a href="https://www.rei.com/learn/expert-advice/climbing-techniques.html" target="_blank" rel="noopener">REI: Climbing techniques and moves</a></li>
+          <li><a href="https://www.vdiffclimbing.com/sport-technique-footwork/" target="_blank" rel="noopener">VDiff Climbing: Footwork</a></li>
+          <li><a href="https://en.wikibooks.org/wiki/Rock_Climbing/Technique" target="_blank" rel="noopener">Wikibooks: Rock climbing technique</a></li>
+          <li><a href="https://theclimbingdoctor.com/?p=21057" target="_blank" rel="noopener">The Climbing Doctor: Three common errors made by new climbers</a></li>
+          <li><a href="https://www.thebmc.co.uk/cy/get-to-grips-with-route-reading" target="_blank" rel="noopener">BMC: Get to grips with route reading</a></li>
+          <li><a href="https://warwick.ac.uk/services/sport/blog/feed/bouldering-for-beginners/" target="_blank" rel="noopener">Warwick Sport: Bouldering for beginners</a></li>
+          <li><a href="https://boulderbox.in/blog/a-beginners-guide-to-climbing-at-boulderbox" target="_blank" rel="noopener">BoulderBox: A beginner's guide</a></li>
+          <li><a href="https://blog.movementgyms.com/how-to-use-common-climbing-holds" target="_blank" rel="noopener">Movement: How to use common climbing holds</a></li>
+          <li><a href="https://www.vdiffclimbing.com/boulder-basics/" target="_blank" rel="noopener">VDiff Climbing: Bouldering basics and safety</a></li>
+        </ol>
+      </div>
+    </section>
+  </main>
+</div>
+<!--SCRIPTS-->
