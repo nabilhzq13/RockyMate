@@ -7,12 +7,12 @@
 <meta name="theme-color" content="#14181c">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Beta Lens">
+<meta name="apple-mobile-web-app-title" content="Rocksane">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="favicon-48.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}</style>
-<title>Beta Lens</title>
+<title>Rocksane</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&family=Permanent+Marker&display=swap">
 <style>
 /* Layout: one-screen tool. The wall view (photo, clip or live camera) is the stage on the left; a numbered control rail runs beside it and stacks under it on phones. Setter's-tape labels in marker are the one loud element. */
@@ -172,7 +172,7 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
 <div class="app">
   <header class="top">
     <div class="brand">
-      <h1 class="tape logo">Beta Lens</h1>
+      <h1 class="tape logo">Rocksane</h1>
       <span class="brand-sub">Colour-route reader for bouldering</span>
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
@@ -238,7 +238,7 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
 
         <div class="blk">
           <h2><span class="n">2</span>Route colour</h2>
-          <p class="hint">Tap one hold of your route. Beta Lens learns that hold's exact colour, then only keeps blobs of that colour that stand out from the wall around them.</p>
+          <p class="hint">Tap one hold of your route. Rocksane learns that hold's exact colour, then only keeps blobs of that colour that stand out from the wall around them.</p>
           <div class="chips" id="chips" role="group" aria-label="Hold colours found"></div>
           <div class="field">
             <label class="lbl" for="tol">Colour match</label>
@@ -301,7 +301,7 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
           <ol class="moves" id="moves" aria-label="Move list"></ol>
           <details class="how">
             <summary>How the wall is read</summary>
-            <p>Beta Lens converts the picture to a colour space that matches how eyes see colour, then estimates the wall's own colour in every small patch. A blob only counts as a hold when it matches the colour of the hold you tapped, clearly differs from the wall right around it, has a real edge, and sits on the same wall. Everything else is shown in red or pink in "Show what matched". The moves come from a search for the fewest, least stretched sequence that starts on the lowest holds and ends with both hands matched on the top hold. It can't see the wall's angle or feel how good a hold is, so treat it as a first plan.</p>
+            <p>Rocksane converts the picture to a colour space that matches how eyes see colour, then estimates the wall's own colour in every small patch. A blob only counts as a hold when it matches the colour of the hold you tapped, clearly differs from the wall right around it, has a real edge, and sits on the same wall. Everything else is shown in red or pink in "Show what matched". The moves come from a search for the fewest, least stretched sequence that starts on the lowest holds and ends with both hands matched on the top hold. It can't see the wall's angle or feel how good a hold is, so treat it as a first plan.</p>
           </details>
         </div>
 
@@ -320,7 +320,7 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
     <section id="view-learn" class="learn" role="tabpanel" aria-labelledby="tab-learn" hidden>
       <div class="learn-hero">
         <h1>How to climb a colour route</h1>
-        <p>The basics that matter most in your first sessions. Beta Lens plans moves with the same ideas: feet first, straight arms, hips in, and both hands on the top hold to finish.</p>
+        <p>The basics that matter most in your first sessions. Rocksane plans moves with the same ideas: feet first, straight arms, hips in, and both hands on the top hold to finish.</p>
       </div>
       <div class="learn-grid">
         <article class="lcard">
@@ -1296,7 +1296,7 @@ function setSource(src,opt){
     keepAwake(true);
   }else{
     keepAwake(false);
-    if(!S.model) setCaption('Pick a route colour','Tap one hold of your route on the picture. Beta Lens learns that exact colour.',[]);
+    if(!S.model) setCaption('Pick a route colour','Tap one hold of your route on the picture. Rocksane learns that exact colour.',[]);
     analysePhoto(true);
   }
 }
@@ -1534,7 +1534,7 @@ async function solveNow(live){
   const act=activeHolds(),tok=S.token;
   if(act.length<2){
     S.beta=null; renderBeta(); render();
-    if(S.model&&!live) setCaption('Not enough holds','Beta Lens needs at least two holds of the route colour. Move the colour slider toward Loose, or tap a hold again.',[]);
+    if(S.model&&!live) setCaption('Not enough holds','Rocksane needs at least two holds of the route colour. Move the colour slider toward Loose, or tap a hold again.',[]);
     return;
   }
   const k=kU(),a=aspect(),fl=S.cal.floor;

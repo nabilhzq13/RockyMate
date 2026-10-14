@@ -1,6 +1,6 @@
-# Beta Lens
+# Rocksane
 
-Point your phone at a bouldering wall, tap one hold of your route, and Beta Lens finds the rest of that colour and shows the hand and foot moves to the top.
+Point your phone at a bouldering wall, tap one hold of your route, and Rocksane finds the rest of that colour and shows the hand and foot moves to the top.
 
 **Open it:** https://nabilhzq13.github.io/RockyMate/
 

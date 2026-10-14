@@ -1,4 +1,4 @@
-# Beta Lens
+# Rocksane
 
 A single-page web app for bouldering. The user points a phone at a gym wall (photo, recorded clip, or live camera), taps one hold of their route, and the app finds every hold of that colour, checks each one really is a hold and not the wall, then plans the hand and foot sequence to the top. It shows an animated stick climber, a numbered move list with coaching tips, and a "Learn to climb" tab for beginners.
 

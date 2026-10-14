@@ -146,7 +146,7 @@ function setSource(src,opt){
     keepAwake(true);
   }else{
     keepAwake(false);
-    if(!S.model) setCaption('Pick a route colour','Tap one hold of your route on the picture. Beta Lens learns that exact colour.',[]);
+    if(!S.model) setCaption('Pick a route colour','Tap one hold of your route on the picture. Rocksane learns that exact colour.',[]);
     analysePhoto(true);
   }
 }
@@ -384,7 +384,7 @@ async function solveNow(live){
   const act=activeHolds(),tok=S.token;
   if(act.length<2){
     S.beta=null; renderBeta(); render();
-    if(S.model&&!live) setCaption('Not enough holds','Beta Lens needs at least two holds of the route colour. Move the colour slider toward Loose, or tap a hold again.',[]);
+    if(S.model&&!live) setCaption('Not enough holds','Rocksane needs at least two holds of the route colour. Move the colour slider toward Loose, or tap a hold again.',[]);
     return;
   }
   const k=kU(),a=aspect(),fl=S.cal.floor;

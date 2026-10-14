@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble Beta Lens from src/ into single-file pages.
+"""Assemble Rocksane from src/ into single-file pages.
 
 dist/beta-lens.html       the Claude artifact build (photo + recorded clip, no live camera)
 dist/beta-lens-live.html  the standalone build with the live camera (needs https or localhost)
@@ -42,7 +42,7 @@ standalone = (
     '<meta name="theme-color" content="#14181c">\n'
     '<meta name="mobile-web-app-capable" content="yes">\n'
     '<meta name="apple-mobile-web-app-capable" content="yes">\n'
-    '<meta name="apple-mobile-web-app-title" content="Beta Lens">\n'
+    '<meta name="apple-mobile-web-app-title" content="Rocksane">\n'
     '<link rel="manifest" href="manifest.webmanifest">\n'
     '<link rel="apple-touch-icon" href="apple-touch-icon.png">\n'
     '<link rel="icon" type="image/png" href="favicon-48.png">\n'
