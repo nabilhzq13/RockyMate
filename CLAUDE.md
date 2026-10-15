@@ -1,6 +1,6 @@
 # Rocksane
 
-A single-page web app for bouldering. The user points a phone at a gym wall (photo, recorded clip, or live camera), taps one hold of their route, and the app finds every hold of that colour, checks each one really is a hold and not the wall, then plans the hand and foot sequence to the top. It shows an animated stick climber, a numbered move list with coaching tips, and a "Learn to climb" tab for beginners.
+A single-page web app for bouldering. The user points a phone at a gym wall (photo, recorded clip, or live camera), taps one hold of their route, and the app finds every hold of that colour, checks each one really is a hold and not the wall, then plans the hand and foot sequence to the top. It shows an animated climber (a white mannequin seen from behind), a numbered move list with coaching tips, and a "Learn to climb" tab for beginners.
 
 ## Two builds from one source
 
@@ -26,7 +26,7 @@ A single-page web app for bouldering. The user points a phone at a gym wall (pho
 - `src/solver.js` - `solveBeta()` (move search, also stringified into a worker), `holdKind()` and `buildBeta()` (captions and tips, main thread).
 - `src/app.js` - UI, sources, workers, video tracking, wall marks, drawing, move player, speech, the optional "Ask Claude" coach.
 - `src/page.html` - CSS tokens (light and dark), markup, Learn-tab content.
-- `test/` - Node detection benchmark and Python Playwright end-to-end checks (see Commands).
+- `test/` - Node detection benchmark, Node planner and figure check, and Python Playwright end-to-end checks (see Commands).
 
 ## How detection works (src/vision.js)
 
@@ -42,9 +42,21 @@ A single-page web app for bouldering. The user points a phone at a gym wall (pho
 
 ## How the moves are planned (src/solver.js)
 
-- Units: cm, Y up from the floor. Body from height H: arm reach 0.5H from a shoulder point TORSO = 0.3H above the hip, leg reach 0.56H. A pose is feasible if the hip fits inside the intersection of the reach disks (candidates: ideal hip, projections onto each disk, pairwise circle intersections). Pose cost = distance from the ideal hip + 10 x sum of (stretch - 0.75)^2 over limbs.
-- A* over states (left hand, right hand, left foot, right foot) as point indices; a foot can be -1 (flag) or on floor points at the start. Starts: pairs among the 6 lowest holds between 0.35H and 1.3H, or the user's Set start holds. Both feet must leave the floor before a hand moves. Costs: foot 0.5 + 0.8 (d/LEG)^2 (+ smear, foot swap, high step, step down, crossed feet), flag 1.8, hand 1 + 0.6 (d/ARM)^2 (+ match, downward, cross-through) + pose cost. Heuristic = remaining height / 0.42H, weight 1.4 (1.8 with open feet). Max 26k expansions (16k open feet). Goal: both hands on the top hold. Top = highest hold you can chain to from the low holds within 1.1H (so a stray match on the ceiling is never the top), or the user's Set top. Returns the best partial path when stuck.
-- `buildBeta()` numbers holds by first use, writes captions ("Right hand → hold 7 · 45 cm up"), tips (barn door and flag, long reach, cross-through, match, rest, high step, smear, first step off the mat, footwork), and marks the crux (costliest hand move).
+- Units: cm, Y up from the floor. Body from height H: arm reach 0.5H from a shoulder point TORSO = 0.3H above the hip, leg reach 0.56H. A pose is feasible if the hip fits inside the intersection of the reach disks (candidates: ideal hip, projections onto each disk, pairwise circle intersections). Ideal hip: x between the hands and the feet (feet weighted 1.5), y = average foot + 0.46H, capped so the shoulders are at most 0.04H above the lowest hand.
+- Pose cost follows coaching rules (sources: John Baker "Face climbing principles", Philadelphia Rock Gyms "Mastering foot sequencing", climber.co.uk technique tips): distance from the ideal hip, limb stretch beyond 0.78 (arms beyond 0.92 extra), feet close to the hands (gap < 0.7H), feet high under the hips (< 0.3H below the hip), stance wider than 0.42H, hips not over the feet, an arm reaching across the body, and 1.2 per flagged foot (flags are short-term).
+- A* over states (left hand, right hand, left foot, right foot); a foot can be -1 (flag) or on floor points at the start. Both feet must leave the floor before a hand moves. Foot move 0.5 + 0.8 (d/LEG)^2 (+ smear, matching feet 2.0 on small holds, stepping down); flag 1.8; hand move 1 + 0.6 (d/ARM)^2 + pose (+ matching 1.5 on small holds, moving down, barn-door penalty when the other hand and the feet don't hold the hips from both sides).
+- Hands never cross and feet never cross, in every pass (the owner does not want tangled limbs; on the benchmark this costs no routes).
+- Strict pass first: feet at least 0.5H below the lowest hand and not above the hip, hands at least 0.45H above the feet. Tried from the 3 most natural starts, sharing one search budget. If none reaches the top, a relaxed pass (feet 0.15H below the hands, high steps allowed but costed by the pose rules, hands 0.12H above the feet) searches from every start pair at once. `res.strict` says which pass won. On real photos footholds are sparse, so the relaxed pass usually decides; the sample wall solves strict.
+- Start (no tags): pairs from the 8 lowest holds between 0.35H and 1.3H, scored by closeness to chest height (0.8H), level hands, footholds at least 0.5H below, any foothold at all, and rank; a pair is "natural" (strict may use it) when the hands are within 0.6H of each other and between 0.45H and 1.2H. Or the user's Set start holds. Top = highest hold you can chain to from the low holds within 1.1H, or the user's Set top. Heuristic = remaining height / 0.42H, weight 1.4 (1.8 open feet), max 26k expansions per pass (16k open feet). Returns the best partial path when stuck.
+- `buildBeta()` numbers holds by first use, writes captions ("Right hand → hold 7 · 45 cm up"), tips (push through the same-side foot and hang off the other hand, barn door and flag, long reach, match, rest, high step, smear, first step off the mat, footwork), and marks the crux (costliest hand move).
+
+## The climber figure (drawClimber in src/app.js)
+
+- Drawn from behind, facing the wall, as a white mannequin: capsules for limbs, a shaped torso with spine, shoulder blades, waistline and glutes, knee creases, the nape of the head, elbow points, and dark climbing shoes with the toe on the hold and the heel toward the viewer.
+- Layer order is arms, then body, then head: seen from behind, the arms reach past the body toward the wall, so the back and head cover them where they overlap (a hand in front of the chest is hidden; its L/R badge still marks the hold).
+- `chooseBody()` picks how the planner's pose is drawn: the hips may sink up to 0.1H (0.2H while a foot is on the mat, never closer than 0.3H above the higher foot) and the upper body leans up to 0.5 rad. Cost: lean away from half the angle to the hands, lean beyond 0.3 rad, sinking, a hand beyond arm's length, a hand closer to the head than about 1.25 head radii (more room above the head than beside it), an arm segment overlapping the head (a lot when it crosses behind it, a little when a raised arm passes beside it), and a hand on the wrong side of the head around head height (not for matched hands). Coarse-to-fine grid search, about 1-2 ms, memoized per pose. While a move animates, `bodyFor()` blends lean and sink between the two held positions so the torso never flips.
+- Elbows pick the outward-and-down solution; knees turn out. `bend3d()` keeps only part of the flat sideways swing (arms 0.55, legs 0.35) because real joints bend toward the wall.
+- Each layer is filled, edge-shaded with an inner shadow from an inverted mask, then composited with drop shadows into an offscreen sprite that is only redrawn when the pose or view changes.
 
 ## App behaviour (src/app.js)
 
@@ -65,6 +77,8 @@ bash test/make_media.sh               # once: clones the public test photos, bui
 node test/eval.js                     # detection benchmark (new matcher)
 npm run eval:old                      # same benchmark with the v1 hue-only matcher
 node test/inspect.js img13 red        # explain every blob for one photo and colour
+node test/plan.js                     # planner coverage, technique counts and figure checks on the benchmark routes
+OTHER=old/solver.js node test/plan.js # same, plus another solver.js's top count for comparison
 pip install playwright && python -m playwright install chromium
 python test/e2e.py                    # end-to-end checks on both builds, screenshots in test/out/e2e
 ```
@@ -74,6 +88,7 @@ To try the live camera locally: double-click `serve.bat` (or `cd dist && python 
 ## Status at handoff
 
 - Benchmark (18 real gym photos, 35 tapped routes, tol 5): new matcher finds 66% of labelled route holds (old 61%); 84% of its holds are the right colour (old 74%); wrong-colour picks 11 (old 21); wall or background picks 32 (old 50). The photos have grey walls; the bigger gain is on painted or coloured walls (the sample wall's green panel is now rejected).
+- Planner (`node test/plan.js`, 34 routes, photo height taken as 4.2 m, 170 cm climber): reaches the top on 24 (v1 planner 24); over 145 moves 0 crossed hands (v1 7), 0 crossed feet (v1 1), 27 feet above the hips (v1 51), 3 flags (v1 11). With a 3 m scale 33 of 34 (v1 32); with open feet 31 (v1 29). Figure: 2 leans over 0.45 rad and 3 hands on the head in 178 held positions, no arm behind the head.
 - `test/e2e.py`: all checks pass, no console errors; live mode with the fake camera runs about 12 scans per second on a desktop CPU.
 - Not yet verified: a real phone camera, iOS Safari, and whether claude.ai's viewer plays recorded clips (the clip uses a `blob:` video source).
 
@@ -83,7 +98,7 @@ To try the live camera locally: double-click `serve.bat` (or `cd dist && python 
 - Keep `VisionCore` and `solveBeta` free of outside references (they run inside workers via `toString()`).
 - Colours come from CSS tokens on `:root` with the two dark-mode blocks; don't add literal colours to components.
 - UI copy: plain words, active voice, short sentences; errors say what happened and what to do.
-- After any detection change, run `node test/eval.js` and compare with the numbers above; after any UI change, run `python test/e2e.py`.
+- After any detection change, run `node test/eval.js` and compare with the numbers above; after any planner or figure change, run `node test/plan.js` (keep the top count at least the v1 planner's); after any UI change, run `python test/e2e.py`.
 
 ## Known gaps and next ideas
 

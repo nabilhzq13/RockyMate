@@ -38,18 +38,25 @@ function solveBeta(holds,o){
   const key4=(a,b,c,d)=>((a*1024+b)*1024+(c+1))*1024+(d+1);
 
   const memo=new Map();
+  /* Where the hips can be for a set of contacts, and how comfortable that is.
+     Technique rules from coaching sources: hips over the feet, feet low
+     (about knee height or below, not near the hands), a stance about hip to
+     shoulder width, arms long, and no arm reaching across the body. */
   function pose(lh,rh,lf,rf){
     const key=key4(lh,rh,lf,rf);
     if(memo.has(key)) return memo.get(key);
     const A=pts[lh],B=pts[rh],D=[[A.X,A.Y-TORSO,ARM],[B.X,B.Y-TORSO,ARM]];
-    let fx=0,fy=0,nf=0,minFY=Infinity;
-    if(lf>=0){ const F=pts[lf]; D.push([F.X,F.Y,LEG]); fx+=F.X; fy+=F.Y; nf++; minFY=Math.min(minFY,F.Y); }
-    if(rf>=0){ const F=pts[rf]; D.push([F.X,F.Y,LEG]); fx+=F.X; fy+=F.Y; nf++; minFY=Math.min(minFY,F.Y); }
+    let fx=0,fy=0,nf=0,minFY=Infinity,maxFY=-Infinity;
+    const feet=[];
+    if(lf>=0){ const F=pts[lf]; D.push([F.X,F.Y,LEG]); fx+=F.X; fy+=F.Y; nf++; feet.push(F); }
+    if(rf>=0){ const F=pts[rf]; D.push([F.X,F.Y,LEG]); fx+=F.X; fy+=F.Y; nf++; feet.push(F); }
+    for(const F of feet){ minFY=Math.min(minFY,F.Y); maxFY=Math.max(maxFY,F.Y); }
     let res=null;
     if(nf>0){
-      const ix=(A.X+B.X+fx*1.5)/(2+nf*1.5);
-      let iy=fy/nf+0.42*H;
-      const cap=Math.min(A.Y,B.Y)-TORSO-0.1*H; if(iy>cap) iy=cap;
+      const hx=(A.X+B.X)/2,fcx=fx/nf;
+      const ix=(hx+fcx*1.5)/2.5;
+      let iy=fy/nf+0.46*H;
+      const cap=Math.min(A.Y,B.Y)-TORSO+0.04*H; if(iy>cap) iy=cap;
       const C=[[ix,iy]];
       for(const d of D){ const dx=ix-d[0],dy=iy-d[1],dd=Math.hypot(dx,dy); if(dd>d[2]) C.push([d[0]+dx/dd*d[2],d[1]+dy/dd*d[2]]); }
       for(let i=0;i<D.length;i++) for(let j=i+1;j<D.length;j++){ const q=circInt(D[i],D[j]); if(q){ C.push(q[0],q[1]); } }
@@ -64,28 +71,27 @@ function solveBeta(holds,o){
       }
       if(best){
         const st=D.map(d=>Math.hypot(best[0]-d[0],best[1]-d[1])/d[2]);
-        let s=0; for(const v of st){ const e=Math.max(0,v-0.75); s+=e*e; }
-        res={C:best,cost:bd/H+10*s,st};
+        let s=0; for(const v of st){ const e=Math.max(0,v-0.78); s+=e*e; }
+        for(const v of [st[0],st[1]]){ const e=Math.max(0,v-0.92); s+=3*e*e; }
+        let cost=bd/H+10*s;
+        const sq=v=>v*v;
+        const gap=Math.min(A.Y,B.Y)-maxFY;
+        if(gap<0.7*H) cost+=sq((0.7*H-gap)/(0.18*H));
+        for(const F of feet){ if(F.kind==='floor') continue; const d=best[1]-F.Y; if(d<0.3*H) cost+=sq((0.3*H-d)/(0.12*H)); }
+        cost+=1.2*(2-nf);
+        if(feet.length===2&&lf!==rf){ const sp=Math.abs(feet[0].X-feet[1].X); if(sp>0.42*H) cost+=sq((sp-0.42*H)/(0.15*H)); }
+        const off=Math.abs(best[0]-fcx); if(off>0.2*H) cost+=sq((off-0.2*H)/(0.15*H));
+        if(A.X>best[0]+0.2*H) cost+=sq((A.X-best[0]-0.2*H)/(0.12*H));
+        if(B.X<best[0]-0.2*H) cost+=sq((best[0]-0.2*H-B.X)/(0.12*H));
+        res={C:best,cost,st};
       }
     }
     memo.set(key,res);
     return res;
   }
 
-  const nodes=[],heap=[],gBest=new Map(),closed=new Set();
   const GAIN=0.42*H,W=o.feet==='open'?1.8:1.4;
   const hf=(lh,rh)=>Math.max(0,((topY-pts[lh].Y)+(topY-pts[rh].Y))/GAIN);
-  function hpush(i){ heap.push(i); let k=heap.length-1; while(k>0){ const p=(k-1)>>1; if(nodes[heap[p]].f<=nodes[heap[k]].f) break; [heap[p],heap[k]]=[heap[k],heap[p]]; k=p; } }
-  function hpop(){ const t=heap[0],last=heap.pop(); if(heap.length){ heap[0]=last; let k=0; for(;;){ const l=2*k+1,r=l+1; let m=k; if(l<heap.length&&nodes[heap[l]].f<nodes[heap[m]].f) m=l; if(r<heap.length&&nodes[heap[r]].f<nodes[heap[m]].f) m=r; if(m===k) break; [heap[m],heap[k]]=[heap[k],heap[m]]; k=m; } } return t; }
-  function add(lh,rh,lf,rf,g,parent,move,ps){
-    ps=ps||pose(lh,rh,lf,rf); if(!ps) return;
-    g+=ps.cost;
-    const key=key4(lh,rh,lf,rf),pg=gBest.get(key);
-    if(pg!==undefined&&pg<=g) return;
-    gBest.set(key,g);
-    nodes.push({lh,rh,lf,rf,g,f:g+W*hf(lh,rh),parent,move,key,pose:ps});
-    hpush(nodes.length-1);
-  }
   const nearestFloor=x=>{ let b=floor0,bd=Infinity; for(let i=floor0;i<pts.length;i++){ const d=Math.abs(pts[i].X-x); if(d<bd){ bd=d; b=i; } } return b; };
 
   let pairs=[];
@@ -95,88 +101,148 @@ function solveBeta(holds,o){
     else if(ids.length>=2){ const a=ids[0],b=ids[1]; pairs=[pts[a].X<=pts[b].X?[a,b,0]:[b,a,0]]; }
   }
   if(!pairs.length){
+    /* Without start tags, start the way routes are usually set: hands on
+       low holds at about chest height, feet still on the mat. */
     const cand=[];
     for(let i=0;i<nHold;i++) if(pts[i].Y<=1.3*H&&pts[i].Y>=0.35*H) cand.push(i);
     cand.sort((a,b)=>pts[a].Y-pts[b].Y);
-    const c=cand.slice(0,6);
+    const c=cand.slice(0,8);
     for(let a=0;a<c.length;a++) for(let b=a;b<c.length;b++){
       const i=c[a],j=c[b]; if(i===j&&pts[i].r<4) continue;
       const L=pts[i].X<=pts[j].X?i:j,R=L===i?j:i;
-      pairs.push([L,R,0.25*(a+b)+(i===j?0.4:0)]);
+      const hy=(pts[L].Y+pts[R].Y)/2,lowY=Math.min(pts[L].Y,pts[R].Y),dy=Math.abs(pts[L].Y-pts[R].Y);
+      /* footholds well below the hands (strict) and any foothold at all
+         (relaxed); a start with none can never leave the mat */
+      let feet=0,anyFeet=0;
+      for(let f=0;f<nFoot;f++){
+        if(f===L||f===R||Math.abs(pts[f].X-(pts[L].X+pts[R].X)/2)>0.6*H) continue;
+        if(pts[f].Y<=lowY-0.5*H) feet++;
+        if(pts[f].Y<=lowY-0.15*H) anyFeet++;
+      }
+      /* [left, right, score, natural]: natural starts (hands within 0.6H of
+         each other, 0.45H to 1.2H up) are the only ones the strict pass tries */
+      const natural=(L===R||Math.abs(pts[L].X-pts[R].X)<=0.6*H)&&lowY>=0.45*H&&Math.max(pts[L].Y,pts[R].Y)<=1.2*H;
+      pairs.push([L,R,((hy-0.8*H)/(0.15*H))**2+0.15*(a+b)+(dy>0.25*H?((dy-0.25*H)/(0.1*H))**2:0)+(i===j?(pts[i].r>=7?0.6:1.5):0)+(feet?0:4)+(anyFeet?0:8),natural]);
     }
   }
-  for(const [L,R,g0] of pairs){
-    const mx=(pts[L].X+pts[R].X)/2;
-    add(L,R,nearestFloor(mx-0.1*H),nearestFloor(mx+0.1*H),g0,-1,null);
-  }
-  if(!nodes.length) return {ok:false,reason:'nostart',H};
+  pairs.sort((p,q)=>p[2]-q[2]);
 
   const MAX=o.maxExpand||(o.feet==='open'?16000:26000);
-  let expanded=0,goal=-1,bestPartial=0,bestProg=-Infinity;
-  while(heap.length&&expanded<MAX){
-    const ni=hpop(),n=nodes[ni];
-    if(closed.has(n.key)||gBest.get(n.key)<n.g) continue;
-    closed.add(n.key); expanded++;
-    const onFloor=(n.lf>=0&&isFloor(n.lf))||(n.rf>=0&&isFloor(n.rf));
-    const prog=pts[n.lh].Y+pts[n.rh].Y-(onFloor?1e4:0)-n.g*0.5;
-    if(prog>bestProg){ bestProg=prog; bestPartial=ni; }
-    if(n.lh===top&&n.rh===top){ goal=ni; break; }
-    const C=n.pose.C,minHY=Math.min(pts[n.lh].Y,pts[n.rh].Y);
-    for(const limb of ['lf','rf']){
-      const cur=n[limb],other=limb==='lf'?n.rf:n.lf,side=limb==='lf'?-1:1;
-      const from=cur>=0?pts[cur]:{X:C[0]+side*0.35*H,Y:C[1]-0.2*H};
-      const holdsT=[],smearT=[];
-      for(let t=0;t<nFoot;t++){
-        if(t===cur||t===n.lh||t===n.rh) continue;
-        const p=pts[t];
-        if(p.Y>minHY-0.15*H) continue;
-        if(Math.hypot(p.X-C[0],p.Y-C[1])>LEG*1.1) continue;
-        if(p.kind==='smear') smearT.push([Math.hypot(p.X-(C[0]+side*0.1*H),p.Y-(C[1]-0.45*H)),t]); else holdsT.push(t);
+  /* Hands never cross and feet never cross, in every pass. strict: feet stay
+     well below the hands (0.5H) and below the hips, hands go at least 0.45H
+     above the feet. relaxed: feet 0.15H below the hands, high steps allowed
+     (the pose cost still dislikes them), hands 0.12H above the feet. */
+  function search(strict,starts,budget){
+    /* starts: [L,R,cost]; several starts let the search choose (relaxed pass). */
+    const nodes=[],heap=[],gBest=new Map(),closed=new Set();
+    function hpush(i){ heap.push(i); let k=heap.length-1; while(k>0){ const p=(k-1)>>1; if(nodes[heap[p]].f<=nodes[heap[k]].f) break; [heap[p],heap[k]]=[heap[k],heap[p]]; k=p; } }
+    function hpop(){ const t=heap[0],last=heap.pop(); if(heap.length){ heap[0]=last; let k=0; for(;;){ const l=2*k+1,r=l+1; let m=k; if(l<heap.length&&nodes[heap[l]].f<nodes[heap[m]].f) m=l; if(r<heap.length&&nodes[heap[r]].f<nodes[heap[m]].f) m=r; if(m===k) break; [heap[m],heap[k]]=[heap[k],heap[m]]; k=m; } } return t; }
+    function add(lh,rh,lf,rf,g,parent,move,ps){
+      ps=ps||pose(lh,rh,lf,rf); if(!ps) return;
+      g+=ps.cost;
+      const key=key4(lh,rh,lf,rf),pg=gBest.get(key);
+      if(pg!==undefined&&pg<=g) return;
+      gBest.set(key,g);
+      nodes.push({lh,rh,lf,rf,g,f:g+W*hf(lh,rh),parent,move,key,pose:ps});
+      hpush(nodes.length-1);
+    }
+    for(const [L,R,g0] of starts){
+      const mx=(pts[L].X+pts[R].X)/2;
+      add(L,R,nearestFloor(mx-0.1*H),nearestFloor(mx+0.1*H),starts.length>1?g0:0,-1,null);
+    }
+    if(!nodes.length) return null;
+    const footGap=strict?0.5*H:0.15*H,footAboveHip=strict?-0.05*H:Infinity,handGap=strict?0.45*H:0.12*H,footReach=strict?1.08*LEG:1.1*LEG;
+    let expanded=0,goal=-1,bestPartial=0,bestProg=-Infinity;
+    while(heap.length&&expanded<budget){
+      const ni=hpop(),n=nodes[ni];
+      if(closed.has(n.key)||gBest.get(n.key)<n.g) continue;
+      closed.add(n.key); expanded++;
+      const onFloor=(n.lf>=0&&isFloor(n.lf))||(n.rf>=0&&isFloor(n.rf));
+      const prog=pts[n.lh].Y+pts[n.rh].Y-(onFloor?1e4:0)-n.g*0.5;
+      if(prog>bestProg){ bestProg=prog; bestPartial=ni; }
+      if(n.lh===top&&n.rh===top){ goal=ni; break; }
+      const C=n.pose.C,minHY=Math.min(pts[n.lh].Y,pts[n.rh].Y);
+      for(const limb of ['lf','rf']){
+        const cur=n[limb],other=limb==='lf'?n.rf:n.lf,side=limb==='lf'?-1:1;
+        const from=cur>=0?pts[cur]:{X:C[0]+side*0.35*H,Y:C[1]-0.2*H};
+        const holdsT=[],smearT=[];
+        for(let t=0;t<nFoot;t++){
+          if(t===cur||t===n.lh||t===n.rh) continue;
+          const p=pts[t];
+          if(p.Y>minHY-footGap) continue;
+          if(p.Y>C[1]+footAboveHip) continue;
+          if(Math.hypot(p.X-C[0],p.Y-C[1])>footReach) continue;
+          if(p.kind==='smear') smearT.push([Math.hypot(p.X-(C[0]+side*0.12*H),p.Y-(C[1]-0.45*H)),t]); else holdsT.push(t);
+        }
+        smearT.sort((a,b)=>a[0]-b[0]);
+        for(const t of holdsT.concat(smearT.slice(0,5).map(e=>e[1]))){
+          const p=pts[t],d=Math.hypot(p.X-from.X,p.Y-from.Y);
+          const nl=limb==='lf'?t:n.lf,nr=limb==='rf'?t:n.rf;
+          let pen=0.8*(d/LEG)*(d/LEG);
+          if(nl>=0&&nr>=0&&nl!==nr&&pts[nl].X>pts[nr].X+0.03*H) continue; // feet never cross
+          if(p.kind==='smear') pen+=0.8;
+          if(t===other) pen+=p.r>=7?0.6:2.0;
+          if(cur>=0&&!isFloor(cur)&&p.Y<pts[cur].Y-0.06*H) pen+=0.6;
+          add(n.lh,n.rh,nl,nr,n.g+0.5+pen,ni,{limb,from:cur,to:t});
+        }
+        if(cur>=0&&other>=0&&!onFloor){
+          const nl=limb==='lf'?-1:n.lf,nr=limb==='rf'?-1:n.rf;
+          add(n.lh,n.rh,nl,nr,n.g+1.8,ni,{limb,from:cur,to:-1});
+        }
       }
-      smearT.sort((a,b)=>a[0]-b[0]);
-      for(const t of holdsT.concat(smearT.slice(0,5).map(e=>e[1]))){
-        const p=pts[t],d=Math.hypot(p.X-from.X,p.Y-from.Y);
-        let pen=0.8*(d/LEG)*(d/LEG);
-        if(p.kind==='smear') pen+=0.8;
-        if(t===other) pen+=0.7;
-        if(p.Y>C[1]) pen+=0.4;
-        if(cur>=0&&!isFloor(cur)&&p.Y<pts[cur].Y-0.06*H) pen+=0.6;
-        const nl=limb==='lf'?t:n.lf,nr=limb==='rf'?t:n.rf;
-        if(nl>=0&&nr>=0&&nl!==nr&&pts[nl].X>pts[nr].X+0.06*H) pen+=0.6;
-        add(n.lh,n.rh,nl,nr,n.g+0.5+pen,ni,{limb,from:cur,to:t});
-      }
-      if(cur>=0&&other>=0&&!onFloor){
-        const nl=limb==='lf'?-1:n.lf,nr=limb==='rf'?-1:n.rf;
-        add(n.lh,n.rh,nl,nr,n.g+1.8,ni,{limb,from:cur,to:-1});
+      if(onFloor||(n.lf<0&&n.rf<0)) continue;
+      const maxFY=Math.max(n.lf>=0?pts[n.lf].Y:-1e9,n.rf>=0?pts[n.rf].Y:-1e9);
+      for(const limb of ['lh','rh']){
+        const cur=n[limb],other=limb==='lh'?n.rh:n.lh,side=limb==='lh'?-1:1;
+        for(let t=0;t<nHold;t++){
+          if(t===cur||t===n.lf||t===n.rf) continue;
+          const p=pts[t];
+          if(p.Y<maxFY+handGap) continue;
+          if(Math.hypot(p.X-C[0],p.Y-C[1])>TORSO+ARM+0.2*H) continue;
+          const nl=limb==='lh'?t:n.lh,nr=limb==='rh'?t:n.rh;
+          let pen=0;
+          if(nl!==nr&&pts[nl].X>pts[nr].X+0.02*H) continue; // hands never cross
+          if(t===other){ if(t!==top&&p.r<4) continue; if(t!==top) pen+=p.r>=7?0.6:1.5; }
+          if(p.Y<pts[cur].Y-0.05*H) pen+=0.8;
+          /* Cross-body tension: while one hand moves, the other hand and the
+             feet must hold the body on both sides of the hips, or it swings
+             open like a barn door. */
+          const sx=[pts[other].X];
+          if(n.lf>=0) sx.push(pts[n.lf].X); if(n.rf>=0) sx.push(pts[n.rf].X);
+          const lo=Math.min(...sx),hi=Math.max(...sx),cx=C[0];
+          const outside=cx<lo-0.04*H?lo-0.04*H-cx:cx>hi+0.04*H?cx-hi-0.04*H:0;
+          if(outside>0) pen+=Math.min(1.5,outside/(0.15*H));
+          const ps=pose(nl,nr,n.lf,n.rf); if(!ps) continue;
+          const d=Math.hypot(p.X-pts[cur].X,p.Y-pts[cur].Y);
+          pen+=0.6*(d/ARM)*(d/ARM);
+          add(nl,nr,n.lf,n.rf,n.g+1+pen,ni,{limb,from:cur,to:t,reach:ps.st[limb==='lh'?0:1]},ps);
+        }
       }
     }
-    if(onFloor||(n.lf<0&&n.rf<0)) continue;
-    const maxFY=Math.max(n.lf>=0?pts[n.lf].Y:-1e9,n.rf>=0?pts[n.rf].Y:-1e9);
-    for(const limb of ['lh','rh']){
-      const cur=n[limb],other=limb==='lh'?n.rh:n.lh;
-      for(let t=0;t<nHold;t++){
-        if(t===cur||t===n.lf||t===n.rf) continue;
-        const p=pts[t];
-        if(p.Y<maxFY+0.12*H) continue;
-        if(Math.hypot(p.X-C[0],p.Y-C[1])>TORSO+ARM+0.2*H) continue;
-        let pen=0;
-        if(t===other){ if(t!==top&&p.r<4) continue; if(t!==top) pen+=0.5; }
-        if(p.Y<pts[cur].Y-0.05*H) pen+=0.8;
-        const nl=limb==='lh'?t:n.lh,nr=limb==='rh'?t:n.rh;
-        if(nl!==nr&&pts[nl].X>pts[nr].X+0.04*H) pen+=0.8;
-        const ps=pose(nl,nr,n.lf,n.rf); if(!ps) continue;
-        const d=Math.hypot(p.X-pts[cur].X,p.Y-pts[cur].Y);
-        pen+=0.6*(d/ARM)*(d/ARM);
-        add(nl,nr,n.lf,n.rf,n.g+1+pen,ni,{limb,from:cur,to:t,reach:ps.st[limb==='lh'?0:1]},ps);
-      }
-    }
+    const end=goal>=0?goal:bestPartial,chain=[];
+    for(let i=end;i>=0;i=nodes[i].parent) chain.push(nodes[i]);
+    chain.reverse();
+    const last=chain[chain.length-1];
+    return {ok:goal>=0,expanded,strict,chain,height:Math.max(pts[last.lh].Y,pts[last.rh].Y)};
   }
-  const end=goal>=0?goal:bestPartial,chain=[];
-  for(let i=end;i>=0;i=nodes[i].parent) chain.push(nodes[i]);
-  chain.reverse();
-  return {ok:goal>=0,reason:goal>=0?'':'stuck',top,H,TORSO,ARM,LEG,expanded,
+  /* Strict technique from the 3 most natural starts first; if the holds don't
+     allow it, a relaxed pass (high steps, feet nearer the hands) that may pick
+     any start. Real photos often have few low footholds, so the relaxed pass
+     is common; it reaches the top as often as the v1 planner did. */
+  let r=null;
+  const better=t=>t&&(!r||(t.ok&&!r.ok)||(!r.ok&&!t.ok&&t.height>r.height+1));
+  /* the strict tries share one search budget, the relaxed pass gets its own */
+  let left=MAX;
+  for(const st of pairs.filter(p=>p[3]!==false).slice(0,3)){
+    if(left<200) break;
+    const t=search(true,[st],left); if(t) left-=t.expanded;
+    if(better(t)) r=t; if(r&&r.ok) break;
+  }
+  if(!r||!r.ok){ const t=search(false,pairs,MAX); if(better(t)) r=t; }
+  if(!r) return {ok:false,reason:'nostart',H};
+  return {ok:r.ok,reason:r.ok?'':'stuck',strict:r.strict,top,H,TORSO,ARM,LEG,expanded:r.expanded,
     pts:pts.map(p=>({X:p.X,Y:p.Y,r:p.r,kind:p.kind,id:p.id})),
-    steps:chain.map(n=>({lh:n.lh,rh:n.rh,lf:n.lf,rf:n.rf,C:n.pose.C,st:n.pose.st,move:n.move,g:n.g}))};
+    steps:r.chain.map(n=>({lh:n.lh,rh:n.rh,lf:n.lf,rf:n.rf,C:n.pose.C,st:n.pose.st,move:n.move,g:n.g}))};
 }
 
 /* Turns solver output into numbered holds, captions and coaching tips. */
@@ -242,6 +308,10 @@ function buildBeta(res,meta){
         const nl=s.lh,nr=s.rh;
         if(nl!==nr&&pts[nl].X>pts[nr].X+0.04*H) tips.push('Cross-through: reach across your body and keep the other arm straight.');
         if(to.Y<from.Y-0.05*H) tips.push('This goes down a little. It sets up a better position for the next move.');
+        /* Cross-body tension: reaching with one hand, push with the foot on
+           the same side and hang off the other hand. */
+        const sameFoot=m.limb==='lh'?s.lf:s.rf,sideW=m.limb==='lh'?'left':'right',otherW=m.limb==='lh'?'right':'left';
+        if(tips.length<2&&sameFoot>=0&&pts[sameFoot].kind!=='floor') tips.push(`Push through your ${sideW} foot and hang straight-armed off your ${otherW} hand as you reach.`);
         if(kind&&tips.length<2) tips.push(kind.grip);
       }
       if(cost>cruxC){ cruxC=cost; crux=out.length; }

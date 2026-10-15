@@ -480,7 +480,7 @@ function currentPos(){
   const {from,to,t0,dur}=S.anim;
   let t=Math.min(1,(performance.now()-t0)/dur); t=t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
   if(t>=1&&isMoving()) S.anim=null;
-  const o={C:lerp(from.C,to.C,t)};
+  const o={C:lerp(from.C,to.C,t),from,to,t};
   for(const k of ['lh','rh','lf','rf']){ const a=from[k]||flagPos(k,from.C),b=to[k]||flagPos(k,to.C); o[k]=(!to[k]&&t>=1)?null:lerp(a,b,t); }
   return o;
 }
@@ -727,12 +727,15 @@ function ik(Pt,T,L1,L2,pick){
   const a=(L1*L1-L2*L2+d*d)/(2*d),h=Math.sqrt(Math.max(0,L1*L1-a*a)),mx=Pt[0]+dx*a/d,my=Pt[1]+dy*a/d;
   return pick([mx-dy*h/d,my+dx*h/d],[mx+dy*h/d,my-dx*h/d]);
 }
-/* The climber is drawn as a smooth white mannequin: rounded capsules for the
-   limbs, a shaped torso and an oval head. Each layer (body, arms, then the
-   head on top so it always shows) gets soft inner shading from its own
-   outline and a drop shadow, rendered once per pose into an offscreen sprite. */
+/* The climber is drawn from behind as a smooth white mannequin facing the
+   wall: rounded limbs, a shaped torso with spine, shoulder blades and glutes,
+   the back of the head, elbows pointing out and down, and dark climbing shoes
+   with the toe on the foothold and the heel toward you. Each layer (arms at
+   the back, then body, head on top) gets soft inner shading and a drop
+   shadow, rendered once per pose into an offscreen sprite. */
 const figLayers={body:document.createElement('canvas'),arms:document.createElement('canvas'),head:document.createElement('canvas'),mask:document.createElement('canvas'),sprite:document.createElement('canvas')};
 let figKey='';
+const SKIN='#f5f5f2',SHOE='#2c3038',SHOE_RAND='#4a505b';
 function sizeCanvas(cv,w,h){ if(cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; } }
 function capsule(g,A,B,r1,r2){
   const dx=B[0]-A[0],dy=B[1]-A[1],d=Math.hypot(dx,dy);
@@ -745,32 +748,33 @@ function capsule(g,A,B,r1,r2){
   g.arc(A[0],A[1],r1,a-t,a+t,true);
   g.closePath();
 }
-function torsoPath(g,c,s,U){
-  const cx=c[0],yt=s[1]-U(0.035),yb=c[1]+U(0.055),yw=c[1]-U(0.12),yh=c[1];
+/* Torso in a local frame: hip centre at (0,0), shoulder centre at (0,-L). */
+function torsoPath(g,L,U){
+  const yt=-L-U(0.035),yb=U(0.055),yw=-U(0.12),yh=0;
   const ws=U(0.135),ww=U(0.104),wh=U(0.12),rc=U(0.07);
-  g.moveTo(cx,yt);
-  g.lineTo(cx+ws-rc,yt);
-  g.quadraticCurveTo(cx+ws,yt,cx+ws,yt+rc);
-  g.bezierCurveTo(cx+ws,yt+rc+(yw-yt-rc)*0.5,cx+ww,yw-(yw-yt)*0.2,cx+ww,yw);
-  g.quadraticCurveTo(cx+ww,yh-U(0.04),cx+wh,yh);
-  g.quadraticCurveTo(cx+wh,yb,cx,yb);
-  g.quadraticCurveTo(cx-wh,yb,cx-wh,yh);
-  g.quadraticCurveTo(cx-ww,yh-U(0.04),cx-ww,yw);
-  g.bezierCurveTo(cx-ww,yw-(yw-yt)*0.2,cx-ws,yt+rc+(yw-yt-rc)*0.5,cx-ws,yt+rc);
-  g.quadraticCurveTo(cx-ws,yt,cx-ws+rc,yt);
+  g.moveTo(0,yt);
+  g.lineTo(ws-rc,yt);
+  g.quadraticCurveTo(ws,yt,ws,yt+rc);
+  g.bezierCurveTo(ws,yt+rc+(yw-yt-rc)*0.5,ww,yw-(yw-yt)*0.2,ww,yw);
+  g.quadraticCurveTo(ww,yh-U(0.04),wh,yh);
+  g.quadraticCurveTo(wh,yb,0,yb);
+  g.quadraticCurveTo(-wh,yb,-wh,yh);
+  g.quadraticCurveTo(-ww,yh-U(0.04),-ww,yw);
+  g.bezierCurveTo(-ww,yw-(yw-yt)*0.2,-ws,yt+rc+(yw-yt-rc)*0.5,-ws,yt+rc);
+  g.quadraticCurveTo(-ws,yt,-ws+rc,yt);
   g.closePath();
 }
-/* Fill the parts in white, then darken the edges with an inner shadow cast by
-   everything outside the outline (stronger on the lower right, light from the
-   upper left). */
-function shadeLayer(cv,box,dpr,parts,soft){
+/* Fill the parts, darken the edges with an inner shadow cast by everything
+   outside the outline (stronger on the lower right, light from the upper
+   left), then draw surface details clipped to the shape. */
+function shadeLayer(cv,box,dpr,parts,soft,details){
   const W=Math.max(1,Math.ceil(box.w*dpr)),Hh=Math.max(1,Math.ceil(box.h*dpr));
   sizeCanvas(cv,W,Hh);
   const g=cv.getContext('2d');
   g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation='source-over'; g.shadowColor='transparent'; g.clearRect(0,0,W,Hh);
-  g.setTransform(dpr,0,0,dpr,-box.x*dpr,-box.y*dpr);
-  g.fillStyle='#f5f5f2';
-  for(const draw of parts){ g.beginPath(); draw(g); g.fill(); }
+  const base=()=>g.setTransform(dpr,0,0,dpr,-box.x*dpr,-box.y*dpr);
+  base();
+  for(const pt of parts){ g.save(); g.fillStyle=pt.color||SKIN; g.beginPath(); pt.draw(g); g.fill(); g.restore(); base(); }
   const M=figLayers.mask; sizeCanvas(M,W,Hh);
   const m=M.getContext('2d');
   m.setTransform(1,0,0,1,0,0); m.globalCompositeOperation='source-over'; m.clearRect(0,0,W,Hh);
@@ -780,27 +784,119 @@ function shadeLayer(cv,box,dpr,parts,soft){
   const bl=Math.max(2,soft*dpr);
   g.shadowColor='rgba(52,56,64,0.78)'; g.shadowBlur=bl; g.shadowOffsetX=-0.28*bl; g.shadowOffsetY=-0.42*bl; g.drawImage(M,0,0);
   g.shadowColor='rgba(70,74,82,0.55)'; g.shadowBlur=bl*0.5; g.shadowOffsetX=0; g.shadowOffsetY=0; g.drawImage(M,0,0);
-  g.shadowColor='transparent'; g.globalCompositeOperation='source-over';
+  g.shadowColor='transparent';
+  if(details){ base(); g.globalCompositeOperation='source-atop'; details(g); }
+  g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation='source-over';
+}
+/* A real knee or elbow bends partly toward the wall, so from behind it only
+   shows part of its sideways swing: keep that fraction of the flat solution. */
+function bend3d(A,T,E,t,f){
+  const m=[A[0]+(T[0]-A[0])*t,A[1]+(T[1]-A[1])*t];
+  return [m[0]+(E[0]-m[0])*f,m[1]+(E[1]-m[1])*f];
+}
+/* Body geometry shared by the lean search and the drawing (cm, Y up). */
+function upperBody(C,a,H,TORSO){
+  const up=[Math.sin(a),Math.cos(a)],across=[Math.cos(a),-Math.sin(a)];
+  const Sh=[C[0]+up[0]*TORSO,C[1]+up[1]*TORSO];
+  const joint=side=>[Sh[0]+side*across[0]*0.11*H-up[0]*0.01*H,Sh[1]+side*across[1]*0.11*H-up[1]*0.01*H];
+  return {up,across,Sh,head:[Sh[0]+up[0]*0.122*H,Sh[1]+up[1]*0.122*H],lh:joint(-1),rh:joint(1)};
+}
+/* Elbows point out to the side and down, as they do from behind. */
+function elbowAt(A,T,side,H){
+  return bend3d(A,T,ik(A,T,0.19*H,0.26*H,(e1,e2)=>{ const sc=e=>side*(e[0]-A[0])-0.6*(e[1]-A[1]); return sc(e1)>=sc(e2)?e1:e2; }),0.19/0.45,0.55);
+}
+/* Where to draw the hips and how far the upper body leans (radians, +
+   toward the right). The planner's hip is the centre of the weight; the
+   drawing may let it sink up to 0.1H, or crouch up to 0.2H while a foot is
+   still on the mat (straighter arms, more bent knees; never closer than 0.3H
+   above the higher foot), and swings the shoulders around it, at most 0.5 rad
+   either way. It leans toward the hands, keeps each hand within
+   arm's length, and keeps the hands and arms clear of the head, so a hand
+   never sits on the head and an arm never wraps over or behind it. */
+const bodyMemo=new Map();
+function chooseBody(p,H,TORSO){
+  const lh=p.lh,rh=p.rh,C0=p.C,r1=v=>v?Math.round(v[0]*10)+','+Math.round(v[1]*10):'-';
+  const key=[H,TORSO,r1(C0),r1(lh),r1(rh),r1(p.lf),r1(p.rf)].join('|');
+  if(bodyMemo.has(key)) return bodyMemo.get(key);
+  const sq=v=>v*v,hm=[(lh[0]+rh[0])/2,(lh[1]+rh[1])/2],matched=Math.hypot(lh[0]-rh[0],lh[1]-rh[1])<0.03*H;
+  let footY=-Infinity,onMat=false;
+  for(const f of [p.lf,p.rf]) if(f){ if(f[1]>footY) footY=f[1]; if(f[1]<1) onMat=true; }
+  const room=Math.max(0,Math.min(onMat?0.2*H:0.1*H,C0[1]-footY-0.3*H));
+  const a0=Math.max(-0.35,Math.min(0.35,0.5*Math.atan2(hm[0]-C0[0],Math.max(0.3*H,hm[1]-C0[1]))));
+  const cost=(drop,a)=>{
+    const B=upperBody([C0[0],C0[1]-drop],a,H,TORSO),hd=B.head;
+    const loc=(P,rx,ry)=>[((P[0]-hd[0])*B.across[0]+(P[1]-hd[1])*B.across[1])/rx,((P[0]-hd[0])*B.up[0]+(P[1]-hd[1])*B.up[1])/ry];
+    /* An arm segment that overlaps the head costs a little when it passes
+       beside it (a raised arm next to the head is normal) and a lot when it
+       crosses behind it from one side to the other. */
+    const seg=(P,Q)=>{ const p=loc(P,0.104*H,0.116*H),q=loc(Q,0.104*H,0.116*H),dx=q[0]-p[0],dy=q[1]-p[1],l2=dx*dx+dy*dy;
+      const t=l2>0?Math.max(0,Math.min(1,-(p[0]*dx+p[1]*dy)/l2)):0,e=Math.hypot(p[0]+dx*t,p[1]+dy*t);
+      if(e>=1) return 0;
+      const across=p[0]*q[0]<0&&Math.min(Math.abs(p[0]),Math.abs(q[0]))>0.15;
+      return (across?40:4)*sq(1-e); };
+    let c=6*sq(a-a0)+20*sq(Math.max(0,Math.abs(a)-0.3))+0.6*sq(drop/(0.1*H));
+    for(const [T,side,kk] of [[lh,-1,'lh'],[rh,1,'rh']]){
+      const J=B[kk],E=elbowAt(J,T,side,H);
+      const d=Math.hypot(T[0]-J[0],T[1]-J[1]); if(d>0.47*H) c+=sq((d-0.47*H)/(0.06*H));
+      c+=seg(J,E)+seg(E,T);
+      /* a hand needs more room above the head than beside it */
+      const t=loc(T,0.114*H,1),e=Math.hypot(t[0],t[1]/((t[1]>0?0.15:0.126)*H)); if(e<1.25) c+=20*sq(1.25-e);
+      /* around head height each hand stays on its own side of the head (a
+         matched pair can't, so it is left out; well above the head the arm
+         passes over it anyway) */
+      if(!matched){
+        const v=(T[0]-B.Sh[0])*B.up[0]+(T[1]-B.Sh[1])*B.up[1];
+        const w=Math.max(0,Math.min(1,0.5+v/(0.1*H)))*Math.max(0,Math.min(1,(0.35*H-v)/(0.1*H)));
+        c+=10*w*sq(1.14*Math.max(0,-side*t[0]));
+      }
+    }
+    return c;
+  };
+  /* coarse grid, then refine around the best */
+  let best={c:Infinity,drop:0,a:a0};
+  for(let j=0;j<=4;j++) for(let i=-12;i<=12;i++){ const drop=room*j/4,a=i*0.04,c=cost(drop,a); if(c<best.c) best={c,drop,a}; }
+  const d0=best.drop,a1=best.a;
+  for(let j=-1;j<=1;j++) for(let i=-3;i<=3;i++){
+    const drop=Math.max(0,Math.min(room,d0+j*room/8)),a=a1+i*0.01;
+    if(Math.abs(a)>0.5) continue;
+    const c=cost(drop,a); if(c<best.c) best={c,drop,a};
+  }
+  const val={drop:best.drop,lean:best.a};
+  if(bodyMemo.size>64) bodyMemo.clear();
+  bodyMemo.set(key,val);
+  return val;
+}
+/* While a move animates, blend the body between the two held positions so
+   the torso turns smoothly instead of flipping between solutions. A move
+   started mid-animation blends from what was on screen at that moment. */
+function bodyFor(p,H,TORSO){
+  if(!p.from) return chooseBody(p,H,TORSO);
+  const a=bodyFor(p.from,H,TORSO),b=bodyFor(p.to,H,TORSO);
+  return {drop:a.drop+(b.drop-a.drop)*p.t,lean:a.lean+(b.lean-a.lean)*p.t};
 }
 function drawClimber(){
-  const b=S.beta,H=b.res.H,TORSO=b.res.TORSO,step=b.steps[S.step],p=currentPos(),C=p.C,dr=drift();
+  const b=S.beta,H=b.res.H,TORSO=b.res.TORSO,step=b.steps[S.step],p=currentPos(),dr=drift();
   const editing=S.mode!=='pick',dpr=S.view.dpr,k=kU()*S.view.dh,U=v=>v*H*k;
-  const Sh=[C[0],C[1]+TORSO],Q=q=>cmPx(q,dr);
-  const sh={lh:[Sh[0]-0.11*H,Sh[1]-0.01*H],rh:[Sh[0]+0.11*H,Sh[1]-0.01*H]},hip={lf:[C[0]-0.07*H,C[1]],rf:[C[0]+0.07*H,C[1]]};
-  const ends={},flagged={},J={};
+  const Q=q=>cmPx(q,dr);
+  const bd=bodyFor(p,H,TORSO),C=[p.C[0],p.C[1]-bd.drop],lean=bd.lean,B=upperBody(C,lean,H,TORSO),Sh=B.Sh;
+  const hip={lf:[C[0]-0.07*H,C[1]],rf:[C[0]+0.07*H,C[1]]};
+  const ends={},flagged={},J={},shoe={};
   for(const kk of ['lh','rh']){
-    const T=p[kk]; ends[kk]=T;
-    const E=ik(sh[kk],T,0.19*H,0.26*H,(a,c)=>a[1]<c[1]?a:c);
-    J[kk]={a:Q(sh[kk]),e:Q(E),h:Q(T)};
+    const T=p[kk],A=B[kk]; ends[kk]=T;
+    J[kk]={a:Q(A),e:Q(elbowAt(A,T,kk==='lh'?-1:1,H)),h:Q(T)};
   }
   for(const kk of ['lf','rf']){
-    let T=p[kk]; if(!T){ T=flagPos(kk,C); flagged[kk]=true; }
+    let T=p[kk]; const side=kk==='lf'?-1:1;
+    if(!T){ T=flagPos(kk,p.C); flagged[kk]=true; }
     ends[kk]=T;
-    const side=kk==='lf'?-1:1,K=ik(hip[kk],T,0.27*H,0.29*H,(a,c)=>(a[0]-C[0])*side>(c[0]-C[0])*side?a:c);
-    J[kk]={a:Q(hip[kk]),e:Q(K),h:Q(T)};
+    /* Toe on the hold, ankle just above it; the leg ends at the ankle. */
+    const ank=flagged[kk]?[T[0]-side*0.05*H,T[1]+0.02*H]:[T[0],T[1]+0.05*H];
+    const K=bend3d(hip[kk],ank,ik(hip[kk],ank,0.27*H,0.25*H,(a,c)=>(a[0]-C[0])*side>(c[0]-C[0])*side?a:c),0.27/0.52,0.35);
+    J[kk]={a:Q(hip[kk]),e:Q(K),h:Q(ank)};
+    shoe[kk]={ank:Q(ank),toe:Q(T),heel:Q([ank[0]+(flagged[kk]?side*0.01*H:0),ank[1]-0.03*H])};
   }
-  const c=Q(C),s=Q(Sh),hd=Q([Sh[0],Sh[1]+0.122*H]);
-  const pts=[c,s,hd]; for(const kk in J) pts.push(J[kk].a,J[kk].e,J[kk].h);
+  const c=Q(C),s=Q(Sh),hd=Q(B.head);
+  const pts=[c,s,hd]; for(const kk in J) pts.push(J[kk].a,J[kk].e,J[kk].h); for(const kk in shoe) pts.push(shoe[kk].toe);
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   for(const q of pts){ if(q[0]<x0)x0=q[0]; if(q[0]>x1)x1=q[0]; if(q[1]<y0)y0=q[1]; if(q[1]>y1)y1=q[1]; }
   const pad=U(0.24)+14,box={x:Math.floor(x0-pad),y:Math.floor(y0-pad),w:Math.ceil(x1-x0+2*pad),h:Math.ceil(y1-y0+2*pad)};
@@ -809,15 +905,60 @@ function drawClimber(){
   if(key!==figKey){
     figKey=key;
     const disc=(g,q,r)=>{ g.moveTo(q[0]+r,q[1]); g.arc(q[0],q[1],r,0,Math.PI*2); };
+    const L=Math.hypot(s[0]-c[0],s[1]-c[1]),rot=Math.atan2(s[0]-c[0],c[1]-s[1]);
+    const local=(g,fn)=>{ g.translate(c[0],c[1]); g.rotate(rot); fn(g); };
     const bodyParts=[];
-    for(const kk of ['lf','rf']){ const j=J[kk]; bodyParts.push(g=>capsule(g,j.a,j.e,U(0.064),U(0.054)),g=>capsule(g,j.e,j.h,U(0.054),U(0.046)),g=>disc(g,j.h,U(0.05))); }
-    bodyParts.push(g=>torsoPath(g,c,s,U),g=>capsule(g,s,hd,U(0.036),U(0.036)));
-    const headParts=[g=>{ g.moveTo(hd[0]+U(0.074),hd[1]); g.ellipse(hd[0],hd[1],U(0.074),U(0.086),0,0,Math.PI*2); }];
+    for(const kk of ['lf','rf']){
+      const j=J[kk],sh2=shoe[kk];
+      bodyParts.push({draw:g=>capsule(g,j.a,j.e,U(0.064),U(0.054))},{draw:g=>capsule(g,j.e,j.h,U(0.054),U(0.04))});
+      bodyParts.push({color:SHOE,draw:g=>capsule(g,sh2.ank,sh2.toe,U(0.042),U(0.03))},{color:SHOE,draw:g=>disc(g,sh2.heel,U(0.036))});
+    }
+    bodyParts.push({draw:g=>local(g,gg=>torsoPath(gg,L,U))},{draw:g=>capsule(g,s,hd,U(0.036),U(0.036))});
+    const stroke=(g,w,col,path)=>{ g.lineWidth=w; g.strokeStyle=col; g.lineCap='round'; g.beginPath(); path(); g.stroke(); };
+    const bodyDetails=g=>{
+      g.save();
+      local(g,gg=>{
+        const crease='rgba(62,66,74,0.28)',soft2='rgba(62,66,74,0.16)',lit='rgba(255,255,255,0.55)';
+        /* spine groove */
+        stroke(gg,U(0.014),soft2,()=>{ gg.moveTo(0,-L+U(0.07)); gg.lineTo(0,-U(0.06)); });
+        stroke(gg,U(0.006),lit,()=>{ gg.moveTo(-U(0.009),-L+U(0.08)); gg.lineTo(-U(0.009),-U(0.08)); });
+        for(const sg of [-1,1]){
+          /* shoulder blades */
+          stroke(gg,U(0.012),soft2,()=>{ gg.moveTo(sg*U(0.035),-L+U(0.06)); gg.quadraticCurveTo(sg*U(0.105),-L+U(0.06),sg*U(0.095),-L+U(0.17)); });
+          /* glutes: fold under each cheek */
+          stroke(gg,U(0.012),crease,()=>{ gg.moveTo(sg*U(0.004),U(0.05)); gg.quadraticCurveTo(sg*U(0.07),U(0.075),sg*U(0.115),U(0.012)); });
+        }
+        /* cleft between the glutes and the waistline above them */
+        stroke(gg,U(0.01),crease,()=>{ gg.moveTo(0,-U(0.035)); gg.lineTo(0,U(0.052)); });
+        stroke(gg,U(0.01),soft2,()=>{ gg.moveTo(-U(0.1),-U(0.075)); gg.quadraticCurveTo(0,-U(0.055),U(0.1),-U(0.075)); });
+      });
+      g.restore();
+      /* creases behind the knees */
+      for(const kk of ['lf','rf']){
+        const j=J[kk],t1=Math.atan2(j.a[1]-j.e[1],j.a[0]-j.e[0]),t2=Math.atan2(j.h[1]-j.e[1],j.h[0]-j.e[0]);
+        let bis=(t1+t2)/2; if(Math.abs(t1-t2)>Math.PI) bis+=Math.PI;
+        const nx=Math.cos(bis+Math.PI/2),ny=Math.sin(bis+Math.PI/2),r=U(0.035);
+        stroke(g,U(0.009),'rgba(62,66,74,0.22)',()=>{ g.moveTo(j.e[0]-nx*r,j.e[1]-ny*r); g.quadraticCurveTo(j.e[0]+Math.cos(bis)*U(0.012),j.e[1]+Math.sin(bis)*U(0.012),j.e[0]+nx*r,j.e[1]+ny*r); });
+      }
+      /* rubber rand along the bottom of each shoe */
+      for(const kk of ['lf','rf']){ const sh2=shoe[kk]; stroke(g,U(0.012),SHOE_RAND,()=>{ g.moveTo(sh2.heel[0]-U(0.03),sh2.heel[1]+U(0.012)); g.quadraticCurveTo(sh2.heel[0],sh2.heel[1]+U(0.04),sh2.heel[0]+U(0.03),sh2.heel[1]+U(0.012)); }); }
+    };
     const armParts=[];
-    for(const kk of ['lh','rh']){ const j=J[kk]; armParts.push(g=>capsule(g,j.a,j.e,U(0.05),U(0.043)),g=>capsule(g,j.e,j.h,U(0.043),U(0.038)),g=>disc(g,j.h,U(0.05))); }
-    shadeLayer(figLayers.body,box,dpr,bodyParts,U(0.065));
-    shadeLayer(figLayers.arms,box,dpr,armParts,U(0.048));
-    shadeLayer(figLayers.head,box,dpr,headParts,U(0.06));
+    for(const kk of ['lh','rh']){ const j=J[kk]; armParts.push({draw:g=>capsule(g,j.a,j.e,U(0.05),U(0.043))},{draw:g=>capsule(g,j.e,j.h,U(0.043),U(0.038))},{draw:g=>disc(g,j.h,U(0.048))}); }
+    const armDetails=g=>{
+      /* point of each elbow */
+      for(const kk of ['lh','rh']){ const j=J[kk]; stroke(g,U(0.01),'rgba(62,66,74,0.2)',()=>{ g.arc(j.e[0],j.e[1],U(0.022),0,Math.PI*2); }); }
+    };
+    const headParts=[{draw:g=>{ g.moveTo(hd[0]+U(0.074),hd[1]); g.ellipse(hd[0],hd[1],U(0.074),U(0.086),rot,0,Math.PI*2); }}];
+    const headDetails=g=>{
+      /* the nape: where the back of the skull meets the neck */
+      g.save(); g.translate(hd[0],hd[1]); g.rotate(rot);
+      stroke(g,U(0.012),'rgba(62,66,74,0.2)',()=>{ g.moveTo(-U(0.045),U(0.06)); g.quadraticCurveTo(0,U(0.085),U(0.045),U(0.06)); });
+      g.restore();
+    };
+    shadeLayer(figLayers.body,box,dpr,bodyParts,U(0.065),bodyDetails);
+    shadeLayer(figLayers.arms,box,dpr,armParts,U(0.048),armDetails);
+    shadeLayer(figLayers.head,box,dpr,headParts,U(0.06),headDetails);
     sizeCanvas(SP,SW,SHh);
     const g=SP.getContext('2d');
     g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation='source-over'; g.clearRect(0,0,SW,SHh);
@@ -825,12 +966,14 @@ function drawClimber(){
       g.shadowColor=`rgba(0,0,0,${a})`; g.shadowBlur=blur*dpr; g.shadowOffsetX=ox*dpr; g.shadowOffsetY=oy*dpr; g.drawImage(cv,0,0);
       g.shadowColor='rgba(0,0,0,0.5)'; g.shadowBlur=2.2*dpr; g.shadowOffsetX=0; g.shadowOffsetY=0; g.drawImage(cv,0,0);
     };
-    drop(figLayers.body,Math.max(6,U(0.06)),U(0.016),U(0.032),0.45);
+    /* Seen from behind, the arms reach past the body toward the wall, so the
+       back and the head cover them where they overlap. */
     drop(figLayers.arms,Math.max(4,U(0.035)),U(0.01),U(0.02),0.38);
+    drop(figLayers.body,Math.max(6,U(0.06)),U(0.016),U(0.032),0.45);
     drop(figLayers.head,Math.max(4,U(0.035)),U(0.008),U(0.018),0.4);
     g.shadowColor='transparent';
   }
-  ctx.save(); ctx.globalAlpha=editing?0.35:0.95;
+  ctx.save(); ctx.globalAlpha=editing?0.35:0.96;
   ctx.drawImage(SP,0,0,SW,SHh,box.x,box.y,SW/dpr,SHh/dpr);
   ctx.globalAlpha=editing?0.35:1;
   if(step.limb&&S.step>0&&!editing){
@@ -846,13 +989,13 @@ function drawClimber(){
     }
   }
   for(const kk of ['lh','rh','lf','rf']){
-    const q=Q(ends[kk]),hand=kk[1]==='h',r=7,active=step.limb===kk;
+    const q=Q(ends[kk]),hand=kk[1]==='h',r=6.5,active=step.limb===kk;
     ctx.beginPath();
     if(hand) ctx.arc(q[0],q[1],r,0,6.283); else ctx.rect(q[0]-r,q[1]-r,2*r,2*r);
     ctx.fillStyle=flagged[kk]?'rgba(255,255,255,0.92)':LIMBCOL[kk]; ctx.fill();
     ctx.lineWidth=active?3:1.8; ctx.strokeStyle=active?'#ffffff':'rgba(10,12,14,0.85)'; ctx.stroke();
     if(active){ ctx.beginPath(); ctx.arc(q[0],q[1],r+5,0,6.283); ctx.lineWidth=2; ctx.strokeStyle=LIMBCOL[kk]; ctx.stroke(); }
-    ctx.fillStyle=flagged[kk]?LIMBCOL[kk]:'#ffffff'; ctx.font='700 9.5px "Barlow Condensed",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle=flagged[kk]?LIMBCOL[kk]:'#ffffff'; ctx.font='700 9px "Barlow Condensed",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(kk[0]==='l'?'L':'R',q[0],q[1]+0.5);
   }
   ctx.restore();

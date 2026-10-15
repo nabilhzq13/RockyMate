@@ -9,6 +9,7 @@
     "eval": "node test/eval.js",
     "eval:old": "node -e \"process.env.OLDMODE='1';require('./test/eval.js')\"",
     "inspect": "node test/inspect.js",
+    "plan": "node test/plan.js",
     "e2e": "python test/e2e.py"
   },
   "devDependencies": {
