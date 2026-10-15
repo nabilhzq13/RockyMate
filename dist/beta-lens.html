@@ -2012,8 +2012,8 @@ function elbowAt(A,T,side,H){
 }
 /* Where to draw the hips and how far the upper body leans (radians, +
    toward the right). The planner's hip is the centre of the weight; the
-   drawing may let it sink up to 0.1H, or crouch up to 0.2H while a foot is
-   still on the mat (straighter arms, more bent knees; never closer than 0.3H
+   drawing may let it sink up to 0.15H, or crouch up to 0.2H while a foot is
+   still on the mat (straighter arms, more bent knees; never closer than 0.22H
    above the higher foot), and swings the shoulders around it, at most 0.5 rad
    either way. It leans toward the hands, keeps each hand within
    arm's length, and keeps the hands and arms clear of the head, so a hand
@@ -2026,7 +2026,7 @@ function chooseBody(p,H,TORSO){
   const sq=v=>v*v,hm=[(lh[0]+rh[0])/2,(lh[1]+rh[1])/2],matched=Math.hypot(lh[0]-rh[0],lh[1]-rh[1])<0.03*H;
   let footY=-Infinity,onMat=false;
   for(const f of [p.lf,p.rf]) if(f){ if(f[1]>footY) footY=f[1]; if(f[1]<1) onMat=true; }
-  const room=Math.max(0,Math.min(onMat?0.2*H:0.1*H,C0[1]-footY-0.3*H));
+  const room=Math.max(0,Math.min(onMat?0.2*H:0.15*H,C0[1]-footY-0.22*H));
   const a0=Math.max(-0.35,Math.min(0.35,0.5*Math.atan2(hm[0]-C0[0],Math.max(0.3*H,hm[1]-C0[1]))));
   const cost=(drop,a)=>{
     const B=upperBody([C0[0],C0[1]-drop],a,H,TORSO),hd=B.head;
@@ -2044,8 +2044,9 @@ function chooseBody(p,H,TORSO){
       const J=B[kk],E=elbowAt(J,T,side,H);
       const d=Math.hypot(T[0]-J[0],T[1]-J[1]); if(d>0.47*H) c+=sq((d-0.47*H)/(0.06*H));
       c+=seg(J,E)+seg(E,T);
-      /* a hand needs more room above the head than beside it */
-      const t=loc(T,0.114*H,1),e=Math.hypot(t[0],t[1]/((t[1]>0?0.15:0.126)*H)); if(e<1.25) c+=20*sq(1.25-e);
+      /* a hand needs more room above the head than beside it (a matched
+         pair counts once) */
+      const t=loc(T,0.114*H,1),e=Math.hypot(t[0],t[1]/((t[1]>0?0.15:0.126)*H)); if(e<1.25&&!(matched&&kk==='rh')) c+=20*sq(1.25-e);
       /* around head height each hand stays on its own side of the head (a
          matched pair can't, so it is left out; well above the head the arm
          passes over it anyway) */
