@@ -58,9 +58,9 @@ const video=document.createElement('video');
 video.muted=true; video.playsInline=true; video.setAttribute('playsinline',''); video.setAttribute('muted','');
 const newEdits=()=>({removed:[],confirmed:[],added:[],start:[],top:null,startT:[],topT:null});
 const S={src:null,token:0,lastStill:null,model:null,tol:5,showMask:false,suggest:[],wall:null,frameH:640,
-  holds:[],edits:newEdits(),tracks:[],nextTrack:1,shift:[0,0],mask:false,
-  beta:null,betaSnap:null,step:0,anim:null,playing:null,mode:'pick',view:{dw:1,dh:1,dpr:1},
-  heightCm:store.get('height',170),wallM:4.2,userWallM:store.get('wallM',4.2),feet:store.get('feet','strict'),callout:false,cal:{floor:1,top:0,marked:false},
+  holds:[],edits:newEdits(),tracks:[],lost:[],nextTrack:1,shift:[0,0],mask:false,
+  beta:null,betaSnap:null,step:0,anim:null,playing:null,mode:'pick',markReturn:null,view:{dw:1,dh:1,dpr:1},
+  heightCm:store.get('height',170),spanCm:store.get('span',0),angle:store.get('angle',0),wallM:4.2,userWallM:store.get('wallM',4.2),feet:store.get('feet','strict'),callout:false,cal:{floor:1,top:0,marked:false},
   live:{raf:0,busy:false,last:0,stream:null,url:null,frames:0,fpsT:0,sig:'',sigT:0,solvedSig:'',solving:false,lastSug:0,statT:0,wake:null}};
 window.__betaLens=S;
 const isMoving=()=>!!S.src&&(S.src.kind==='video'||S.src.kind==='live');
@@ -123,7 +123,7 @@ function setSource(src,opt){
   if(!opt.keepVideo) stopMedia();
   S.src=src; S.token++;
   if(src.kind==='photo'||src.kind==='sample') S.lastStill=src;
-  S.holds=[]; S.tracks=[]; S.shift=[0,0]; S.mask=false; S.beta=null; S.betaSnap=null; S.step=0; S.anim=null;
+  S.holds=[]; S.tracks=[]; S.lost=[]; S.shift=[0,0]; S.mask=false; S.beta=null; S.betaSnap=null; S.step=0; S.anim=null;
   S.edits=opt.edits||newEdits();
   if(!opt.keepModel) S.model=null;
   S.suggest=[];
@@ -135,7 +135,8 @@ function setSource(src,opt){
   $('#vbar').hidden=!isMoving();
   $('#vSeek').hidden=src.kind!=='video'; $('#vPlay').hidden=src.kind!=='video';
   $('#vStop').textContent=src.kind==='live'?'Stop camera':'Close clip';
-  setMode('pick');
+  /* A new picture starts by picking the colour; a frozen frame keeps it. */
+  setMode(opt.mode&&S.model?opt.mode:'pick');
   fit(); renderChips(); updateStats(); renderBeta();
   if(opt.reveal!==false&&S.token>1){ const r=wrap.getBoundingClientRect(); if(r.top<0||r.top>window.innerHeight*0.5) wrap.scrollIntoView({block:'start',behavior:reduceMotion?'auto':'smooth'}); }
   if(isMoving()){
@@ -219,8 +220,8 @@ function freeze(){
     if(S.edits.topT===t.id) E.top={u:t.u,v:t.v};
   }
   stopMedia();
-  setSource({kind:'photo',el:c,w:c.width,h:c.height},{keepModel:true,edits:E,keepCal:true});
-  toast('Frame frozen. You can now add or remove holds.');
+  setSource({kind:'photo',el:c,w:c.width,h:c.height},{keepModel:true,edits:E,keepCal:true,mode:'none'});
+  toast('Frame frozen. You can now add holds by hand.');
 }
 $('#fileCam').addEventListener('change',e=>{ loadFile(e.target.files[0]); e.target.value=''; });
 $('#fileVid').addEventListener('change',e=>{ loadFile(e.target.files[0]); e.target.value=''; });
@@ -252,6 +253,9 @@ function grabFrame(el,maxSide){
 /* Height units (fractions of the picture height) per cm of real wall. */
 const kU=()=>(S.cal.floor-S.cal.top)/(S.wallM*100);
 const pxPerCmFor=h=>h*kU();
+/* On a slab or overhang, the picture shows the wall's height; distances
+   along the wall surface (what a body reaches across) are longer by 1/cos. */
+const cosA=()=>Math.cos(Math.abs(S.angle||0)*Math.PI/180);
 async function analysePhoto(withSuggest){
   const src=S.src,tok=S.token;
   if(!src||isMoving()) return;
@@ -294,10 +298,45 @@ async function pickAt(u,v,quiet,retry){
   }
   if(!r.model){ if(!quiet) toast('That spot looks like bare wall. Tap the middle of a coloured hold.'); return; }
   r.model.tapped=true;
-  S.model=r.model;
+  setModel(r.model,quiet);
+}
+/* Same route colour? A re-tap of another hold of the same route gives a
+   different model (light, shade and chalk change brightness and chroma). The
+   same colour name counts as the same route, as people think of it ("the red
+   one"); otherwise compare the way holds are matched: hue within the model's
+   own hue window and chroma within a broad ratio, or brightness for black,
+   white and grey. */
+const hueGap=(a,b)=>Math.abs((((a-b)+540)%360)-180);
+function sameRoute(a,b){
+  if(a===b) return true;
+  if(!a||!b) return false;
+  if(a.name&&a.name===b.name) return true;
+  if(!!a.achro!==!!b.achro) return false;
+  if(a.achro) return Math.abs(a.mean[0]-b.mean[0])<15;
+  const win=Math.max(10,Math.min(28,3*Math.max(a.hueSd||0,b.hueSd||0))),r=(b.chroma||1)/(a.chroma||1);
+  return hueGap(a.hue,b.hue)<=win&&r>0.55&&r<1.8;
+}
+function hasEdits(){ const E=S.edits; return !!(E.removed.length||E.confirmed.length||E.added.length||E.start.length||E.top||E.startT.length||E.topT!=null); }
+/* A route colour was chosen (tap or chip). Start, top and hold changes belong
+   to one route, so they are kept when the same colour is picked again and
+   cleared only when the colour really changes. Afterwards a tap on the wall
+   does nothing until the user chooses a tool, so a stray tap can't re-learn
+   the colour and change the path. */
+function setModel(m,quiet){
+  const old=S.model,same=!!old&&sameRoute(old,m);
+  S.model=m;
+  if(old&&!same&&hasEdits()){ S.edits=newEdits(); if(!quiet) toast('New route colour, so its start, top and hold changes were cleared.'); }
   renderChips();
-  if(isMoving()){ S.tracks=[]; S.beta=null; S.live.solvedSig=''; renderBeta(); setCaption('Reading the wall','Hold the phone steady for a second. The moves appear once the holds stop moving.',[]); }
+  if(isMoving()){
+    /* Same colour: keep following the same holds (and the choices on them). */
+    if(same) S.live.solvedSig='';
+    else{
+      S.tracks=[]; S.lost=[]; S.beta=null; S.live.solvedSig=''; renderBeta();
+      setCaption('Reading the wall','Hold the phone steady for a second. The moves appear once the holds stop moving.',[]);
+    }
+  }
   else reclassify();
+  setMode('none');
 }
 
 /* Live / clip: analyse frames in the worker while the picture keeps playing. */
@@ -328,26 +367,53 @@ async function sendLive(){
   if(S.model&&r.blobs){ setMask(r.mask||null,r.w,r.h); updateTracks(r.blobs,r.w,r.h); checkLiveSolve(); }
   if(t2-L.statT>300){ L.statT=t2; updateStats(); }
 }
+/* A hold the user chose as start or top, and any hold they removed or kept. */
+const isPinned=t=>S.edits.startT.includes(t.id)||S.edits.topT===t.id;
+const isMarked=t=>isPinned(t)||!!t.removed||!!t.userOk;
 /* Follow holds between frames so they don't flicker: match each new blob to
-   the nearest known hold, keep a running average, drop holds that vanish. */
+   the nearest known hold, keep a running average, drop holds that vanish.
+   Holds the user marked survive longer, and a hold that drops out is
+   remembered for 15 s (moving with the camera), so when it comes back it gets
+   its old identity, and the start, top or removal set on it, back. */
 function updateTracks(blobs,w,h){
   const a=w/h,cand=blobs.filter(b=>b.status!=='rejected').map(b=>({u:b.x/w,v:b.y/h,rho:b.r/h,conf:b.conf,elong:b.elong,angle:b.angle,used:false}));
-  const T=S.tracks,pairs=[];
+  const T=S.tracks,pairs=[],gate=(p,q)=>Math.max(0.03,2.2*Math.max(p.rho,q.rho)),dist=(p,q)=>Math.hypot((p.u-q.u)*a,p.v-q.v);
   for(const t of T){ t.pu=t.u+S.shift[0]; t.pv=t.v+S.shift[1]; t.m=null; }
-  for(const t of T) for(const c of cand){ const d=Math.hypot((t.pu-c.u)*a,t.pv-c.v); if(d<Math.max(0.03,2.2*Math.max(t.rho,c.rho))) pairs.push([d,t,c]); }
+  for(const t of T) for(const c of cand){ const d=Math.hypot((t.pu-c.u)*a,t.pv-c.v); if(d<gate(t,c)) pairs.push([d,t,c]); }
   pairs.sort((p,q)=>p[0]-q[0]);
   const du=[],dv=[];
   for(const [,t,c] of pairs){ if(t.m||c.used) continue; t.m=c; c.used=true; du.push(c.u-t.u); dv.push(c.v-t.v); }
   const med=v=>{ if(!v.length) return 0; const s=v.slice().sort((p,q)=>p-q); return s[s.length>>1]; };
   S.shift=[med(du)*0.8,med(dv)*0.8];
-  const keep=[];
+  const now=performance.now();
+  for(const e of S.lost){ e.u+=S.shift[0]; e.v+=S.shift[1]; }
+  S.lost=S.lost.filter(e=>now-e.t<15000&&e.u>-0.3&&e.u<1.3&&e.v>-0.3&&e.v<1.3);
+  const keep=[],dropped=[];
   for(const t of T){
     if(t.m){ const c=t.m; t.u=t.pu+(c.u-t.pu)*0.7; t.v=t.pv+(c.v-t.pv)*0.7; t.rho=t.rho*0.7+c.rho*0.3; t.conf=t.conf*0.65+c.conf*0.35; t.elong=c.elong; t.angle=c.angle; t.hits++; t.miss=0; }
     else { t.u=t.pu; t.v=t.pv; t.miss++; }
     t.status=t.conf>=0.5?'hold':t.conf>=0.33?'unsure':'rejected';
-    if(t.miss<=(t.hits>=4?7:2)&&t.u>-0.1&&t.u<1.1&&t.v>-0.1&&t.v<1.1) keep.push(t);
+    const life=isMarked(t)?30:t.hits>=4?7:2;
+    if(t.miss<=life&&t.u>-0.1&&t.u<1.1&&t.v>-0.1&&t.v<1.1) keep.push(t); else if(t.hits>=3) dropped.push(t);
   }
-  for(const c of cand) if(!c.used) keep.push({id:S.nextTrack++,u:c.u,v:c.v,rho:c.rho,conf:c.conf,elong:c.elong,angle:c.angle,hits:1,miss:0,status:c.conf>=0.5?'hold':c.conf>=0.33?'unsure':'rejected'});
+  const mk=(c,id,old)=>({id,u:c.u,v:c.v,rho:c.rho,conf:c.conf,elong:c.elong,angle:c.angle,hits:old?Math.max(3,Math.min(old.hits,6)):1,miss:0,
+    removed:old?old.removed:false,userOk:old?old.userOk:false,status:c.conf>=0.5?'hold':c.conf>=0.33?'unsure':'rejected'});
+  for(const c of cand) if(!c.used){
+    let bi=-1,bd=Infinity;
+    for(let i=0;i<S.lost.length;i++){ const d=dist(S.lost[i],c); if(d<gate(S.lost[i],c)&&d<bd){ bd=d; bi=i; } }
+    keep.push(bi>=0?mk(c,S.lost[bi].id,S.lost.splice(bi,1)[0]):mk(c,S.nextTrack++,null));
+  }
+  for(const t of dropped){
+    /* The same hold may already be followed again under a new number (the
+       old one drifted off); hand it the old number and the user's choices. */
+    if(isMarked(t)){
+      let tw=null,bd=Infinity;
+      for(const k of keep){ if(isMarked(k)) continue; const d=dist(k,t); if(d<gate(k,t)&&d<bd){ bd=d; tw=k; } }
+      if(tw){ tw.id=t.id; tw.removed=!!t.removed; tw.userOk=!!t.userOk; tw.hits=Math.max(tw.hits,3); continue; }
+    }
+    S.lost.push({id:t.id,u:t.u,v:t.v,rho:t.rho,removed:!!t.removed,userOk:!!t.userOk,hits:t.hits,t:now});
+  }
+  if(S.lost.length>80) S.lost.splice(0,S.lost.length-80);
   S.tracks=keep;
 }
 function checkLiveSolve(){
@@ -366,13 +432,15 @@ function applyEdits(){
   E.added.forEach((p,k)=>S.holds.push({id:5000+k,u:p.u,v:p.v,rho:p.rho,conf:1,status:'hold',manual:true,elong:1,angle:0}));
 }
 const isActive=h=>!h.removed&&(h.manual||h.userOk||h.status==='hold');
-function currentHolds(){ return isMoving()?S.tracks.filter(t=>t.hits>=3&&t.miss<=2):S.holds; }
+/* While moving, a chosen start or top hold stays in the plan through a few
+   missed frames instead of flickering out and changing the path. */
+function currentHolds(){ return isMoving()?S.tracks.filter(t=>t.hits>=3&&(t.miss<=2||(t.miss<=12&&isPinned(t)))):S.holds; }
 function onWall(h){ return h.v<=S.cal.floor+0.005&&h.v>=S.cal.top-0.02; }
 function activeHolds(){ return currentHolds().filter(h=>isActive(h)&&onWall(h)); }
 function isStart(h){ return isMoving()?S.edits.startT.includes(h.id):S.edits.start.some(p=>nearPos(h,p)); }
-function hitHold(x,y){
+function hitHold(x,y,withRemoved){
   let best=null,bd=Infinity;
-  for(const h of currentHolds()){ if(h.removed) continue; const [hx,hy]=P(h.u,h.v),d=Math.hypot(hx-x,hy-y); if(d<h.rho*S.view.dh+12&&d<bd){ bd=d; best=h; } }
+  for(const h of currentHolds()){ if(h.removed&&!withRemoved) continue; const [hx,hy]=P(h.u,h.v),d=Math.hypot(hx-x,hy-y); if(d<h.rho*S.view.dh+12&&d<bd){ bd=d; best=h; } }
   return best;
 }
 
@@ -387,14 +455,24 @@ async function solveNow(live){
     if(S.model&&!live) setCaption('Not enough holds','Rocksane needs at least two holds of the route colour. Move the colour slider toward Loose, or tap a hold again.',[]);
     return;
   }
-  const k=kU(),a=aspect(),fl=S.cal.floor;
-  const holds=act.map(h=>({id:h.id,X:h.u*a/k,Y:(fl-h.v)/k,r:h.rho/k}));
-  const nearestId=p=>{ let b=null,bd=1e9; for(const h of act){ const d=Math.hypot((h.u-p.u)*a,h.v-p.v); if(d<bd){ bd=d; b=h; } } return b&&bd<0.06?b.id:null; };
+  const k=kU(),a=aspect(),fl=S.cal.floor,ca=cosA();
+  const holds=act.map(h=>({id:h.id,X:h.u*a/k,Y:(fl-h.v)/k/ca,r:h.rho/k}));
+  /* the hold the user chose, not just any hold nearby */
+  const nearestId=p=>{ let b=null,bd=1e9; for(const h of act){ const d=Math.hypot((h.u-p.u)*a,h.v-p.v); if(d<bd){ bd=d; b=h; } } return b&&bd<Math.max(1.5*b.rho,0.02)?b.id:null; };
   const startIds=live?S.edits.startT.filter(id=>act.some(h=>h.id===id)):S.edits.start.map(nearestId).filter(x=>x!=null);
   const topId=live?(act.some(h=>h.id===S.edits.topT)?S.edits.topT:null):(S.edits.top?nearestId(S.edits.top):null);
   const snap=new Map(act.map(h=>[h.id,{u:h.u,v:h.v}]));
   if(live) S.live.solving=true; else busy('Working out your moves…');
-  const res=await solver.call({holds,o:{H:S.heightCm,feet:S.feet,startIds,topId}});
+  const o={H:S.heightCm,span:S.spanCm||S.heightCm,angle:S.angle||0,feet:S.feet,startIds,topId};
+  let res=await solver.call({holds,o});
+  /* Small footholds are often missed in a picture. If the route can't be
+     finished on footholds of this colour, try again with the feet allowed to
+     smear on the wall, and keep that plan if it gets further. */
+  if(tok===S.token&&S.feet!=='open'&&!(res&&res.ok)){
+    const r2=await solver.call({holds,o:Object.assign({},o,{feet:'open'})});
+    const high=r=>r&&r.steps?Math.max(...r.steps.map(q=>Math.max(r.pts[q.lh].Y,r.pts[q.rh].Y))):-1;
+    if(r2&&r2.steps&&(r2.ok||high(r2)>high(res)+5)){ res=r2; res.autoSmear=true; }
+  }
   if(live) S.live.solving=false; else busy(false);
   if(tok!==S.token) return;
   if(!res||!res.steps){
@@ -414,11 +492,15 @@ function renderBeta(failRes){
   const b=S.beta;
   if(!b){ sum.textContent=S.model?(failRes?'No route found from the floor.':(isMoving()?'Hold steady while the holds are found.':'Waiting for holds.')):'Choose a route colour to see the moves.'; updateCount(); return; }
   sum.textContent=`${b.hands} hand moves and ${b.feet} foot moves to the top${b.crux>0?`. Crux: move ${b.crux}.`:'.'}`;
+  const smear=!!b.res.autoSmear;
   if(!b.ok){
     const last=b.res.steps[b.res.steps.length-1],y=Math.max(b.res.pts[last.lh].Y,b.res.pts[last.rh].Y);
     sum.textContent=`${b.hands} hand moves and ${b.feet} foot moves before getting stuck.`;
     warn.hidden=false;
-    warn.textContent=`Stuck at about ${(y/100).toFixed(1)} m: the next hold is out of reach for ${S.heightCm} cm, or a hold wasn't found. Try Open feet, a looser colour match, or add the missing hold with Add / remove.`;
+    warn.textContent=`Stuck at about ${(y*cosA()/100).toFixed(1)} m: the next hold is out of reach for ${S.heightCm} cm${S.spanCm?` with a ${S.spanCm} cm arm span`:''}, or a hold wasn't found. ${smear?'':'Try Open feet, '}${smear?'Try':'or'} a looser colour match, add the missing hold with Add hold, or check the wall marks and angle.`;
+  }else if(smear){
+    warn.hidden=false;
+    warn.textContent='Not enough footholds of this colour were found, so some steps put a foot flat on the wall (a smear). If you can see footholds of your colour there, add them with Add hold.';
   }
   b.steps.forEach((s,i)=>{
     const li=document.createElement('li'),bt=document.createElement('button');
@@ -525,11 +607,7 @@ function renderChips(){
     box.append(b);
   }
 }
-function chooseModel(m){
-  S.model=m; renderChips();
-  if(isMoving()){ S.tracks=[]; S.beta=null; S.live.solvedSig=''; renderBeta(); }
-  else reclassify();
-}
+function chooseModel(m){ setModel(m); }
 let tolT=0;
 $('#tol').addEventListener('input',e=>{ S.tol=+e.target.value; $('#tolVal').textContent=S.tol; clearTimeout(tolT); tolT=setTimeout(()=>{ if(!isMoving()) reclassify(); },180); });
 $('#showMask').addEventListener('change',e=>{ S.showMask=e.target.checked; $('#maskKey').hidden=!S.showMask; if(!S.showMask){ S.mask=false; render(); } if(!isMoving()) reclassify(); });
@@ -562,31 +640,73 @@ function updateStats(){
 }
 const heightEl=$('#height'),wallEl=$('#wallM'),feetEl=$('#feet');
 heightEl.value=S.heightCm; feetEl.value=S.feet;
-heightEl.addEventListener('change',()=>{ const v=Math.max(110,Math.min(215,+heightEl.value||170)); heightEl.value=v; S.heightCm=v; store.set('height',v); solveSoon(); });
+const spanEl=$('#span'),angleEl=$('#angle');
+spanEl.placeholder=S.heightCm; if(S.spanCm) spanEl.value=S.spanCm;
+angleEl.value=String(S.angle||0); if(angleEl.value!==String(S.angle||0)){ S.angle=0; angleEl.value='0'; }
+spanEl.addEventListener('change',()=>{
+  const raw=spanEl.value.trim();
+  if(!raw){ S.spanCm=0; store.set('span',0); solveSoon(); return; }
+  const v=Math.max(100,Math.min(250,Math.round(+raw)||S.heightCm)); spanEl.value=v; S.spanCm=v; store.set('span',v); solveSoon();
+});
+angleEl.addEventListener('change',()=>{ S.angle=+angleEl.value||0; store.set('angle',S.angle); if(!isMoving()) render(); solveSoon(); });
+heightEl.addEventListener('change',()=>{ const v=Math.max(110,Math.min(215,+heightEl.value||170)); heightEl.value=v; S.heightCm=v; store.set('height',v); $('#span').placeholder=v; solveSoon(); });
 wallEl.addEventListener('change',()=>{ const v=Math.max(1.5,Math.min(9,+wallEl.value||4)); wallEl.value=v; S.wallM=v; if(S.src&&S.src.kind!=='sample'){ S.userWallM=v; store.set('wallM',v); } solveSoon(); });
 feetEl.addEventListener('change',()=>{ S.feet=feetEl.value; store.set('feet',S.feet); solveSoon(); });
 $('#callout').addEventListener('change',e=>{ S.callout=e.target.checked; if(S.callout&&S.beta) speak(S.beta.steps[S.step].title); });
-const MODEHINT={floor:'Tap where the wall meets the floor or mat.',walltop:'Now tap the top edge of the wall.',pick:'Tap a hold to use its colour as the route.',edit:'Tap a ringed hold to remove it, tap a dashed amber one to keep it, or tap an empty spot to add a missed hold.',start:'Tap one or two holds to fix the start. Tap a chosen hold again to unset it.',top:'Tap the hold that marks the finish.'};
+/* Tapping the wall: first pick the colour, then choose a tool and tap a hold.
+   The tools stay off until a colour is picked. */
+const TOOLS=['add','remove','start','top'];
+const MODEHINT={floor:'Tap where the wall meets the floor or mat.',walltop:'Now tap the top edge of the wall.',
+  pick:'Tap one hold of your route to pick its colour.',
+  none:'Colour picked. To change a hold, choose Add hold, Remove hold, Set start or Set top, then tap the hold.',
+  add:'Tap a spot where a hold was missed, a dashed amber hold to keep it, or a crossed-out hold to put it back.',
+  remove:'Tap a ringed hold to take it out of the route.',
+  start:'Tap one or two holds to start on, one for each hand. Tap a chosen hold again to unset it.',
+  top:'Tap the finishing hold. Tap it again to unset it.'};
 function setMode(m){
+  if(TOOLS.includes(m)&&!S.model) m='pick';
+  if(m==='none'&&!S.model) m='pick';
   S.mode=m;
-  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===m)));
-  $('#modeHint').textContent=MODEHINT[m]+(isMoving()&&m==='edit'?' To add holds, freeze the frame first.':'');
+  document.querySelectorAll('.seg button').forEach(b=>{
+    b.setAttribute('aria-pressed',String(b.dataset.mode===m));
+    if(TOOLS.includes(b.dataset.mode)) b.disabled=!S.model;
+  });
+  let hint=MODEHINT[m]||'';
+  if(m==='pick'&&S.model) hint='Tap a hold to pick a new colour. Picking the same colour again keeps your start, top and hold changes.';
+  if(m==='add'&&isMoving()) hint='Tap a dashed amber hold to keep it, or a crossed-out hold to put it back. To add a hold by hand, tap Freeze frame first.';
+  $('#modeHint').textContent=hint;
   if(S.src&&!isMoving()) render();
 }
-document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{
+  const m=b.dataset.mode;
+  /* tapping the tool that is on turns it off */
+  setMode(S.mode===m&&S.model?'none':m);
+}));
 function updateMarkUi(){
   const m=S.cal.marked;
   $('#clearMarks').hidden=!m;
   $('#markWall').textContent=m?'Mark again':'Mark wall bottom and top';
-  $('#markHint').textContent=m?'Holds below the floor line or above the top line are ignored.':'Without marks, the whole picture counts as the wall: bottom edge is the floor, top edge is the top of the wall.';
+  $('#markHint').textContent=m?'Holds below the floor line or above the top line are ignored.':'Without marks, the whole picture counts as the wall: bottom edge is the floor, top edge is the top of the wall. If the climber looks too big or too small next to the holds, mark the wall.';
 }
 $('#markWall').addEventListener('click',()=>{
   if(!S.src) return;
+  if(S.mode!=='floor'&&S.mode!=='walltop') S.markReturn=S.mode;
   setMode('floor');
   const r=wrap.getBoundingClientRect(); if(r.top<0||r.bottom>window.innerHeight) wrap.scrollIntoView({block:'start',behavior:reduceMotion?'auto':'smooth'});
   toast('Tap where the wall meets the floor or mat.');
 });
 $('#clearMarks').addEventListener('click',()=>{ S.cal={floor:1,top:0,marked:false}; updateMarkUi(); if(!isMoving()) render(); solveSoon(); });
+/* Edits on one hold. While moving they live on the followed hold (its id);
+   on a still picture they are saved as positions, so they survive a
+   re-read of the picture. */
+function isTop(h){ return isMoving()?S.edits.topT===h.id:!!S.edits.top&&nearPos(h,S.edits.top); }
+function unsetStart(h){ const E=S.edits; if(isMoving()) E.startT=E.startT.filter(id=>id!==h.id); else E.start=E.start.filter(p=>!nearPos(h,p)); }
+function unsetTop(h){ const E=S.edits; if(!isTop(h)) return; if(isMoving()) E.topT=null; else E.top=null; }
+/* A hold chosen as start or top stays in the route even if a later read
+   finds it less clearly. */
+function keepChosen(h){ if(isMoving()) h.userOk=true; else if(!h.manual&&!h.userOk) S.edits.confirmed.push({u:h.u,v:h.v}); }
+let nudgeT=0;
+function nudgeTools(){ const t=$('#tools'); t.classList.remove('nudge'); void t.offsetWidth; t.classList.add('nudge'); clearTimeout(nudgeT); nudgeT=setTimeout(()=>t.classList.remove('nudge'),1000); }
 cv.addEventListener('click',e=>{
   if(!S.src) return;
   const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,u=x/S.view.dw,v=y/S.view.dh;
@@ -598,39 +718,50 @@ cv.addEventListener('click',e=>{
   if(S.mode==='walltop'){
     if(v>=S.cal.floor-0.08){ toast('Tap above the floor line.'); return; }
     S.cal.top=Math.max(0,v); S.cal.marked=true;
-    setMode('pick'); updateMarkUi(); toast('Wall marked'); render(); solveSoon(); return;
+    const back=S.markReturn; S.markReturn=null;
+    setMode(back||'none'); updateMarkUi(); toast('Wall marked'); render(); solveSoon(); return;
   }
-  if(S.mode==='pick'){ pickAt(u,v); return; }
-  if(!S.model){ toast('Pick a route colour first.'); return; }
-  const h=hitHold(x,y);
-  if(S.mode==='edit'){
-    if(isMoving()){
-      if(!h){ toast('Freeze the frame to add a missed hold.'); return; }
-      if(isActive(h)){ h.removed=true; h.userOk=false; toast('Hold removed'); } else { h.userOk=true; h.removed=false; toast('Hold kept'); }
-      updateStats(); solveSoon(); return;
-    }
-    const E=S.edits;
-    if(h){
-      if(isActive(h)){
-        E.confirmed=E.confirmed.filter(p=>!nearPos(h,p));
-        if(h.manual) E.added=E.added.filter(p=>!nearPos(h,p)); else E.removed.push({u:h.u,v:h.v});
-        toast('Hold removed');
-      }else{ E.confirmed.push({u:h.u,v:h.v}); E.removed=E.removed.filter(p=>!nearPos(h,p)); toast('Hold kept'); }
-    }else{
+  if(S.mode==='pick'||!S.model){ pickAt(u,v); return; }
+  if(S.mode==='none'){ nudgeTools(); toast('First choose Add hold, Remove hold, Set start or Set top.'); return; }
+  const mv=isMoving(),E=S.edits;
+  const changed=()=>{ if(!mv) applyEdits(); updateStats(); render(); solveSoon(); };
+  if(S.mode==='add'){
+    const h=hitHold(x,y,true);
+    if(h&&h.removed){
+      if(mv) h.removed=false; else E.removed=E.removed.filter(p=>!nearPos(h,p));
+      toast('Hold put back');
+    }else if(h&&!isActive(h)){
+      if(mv) h.userOk=true; else E.confirmed.push({u:h.u,v:h.v});
+      toast('Hold kept');
+    }else if(h){ toast('That hold is already in the route.'); return; }
+    else if(mv){ toast('No hold was found there. Tap Freeze frame first to add one by hand.'); return; }
+    else{
       const rs=S.holds.filter(isActive).map(q=>q.rho).sort((p,q)=>p-q),rho=rs.length?rs[rs.length>>1]:0.012;
       E.added.push({u,v,rho}); toast('Hold added');
     }
-    applyEdits(); updateStats(); render(); solveSoon(); return;
+    changed(); return;
   }
-  if(!h||!isActive(h)){ toast('Tap on a ringed hold.'); return; }
-  const E=S.edits;
+  const h=hitHold(x,y);
+  if(!h||!isActive(h)){ toast(S.mode==='remove'?'Tap a ringed hold to remove it.':'Tap a ringed hold of your route.'); return; }
+  if(S.mode==='remove'){
+    unsetStart(h); unsetTop(h);
+    if(mv){ h.removed=true; h.userOk=false; }
+    else{ E.confirmed=E.confirmed.filter(p=>!nearPos(h,p)); if(h.manual) E.added=E.added.filter(p=>!nearPos(h,p)); else E.removed.push({u:h.u,v:h.v}); }
+    toast('Hold removed'); changed(); return;
+  }
   if(S.mode==='start'){
-    if(isMoving()){ if(E.startT.includes(h.id)) E.startT=E.startT.filter(id=>id!==h.id); else { E.startT.push(h.id); if(E.startT.length>2) E.startT.shift(); } }
-    else{ if(E.start.some(p=>nearPos(h,p))) E.start=E.start.filter(p=>!nearPos(h,p)); else { E.start.push({u:h.u,v:h.v}); if(E.start.length>2) E.start.shift(); } }
+    if(isStart(h)){ unsetStart(h); toast('Start hold unset'); }
+    else{
+      const L=mv?E.startT:E.start;
+      L.push(mv?h.id:{u:h.u,v:h.v}); if(L.length>2) L.shift();
+      keepChosen(h);
+      toast(L.length===2?'Both start holds set':'Start hold set. Tap another one for the other hand.');
+    }
   }else if(S.mode==='top'){
-    if(isMoving()) E.topT=h.id; else E.top={u:h.u,v:h.v};
+    if(isTop(h)){ unsetTop(h); toast('Top unset'); }
+    else{ if(mv) E.topT=h.id; else E.top={u:h.u,v:h.v}; keepChosen(h); toast('Top set'); }
   }
-  render(); solveSoon();
+  changed();
 });
 let toastT=0;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>{ t.hidden=true; },2400); }
@@ -655,7 +786,7 @@ function drift(){
   for(const t of S.tracks){ const s=S.betaSnap.get(t.id); if(s&&t.miss<=3){ du+=t.u-s.u; dv+=t.v-s.v; n++; } }
   return n?[du/n,dv/n]:[0,0];
 }
-function cmPx(q,dr){ const k=kU(); return P(q[0]*k/aspect()+dr[0],S.cal.floor-q[1]*k+dr[1]); }
+function cmPx(q,dr){ const k=kU(); return P(q[0]*k/aspect()+dr[0],S.cal.floor-q[1]*k*cosA()+dr[1]); }
 function tagAt(x,y,text,fill,ink){
   ctx.font=`13px ${MARKER}`;
   const w=ctx.measureText(text).width+9,h=17;
@@ -700,7 +831,15 @@ function render(){
   }
   const used=b?b.num:new Map();
   for(const h of hs){
-    if(h.removed) continue;
+    if(h.removed){
+      /* While adding, removed holds show crossed out so they can be put back. */
+      if(S.mode!=='add') continue;
+      const [x,y]=P(h.u,h.v),r=h.rho*dh+3,k=Math.min(r*0.5,7);
+      ctx.beginPath(); ctx.arc(x,y,r,0,6.283); ctx.moveTo(x-k,y-k); ctx.lineTo(x+k,y+k); ctx.moveTo(x+k,y-k); ctx.lineTo(x-k,y+k);
+      ctx.setLineDash([4,3]); ctx.lineWidth=3.4; ctx.strokeStyle='rgba(0,0,0,.7)'; ctx.stroke();
+      ctx.lineWidth=1.8; ctx.strokeStyle='#ff6b6b'; ctx.stroke(); ctx.setLineDash([]);
+      continue;
+    }
     const active=isActive(h)&&onWall(h);
     if(!active&&h.status!=='unsure'&&!S.showMask) continue;
     const [x,y]=P(h.u,h.v),r=h.rho*dh+3;
@@ -802,8 +941,15 @@ function upperBody(C,a,H,TORSO){
   return {up,across,Sh,head:[Sh[0]+up[0]*0.122*H,Sh[1]+up[1]*0.122*H],lh:joint(-1),rh:joint(1)};
 }
 /* Elbows point out to the side and down, as they do from behind. */
-function elbowAt(A,T,side,H){
-  return bend3d(A,T,ik(A,T,0.19*H,0.26*H,(e1,e2)=>{ const sc=e=>side*(e[0]-A[0])-0.6*(e[1]-A[1]); return sc(e1)>=sc(e2)?e1:e2; }),0.19/0.45,0.55);
+/* arm = shoulder to hand centre (0.48H for an arm span equal to height) */
+function elbowAt(A,T,side,H,arm){
+  return bend3d(A,T,ik(A,T,0.42*arm,0.58*arm,(e1,e2)=>{ const sc=e=>side*(e[0]-A[0])-0.6*(e[1]-A[1]); return sc(e1)>=sc(e2)?e1:e2; }),0.42,0.55);
+}
+/* Reaching to full length lifts the shoulder (up to 0.05H) toward the hand,
+   as a real reach does, so a long move looks like a reach, not a rubber arm. */
+function reachJoint(J,T,arm,H){
+  const dx=T[0]-J[0],dy=T[1]-J[1],d=Math.hypot(dx,dy),x=Math.min(Math.max(0,d-arm),0.05*H);
+  return x>0?[J[0]+dx/d*x,J[1]+dy/d*x]:J;
 }
 /* Where to draw the hips and how far the upper body leans (radians, +
    toward the right). The planner's hip is the centre of the weight; the
@@ -814,9 +960,9 @@ function elbowAt(A,T,side,H){
    arm's length, and keeps the hands and arms clear of the head, so a hand
    never sits on the head and an arm never wraps over or behind it. */
 const bodyMemo=new Map();
-function chooseBody(p,H,TORSO){
+function chooseBody(p,H,TORSO,arm){
   const lh=p.lh,rh=p.rh,C0=p.C,r1=v=>v?Math.round(v[0]*10)+','+Math.round(v[1]*10):'-';
-  const key=[H,TORSO,r1(C0),r1(lh),r1(rh),r1(p.lf),r1(p.rf)].join('|');
+  const key=[H,TORSO,arm,r1(C0),r1(lh),r1(rh),r1(p.lf),r1(p.rf)].join('|');
   if(bodyMemo.has(key)) return bodyMemo.get(key);
   const sq=v=>v*v,hm=[(lh[0]+rh[0])/2,(lh[1]+rh[1])/2],matched=Math.hypot(lh[0]-rh[0],lh[1]-rh[1])<0.03*H;
   let footY=-Infinity,onMat=false;
@@ -836,8 +982,8 @@ function chooseBody(p,H,TORSO){
       return (across?40:4)*sq(1-e); };
     let c=6*sq(a-a0)+20*sq(Math.max(0,Math.abs(a)-0.3))+0.6*sq(drop/(0.1*H));
     for(const [T,side,kk] of [[lh,-1,'lh'],[rh,1,'rh']]){
-      const J=B[kk],E=elbowAt(J,T,side,H);
-      const d=Math.hypot(T[0]-J[0],T[1]-J[1]); if(d>0.47*H) c+=sq((d-0.47*H)/(0.06*H));
+      const J=reachJoint(B[kk],T,arm,H),E=elbowAt(J,T,side,H,arm);
+      const d=Math.hypot(T[0]-J[0],T[1]-J[1]); if(d>arm) c+=sq((d-arm)/(0.06*H));
       c+=seg(J,E)+seg(E,T);
       /* a hand needs more room above the head than beside it (a matched
          pair counts once) */
@@ -870,21 +1016,24 @@ function chooseBody(p,H,TORSO){
 /* While a move animates, blend the body between the two held positions so
    the torso turns smoothly instead of flipping between solutions. A move
    started mid-animation blends from what was on screen at that moment. */
-function bodyFor(p,H,TORSO){
-  if(!p.from) return chooseBody(p,H,TORSO);
-  const a=bodyFor(p.from,H,TORSO),b=bodyFor(p.to,H,TORSO);
+function bodyFor(p,H,TORSO,arm){
+  if(!p.from) return chooseBody(p,H,TORSO,arm);
+  const a=bodyFor(p.from,H,TORSO,arm),b=bodyFor(p.to,H,TORSO,arm);
   return {drop:a.drop+(b.drop-a.drop)*p.t,lean:a.lean+(b.lean-a.lean)*p.t};
 }
 function drawClimber(){
   const b=S.beta,H=b.res.H,TORSO=b.res.TORSO,step=b.steps[S.step],p=currentPos(),dr=drift();
-  const editing=S.mode!=='pick',dpr=S.view.dpr,k=kU()*S.view.dh,U=v=>v*H*k;
+  const editing=TOOLS.includes(S.mode)||S.mode==='floor'||S.mode==='walltop',dpr=S.view.dpr,k=kU()*S.view.dh,U=v=>v*H*k;
   const Q=q=>cmPx(q,dr);
-  const bd=bodyFor(p,H,TORSO),C=[p.C[0],p.C[1]-bd.drop],lean=bd.lean,B=upperBody(C,lean,H,TORSO),Sh=B.Sh;
+  /* drawn arm a touch shorter than the planner's reach; the shoulder lift covers the rest */
+  const arm=0.96*(b.res.ARM||0.5*H);
+  const bd=bodyFor(p,H,TORSO,arm),C=[p.C[0],p.C[1]-bd.drop],lean=bd.lean,B=upperBody(C,lean,H,TORSO),Sh=B.Sh;
   const hip={lf:[C[0]-0.07*H,C[1]],rf:[C[0]+0.07*H,C[1]]};
   const ends={},flagged={},J={},shoe={};
   for(const kk of ['lh','rh']){
     const T=p[kk],A=B[kk]; ends[kk]=T;
-    J[kk]={a:Q(A),e:Q(elbowAt(A,T,kk==='lh'?-1:1,H)),h:Q(T)};
+    const A2=reachJoint(A,T,arm,H);
+    J[kk]={a:Q(A2),e:Q(elbowAt(A2,T,kk==='lh'?-1:1,H,arm)),h:Q(T)};
   }
   for(const kk of ['lf','rf']){
     let T=p[kk]; const side=kk==='lf'?-1:1;
@@ -1046,7 +1195,7 @@ $('#coachAsk').addEventListener('click',async()=>{
   if(!S.beta){ toast('Choose a route colour first so there are moves to check.'); return; }
   const out=$('#coachOut'),ask=$('#coachAsk'),stop=$('#coachStop');
   const lines=S.beta.steps.map((s,i)=>`${i===0?'S':i}. ${s.title} (${s.sub})`).join('\n');
-  const prompt=`You are an experienced bouldering coach helping a beginner. The image is a photo of an indoor climbing wall. The holds of one route (colour: ${S.model.name}) are circled, and the ones used are labelled with yellow numbers in the order they are first touched. The climber is ${S.heightCm} cm tall. The bottom of the photo is the floor and the photo shows about ${S.wallM} m of wall.\n\nPlanned sequence:\n${lines}\n\nReply in plain text with no markdown symbols, under 230 words, in three short parts:\n1. Holds: one line per numbered hold with your best guess of its type (jug, edge, crimp, sloper, pinch, pocket, sidepull, undercling, volume) and how to grip it.\n2. Crux: which move looks hardest and one hand or foot tip for it.\n3. Check: anything in the sequence that looks wrong for this wall (for example a circled blob that is not a hold of this colour, or a better foot), and what to do instead.\nIf the photo is unclear, say so briefly.`;
+  const prompt=`You are an experienced bouldering coach helping a beginner. The image is a photo of an indoor climbing wall. The holds of one route (colour: ${S.model.name}) are circled, and the ones used are labelled with yellow numbers in the order they are first touched. The climber is ${S.heightCm} cm tall${S.spanCm?` with a ${S.spanCm} cm arm span`:''}. The bottom of the photo is the floor and the photo shows about ${S.wallM} m of wall${S.angle>0?`, overhanging ${S.angle}°`:S.angle<0?`, a slab leaning back ${-S.angle}°`:', vertical'}.\n\nPlanned sequence:\n${lines}\n\nReply in plain text with no markdown symbols, under 230 words, in three short parts:\n1. Holds: one line per numbered hold with your best guess of its type (jug, edge, crimp, sloper, pinch, pocket, sidepull, undercling, volume) and how to grip it.\n2. Crux: which move looks hardest and one hand or foot tip for it.\n3. Check: anything in the sequence that looks wrong for this wall (for example a circled blob that is not a hold of this colour, or a better foot), and what to do instead.\nIf the photo is unclear, say so briefly.`;
   coachCtl=new AbortController();
   out.hidden=false; out.textContent='Thinking…'; ask.disabled=true; stop.hidden=false;
   try{

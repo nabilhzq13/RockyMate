@@ -15,7 +15,9 @@ Point your phone at a bouldering wall, tap one hold of your route, and Rocksane 
 
 - Turn on **Show what matched** to see what was kept as a hold, what was the wall, and what was rejected.
 - Tap **Mark wall bottom and top**, then tap where the wall meets the mat and the top of the wall, for correctly sized moves.
-- **Freeze frame** stops on the current view so you can add or remove holds.
+- After picking the colour, choose **Add hold**, **Remove hold**, **Set start** or **Set top**, then tap the hold. Tap **Pick colour** first if you want a different colour.
+- Set **Wall angle** for slabs and overhangs, and **Arm span** if your arms are longer or shorter than your height.
+- **Freeze frame** stops on the current view so you can add holds by hand.
 
 ## Files
 

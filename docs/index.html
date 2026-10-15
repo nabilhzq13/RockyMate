@@ -114,6 +114,11 @@ a{color:var(--accent)}
 .seg button{border:0;border-right:1px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 4px;font:600 .88rem/1.1 var(--f-label);text-transform:uppercase;letter-spacing:.05em;cursor:pointer}
 .seg button:last-child{border-right:0}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.seg.one{grid-template-columns:minmax(0,1fr)}
+.seg button[disabled]{color:var(--muted);opacity:.55;cursor:default}
+#tools.nudge{animation:nudge .9s ease}
+@keyframes nudge{0%,100%{box-shadow:0 0 0 0 transparent}25%,60%{box-shadow:0 0 0 3px var(--accent)}}
+@media (prefers-reduced-motion:reduce){#tools.nudge{animation:none;box-shadow:0 0 0 3px var(--accent)}}
 .field{display:grid;gap:5px;min-width:0}
 .lbl{font:600 .8rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -250,20 +255,26 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
             <li><i style="background:#fff"></i>Bright: kept as a route hold</li>
             <li><i style="background:#ff3b3b"></i>Red: right colour, but it's the wall</li>
             <li><i style="background:#ff2bd0"></i>Pink: rejected, not hold-shaped or not on the wall</li>
-            <li><i style="background:#ffbe0b"></i>Amber: unsure, tap it in Add / remove to keep it</li>
+            <li><i style="background:#ffbe0b"></i>Amber: unsure. Choose Add hold and tap it to keep it</li>
           </ul>
           <p class="stat" id="holdStat">—</p>
           <p class="note" id="holdWarn" hidden></p>
           <div class="field">
-            <span class="lbl" id="modeLbl">Tapping the wall will…</span>
-            <div class="seg" role="group" aria-labelledby="modeLbl">
+            <span class="lbl" id="modeLbl">First, pick the colour</span>
+            <div class="seg one" role="group" aria-labelledby="modeLbl">
               <button data-mode="pick" aria-pressed="true">Pick colour</button>
-              <button data-mode="edit" aria-pressed="false">Add / remove</button>
-              <button data-mode="start" aria-pressed="false">Set start</button>
-              <button data-mode="top" aria-pressed="false">Set top</button>
             </div>
           </div>
-          <p class="hint" id="modeHint">Tap a hold to use its colour as the route.</p>
+          <div class="field">
+            <span class="lbl" id="toolLbl">Then choose, and tap a hold</span>
+            <div class="seg" id="tools" role="group" aria-labelledby="toolLbl">
+              <button data-mode="add" aria-pressed="false" disabled>Add hold</button>
+              <button data-mode="remove" aria-pressed="false" disabled>Remove hold</button>
+              <button data-mode="start" aria-pressed="false" disabled>Set start</button>
+              <button data-mode="top" aria-pressed="false" disabled>Set top</button>
+            </div>
+          </div>
+          <p class="hint" id="modeHint">Tap one hold of your route to pick its colour.</p>
         </div>
 
         <div class="blk">
@@ -274,8 +285,36 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
               <div class="unit"><input type="number" id="height" min="110" max="215" step="1" value="170" inputmode="numeric"><span>cm</span></div>
             </div>
             <div class="field">
+              <label class="lbl" for="span">Arm span</label>
+              <div class="unit"><input type="number" id="span" min="100" max="250" step="1" placeholder="170" inputmode="numeric"><span>cm</span></div>
+            </div>
+          </div>
+          <p class="hint">Arm span is fingertip to fingertip with your arms out to the sides. Most people's is about their height; a longer span lets the climber reach further.</p>
+          <div class="two">
+            <div class="field">
               <label class="lbl" for="wallM">Wall height</label>
               <div class="unit"><input type="number" id="wallM" min="1.5" max="9" step="0.1" value="4.2" inputmode="decimal"><span>m</span></div>
+            </div>
+            <div class="field">
+              <label class="lbl" for="angle">Wall angle</label>
+              <select id="angle">
+                <option value="-20">Slab, 20° back</option>
+                <option value="-15">Slab, 15° back</option>
+                <option value="-10">Slab, 10° back</option>
+                <option value="-5">Slab, 5° back</option>
+                <option value="0" selected>Vertical</option>
+                <option value="5">Overhang 5°</option>
+                <option value="10">Overhang 10°</option>
+                <option value="15">Overhang 15°</option>
+                <option value="20">Overhang 20°</option>
+                <option value="25">Overhang 25°</option>
+                <option value="30">Overhang 30°</option>
+                <option value="35">Overhang 35°</option>
+                <option value="40">Overhang 40°</option>
+                <option value="45">Overhang 45°</option>
+                <option value="50">Overhang 50°</option>
+                <option value="60">Overhang 60°</option>
+              </select>
             </div>
           </div>
           <div class="btn-row">
@@ -291,7 +330,7 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
             </select>
           </div>
           <label class="check"><input type="checkbox" id="callout">Call out each move aloud</label>
-          <p class="hint">Bouldering walls are usually 4 to 4.5 m. Marking the wall also ignores anything on the mat or above the wall.</p>
+          <p class="hint">Bouldering walls are usually 4 to 4.5 m tall. Wall angle is how far the wall leans: a slab leans back, an overhang leans out over you. On an angled wall the holds are further apart than they look from the floor, and the coaching changes with the angle.</p>
         </div>
 
         <div class="blk">
@@ -882,7 +921,17 @@ function solveBeta(holds,o){
     const mx=a[0]+dx*l/d,my=a[1]+dy*l/d;
     return [[mx-dy*hh/d,my+dx*hh/d],[mx+dy*hh/d,my-dx*hh/d]];
   }
-  const H=o.H,ARM=0.5*H,LEG=0.56*H,TORSO=0.3*H;
+  /* Body from height H. Arm reach from the shoulder point is half the arm
+     span (span = H unless the user gives theirs). Only if the route can't be
+     finished within that, a last pass lets a hand go up to 6% further, as a
+     deadpoint does, at a steep cost. */
+  const H=o.H,span=o.span>0?o.span:H,ARM=Math.max(0.42*H,Math.min(0.62*H,0.5*H+(span-H)/2)),LEG=0.56*H,TORSO=0.3*H;
+  let ARMX=ARM;
+  /* Wall angle in degrees (+ overhang, - slab); coordinates are along the
+     wall. Overhangs keep the feet higher (body tension) and make every hand
+     move harder; slabs put the weight on the feet and allow high steps. */
+  const ang=o.angle||0,steep=Math.max(0,Math.min(1,ang/45)),slab=Math.max(0,Math.min(1,-ang/20));
+  const GAP=(0.7-0.2*steep)*H,UNDER=(0.3-0.1*steep-0.1*slab)*H,HANDK=1+0.5*steep-0.3*slab;
   const pts=holds.map(h=>({X:h.X,Y:h.Y,r:h.r,kind:'hold',id:h.id}));
   const nHold=pts.length;
   if(nHold<2) return {ok:false,reason:'few'};
@@ -921,7 +970,7 @@ function solveBeta(holds,o){
   function pose(lh,rh,lf,rf){
     const key=key4(lh,rh,lf,rf);
     if(memo.has(key)) return memo.get(key);
-    const A=pts[lh],B=pts[rh],D=[[A.X,A.Y-TORSO,ARM],[B.X,B.Y-TORSO,ARM]];
+    const A=pts[lh],B=pts[rh],D=[[A.X,A.Y-TORSO,ARMX],[B.X,B.Y-TORSO,ARMX]];
     let fx=0,fy=0,nf=0,minFY=Infinity,maxFY=-Infinity;
     const feet=[];
     if(lf>=0){ const F=pts[lf]; D.push([F.X,F.Y,LEG]); fx+=F.X; fy+=F.Y; nf++; feet.push(F); }
@@ -946,14 +995,14 @@ function solveBeta(holds,o){
         if(dd<bd){ bd=dd; best=c; }
       }
       if(best){
-        const st=D.map(d=>Math.hypot(best[0]-d[0],best[1]-d[1])/d[2]);
+        const st=D.map((d,i)=>Math.hypot(best[0]-d[0],best[1]-d[1])/(i<2?ARM:d[2]));
         let s=0; for(const v of st){ const e=Math.max(0,v-0.78); s+=e*e; }
-        for(const v of [st[0],st[1]]){ const e=Math.max(0,v-0.92); s+=3*e*e; }
+        for(const v of [st[0],st[1]]){ const e=Math.max(0,v-0.92); s+=3*e*e; const x=Math.max(0,v-1); s+=12*x*x; }
         let cost=bd/H+10*s;
         const sq=v=>v*v;
         const gap=Math.min(A.Y,B.Y)-maxFY;
-        if(gap<0.7*H) cost+=sq((0.7*H-gap)/(0.18*H));
-        for(const F of feet){ if(F.kind==='floor') continue; const d=best[1]-F.Y; if(d<0.3*H) cost+=sq((0.3*H-d)/(0.12*H)); }
+        if(gap<GAP) cost+=sq((GAP-gap)/(0.18*H));
+        for(const F of feet){ if(F.kind==='floor') continue; const d=best[1]-F.Y; if(d<UNDER) cost+=sq((UNDER-d)/(0.12*H)); }
         cost+=1.2*(2-nf);
         if(feet.length===2&&lf!==rf){ const sp=Math.abs(feet[0].X-feet[1].X); if(sp>0.42*H) cost+=sq((sp-0.42*H)/(0.15*H)); }
         const off=Math.abs(best[0]-fcx); if(off>0.2*H) cost+=sq((off-0.2*H)/(0.15*H));
@@ -1074,7 +1123,7 @@ function solveBeta(holds,o){
           if(t===cur||t===n.lf||t===n.rf) continue;
           const p=pts[t];
           if(p.Y<maxFY+handGap) continue;
-          if(Math.hypot(p.X-C[0],p.Y-C[1])>TORSO+ARM+0.2*H) continue;
+          if(Math.hypot(p.X-C[0],p.Y-C[1])>TORSO+ARMX+0.3*H) continue;
           const nl=limb==='lh'?t:n.lh,nr=limb==='rh'?t:n.rh;
           let pen=0;
           if(nl!==nr&&pts[nl].X>pts[nr].X+0.02*H) continue; // hands never cross
@@ -1090,7 +1139,7 @@ function solveBeta(holds,o){
           if(outside>0) pen+=Math.min(1.5,outside/(0.15*H));
           const ps=pose(nl,nr,n.lf,n.rf); if(!ps) continue;
           const d=Math.hypot(p.X-pts[cur].X,p.Y-pts[cur].Y);
-          pen+=0.6*(d/ARM)*(d/ARM);
+          pen+=0.6*HANDK*(d/ARM)*(d/ARM);
           add(nl,nr,n.lf,n.rf,n.g+1+pen,ni,{limb,from:cur,to:t,reach:ps.st[limb==='lh'?0:1]},ps);
         }
       }
@@ -1115,8 +1164,9 @@ function solveBeta(holds,o){
     if(better(t)) r=t; if(r&&r.ok) break;
   }
   if(!r||!r.ok){ const t=search(false,pairs,MAX); if(better(t)) r=t; }
+  if(!r||!r.ok){ ARMX=1.06*ARM; memo.clear(); const t=search(false,pairs,MAX); if(t) t.stretch=true; if(better(t)) r=t; }
   if(!r) return {ok:false,reason:'nostart',H};
-  return {ok:r.ok,reason:r.ok?'':'stuck',strict:r.strict,top,H,TORSO,ARM,LEG,expanded:r.expanded,
+  return {ok:r.ok,reason:r.ok?'':'stuck',strict:r.strict,stretch:!!r.stretch,top,H,TORSO,ARM,LEG,angle:ang,expanded:r.expanded,
     pts:pts.map(p=>({X:p.X,Y:p.Y,r:p.r,kind:p.kind,id:p.id})),
     steps:r.chain.map(n=>({lh:n.lh,rh:n.rh,lf:n.lf,rf:n.rf,C:n.pose.C,st:n.pose.st,move:n.move,g:n.g}))};
 }
@@ -1132,7 +1182,7 @@ function holdKind(h){
   return {name:'jug or sloper',grip:'Big hold: wrap your fingers over the top. If it feels round, open your hand and keep your body below it.'};
 }
 function buildBeta(res,meta){
-  const {steps,pts,top,H}=res;
+  const {steps,pts,top,H}=res,ang=res.angle||0;
   const num=new Map();let k=0;
   const use=i=>{ if(i>=0&&pts[i].kind==='hold'&&!num.has(pts[i].id)) num.set(pts[i].id,++k); };
   use(steps[0].lh); use(steps[0].rh);
@@ -1141,14 +1191,17 @@ function buildBeta(res,meta){
   const r5=v=>Math.max(5,Math.round(v/5)*5);
   const dir=(dx,dy)=>{ const p=[]; if(Math.abs(dy)>=8) p.push(`${r5(Math.abs(dy))} cm ${dy>0?'up':'down'}`); if(Math.abs(dx)>=8) p.push(`${r5(Math.abs(dx))} cm ${dx>0?'right':'left'}`); return p.length?p.join(', '):'a small adjustment'; };
   const footTips=['Watch your foot all the way onto the hold and place it quietly.','Stand on the inside edge of your big toe, then shift your weight over that foot.','Feet first: get this foot set before you reach with a hand.'];
-  let footTipN=0,restN=0;
+  let footTipN=0,restN=0,steepN=0;
   const NAME={lh:'Left hand',rh:'Right hand',lf:'Left foot',rf:'Right foot'};
   const out=[];
   const posOf=(s)=>({lh:[pts[s.lh].X,pts[s.lh].Y],rh:[pts[s.rh].X,pts[s.rh].Y],lf:s.lf>=0?[pts[s.lf].X,pts[s.lf].Y]:null,rf:s.rf>=0?[pts[s.rf].X,pts[s.rf].Y]:null,C:s.C});
   const s0=steps[0];
   out.push({type:'start',title:'Start position',
     sub:s0.lh===s0.rh?`Both hands on ${hn(s0.lh)}. Feet stay on the mat for now.`:`Left hand on ${hn(s0.lh)}, right hand on ${hn(s0.rh)}. Feet stay on the mat for now.`,
-    tips:['Read the whole route first: start, top, the hardest move and any good rest.','Hang on straight arms and keep your hips close to the wall.'],
+    tips:['Read the whole route first: start, top, the hardest move and any good rest.',
+      ang>=10?`Overhang (${ang}°): keep your hips close to the wall and pull with your toes so your feet stay on. Hang on straight arms.`
+      :ang<=-5?`Slab (${-ang}° back): trust your feet. Stand tall over your toes, hips away from the wall, hands mostly for balance.`
+      :'Hang on straight arms and keep your hips close to the wall.'],
     pos:posOf(s0),limb:null,cost:0,list:'Start: hands on '+(s0.lh===s0.rh?hn(s0.lh):`${hn(s0.lh)} + ${hn(s0.rh)}`)});
   let crux=-1,cruxC=-1;
   for(let i=1;i<steps.length;i++){
@@ -1179,7 +1232,8 @@ function buildBeta(res,meta){
           tips.push(flagged?`Keep your ${leg} leg flagged out to the ${leg} as you reach. It stops your body swinging open.`
             :`${feet.length===2?'Both feet are':'Your foot is'} on your ${opp} side, so you may swing open. Flag your ${leg} leg out to the ${leg} as you reach.`);
         }
-        if(m.reach>0.9) tips.push('Long reach, close to your full arm length. Push up with your legs, straighten your arms and turn your hip into the wall.');
+        if(m.reach>1) tips.push('Just past your reach standing still: push hard with your legs and catch the hold as you rise (a deadpoint).');
+        else if(m.reach>0.9) tips.push('Long reach, close to your full arm length. Push up with your legs, straighten your arms and turn your hip into the wall.');
         if(other===m.to) tips.push('Match: bring the second hand onto this hold and shuffle your fingers to make room.');
         const nl=s.lh,nr=s.rh;
         if(nl!==nr&&pts[nl].X>pts[nr].X+0.04*H) tips.push('Cross-through: reach across your body and keep the other arm straight.');
@@ -1188,6 +1242,7 @@ function buildBeta(res,meta){
            the same side and hang off the other hand. */
         const sameFoot=m.limb==='lh'?s.lf:s.rf,sideW=m.limb==='lh'?'left':'right',otherW=m.limb==='lh'?'right':'left';
         if(tips.length<2&&sameFoot>=0&&pts[sameFoot].kind!=='floor') tips.push(`Push through your ${sideW} foot and hang straight-armed off your ${otherW} hand as you reach.`);
+        if(ang>=20&&steepN<2&&tips.length<2){ tips.push('On this steep wall, keep pulling with your toes as you move so your feet don\'t cut loose.'); steepN++; }
         if(kind&&tips.length<2) tips.push(kind.grip);
       }
       if(cost>cruxC){ cruxC=cost; crux=out.length; }
@@ -1278,9 +1333,9 @@ const video=document.createElement('video');
 video.muted=true; video.playsInline=true; video.setAttribute('playsinline',''); video.setAttribute('muted','');
 const newEdits=()=>({removed:[],confirmed:[],added:[],start:[],top:null,startT:[],topT:null});
 const S={src:null,token:0,lastStill:null,model:null,tol:5,showMask:false,suggest:[],wall:null,frameH:640,
-  holds:[],edits:newEdits(),tracks:[],nextTrack:1,shift:[0,0],mask:false,
-  beta:null,betaSnap:null,step:0,anim:null,playing:null,mode:'pick',view:{dw:1,dh:1,dpr:1},
-  heightCm:store.get('height',170),wallM:4.2,userWallM:store.get('wallM',4.2),feet:store.get('feet','strict'),callout:false,cal:{floor:1,top:0,marked:false},
+  holds:[],edits:newEdits(),tracks:[],lost:[],nextTrack:1,shift:[0,0],mask:false,
+  beta:null,betaSnap:null,step:0,anim:null,playing:null,mode:'pick',markReturn:null,view:{dw:1,dh:1,dpr:1},
+  heightCm:store.get('height',170),spanCm:store.get('span',0),angle:store.get('angle',0),wallM:4.2,userWallM:store.get('wallM',4.2),feet:store.get('feet','strict'),callout:false,cal:{floor:1,top:0,marked:false},
   live:{raf:0,busy:false,last:0,stream:null,url:null,frames:0,fpsT:0,sig:'',sigT:0,solvedSig:'',solving:false,lastSug:0,statT:0,wake:null}};
 window.__betaLens=S;
 const isMoving=()=>!!S.src&&(S.src.kind==='video'||S.src.kind==='live');
@@ -1343,7 +1398,7 @@ function setSource(src,opt){
   if(!opt.keepVideo) stopMedia();
   S.src=src; S.token++;
   if(src.kind==='photo'||src.kind==='sample') S.lastStill=src;
-  S.holds=[]; S.tracks=[]; S.shift=[0,0]; S.mask=false; S.beta=null; S.betaSnap=null; S.step=0; S.anim=null;
+  S.holds=[]; S.tracks=[]; S.lost=[]; S.shift=[0,0]; S.mask=false; S.beta=null; S.betaSnap=null; S.step=0; S.anim=null;
   S.edits=opt.edits||newEdits();
   if(!opt.keepModel) S.model=null;
   S.suggest=[];
@@ -1355,7 +1410,8 @@ function setSource(src,opt){
   $('#vbar').hidden=!isMoving();
   $('#vSeek').hidden=src.kind!=='video'; $('#vPlay').hidden=src.kind!=='video';
   $('#vStop').textContent=src.kind==='live'?'Stop camera':'Close clip';
-  setMode('pick');
+  /* A new picture starts by picking the colour; a frozen frame keeps it. */
+  setMode(opt.mode&&S.model?opt.mode:'pick');
   fit(); renderChips(); updateStats(); renderBeta();
   if(opt.reveal!==false&&S.token>1){ const r=wrap.getBoundingClientRect(); if(r.top<0||r.top>window.innerHeight*0.5) wrap.scrollIntoView({block:'start',behavior:reduceMotion?'auto':'smooth'}); }
   if(isMoving()){
@@ -1439,8 +1495,8 @@ function freeze(){
     if(S.edits.topT===t.id) E.top={u:t.u,v:t.v};
   }
   stopMedia();
-  setSource({kind:'photo',el:c,w:c.width,h:c.height},{keepModel:true,edits:E,keepCal:true});
-  toast('Frame frozen. You can now add or remove holds.');
+  setSource({kind:'photo',el:c,w:c.width,h:c.height},{keepModel:true,edits:E,keepCal:true,mode:'none'});
+  toast('Frame frozen. You can now add holds by hand.');
 }
 $('#fileCam').addEventListener('change',e=>{ loadFile(e.target.files[0]); e.target.value=''; });
 $('#fileVid').addEventListener('change',e=>{ loadFile(e.target.files[0]); e.target.value=''; });
@@ -1472,6 +1528,9 @@ function grabFrame(el,maxSide){
 /* Height units (fractions of the picture height) per cm of real wall. */
 const kU=()=>(S.cal.floor-S.cal.top)/(S.wallM*100);
 const pxPerCmFor=h=>h*kU();
+/* On a slab or overhang, the picture shows the wall's height; distances
+   along the wall surface (what a body reaches across) are longer by 1/cos. */
+const cosA=()=>Math.cos(Math.abs(S.angle||0)*Math.PI/180);
 async function analysePhoto(withSuggest){
   const src=S.src,tok=S.token;
   if(!src||isMoving()) return;
@@ -1514,10 +1573,45 @@ async function pickAt(u,v,quiet,retry){
   }
   if(!r.model){ if(!quiet) toast('That spot looks like bare wall. Tap the middle of a coloured hold.'); return; }
   r.model.tapped=true;
-  S.model=r.model;
+  setModel(r.model,quiet);
+}
+/* Same route colour? A re-tap of another hold of the same route gives a
+   different model (light, shade and chalk change brightness and chroma). The
+   same colour name counts as the same route, as people think of it ("the red
+   one"); otherwise compare the way holds are matched: hue within the model's
+   own hue window and chroma within a broad ratio, or brightness for black,
+   white and grey. */
+const hueGap=(a,b)=>Math.abs((((a-b)+540)%360)-180);
+function sameRoute(a,b){
+  if(a===b) return true;
+  if(!a||!b) return false;
+  if(a.name&&a.name===b.name) return true;
+  if(!!a.achro!==!!b.achro) return false;
+  if(a.achro) return Math.abs(a.mean[0]-b.mean[0])<15;
+  const win=Math.max(10,Math.min(28,3*Math.max(a.hueSd||0,b.hueSd||0))),r=(b.chroma||1)/(a.chroma||1);
+  return hueGap(a.hue,b.hue)<=win&&r>0.55&&r<1.8;
+}
+function hasEdits(){ const E=S.edits; return !!(E.removed.length||E.confirmed.length||E.added.length||E.start.length||E.top||E.startT.length||E.topT!=null); }
+/* A route colour was chosen (tap or chip). Start, top and hold changes belong
+   to one route, so they are kept when the same colour is picked again and
+   cleared only when the colour really changes. Afterwards a tap on the wall
+   does nothing until the user chooses a tool, so a stray tap can't re-learn
+   the colour and change the path. */
+function setModel(m,quiet){
+  const old=S.model,same=!!old&&sameRoute(old,m);
+  S.model=m;
+  if(old&&!same&&hasEdits()){ S.edits=newEdits(); if(!quiet) toast('New route colour, so its start, top and hold changes were cleared.'); }
   renderChips();
-  if(isMoving()){ S.tracks=[]; S.beta=null; S.live.solvedSig=''; renderBeta(); setCaption('Reading the wall','Hold the phone steady for a second. The moves appear once the holds stop moving.',[]); }
+  if(isMoving()){
+    /* Same colour: keep following the same holds (and the choices on them). */
+    if(same) S.live.solvedSig='';
+    else{
+      S.tracks=[]; S.lost=[]; S.beta=null; S.live.solvedSig=''; renderBeta();
+      setCaption('Reading the wall','Hold the phone steady for a second. The moves appear once the holds stop moving.',[]);
+    }
+  }
   else reclassify();
+  setMode('none');
 }
 
 /* Live / clip: analyse frames in the worker while the picture keeps playing. */
@@ -1548,26 +1642,53 @@ async function sendLive(){
   if(S.model&&r.blobs){ setMask(r.mask||null,r.w,r.h); updateTracks(r.blobs,r.w,r.h); checkLiveSolve(); }
   if(t2-L.statT>300){ L.statT=t2; updateStats(); }
 }
+/* A hold the user chose as start or top, and any hold they removed or kept. */
+const isPinned=t=>S.edits.startT.includes(t.id)||S.edits.topT===t.id;
+const isMarked=t=>isPinned(t)||!!t.removed||!!t.userOk;
 /* Follow holds between frames so they don't flicker: match each new blob to
-   the nearest known hold, keep a running average, drop holds that vanish. */
+   the nearest known hold, keep a running average, drop holds that vanish.
+   Holds the user marked survive longer, and a hold that drops out is
+   remembered for 15 s (moving with the camera), so when it comes back it gets
+   its old identity, and the start, top or removal set on it, back. */
 function updateTracks(blobs,w,h){
   const a=w/h,cand=blobs.filter(b=>b.status!=='rejected').map(b=>({u:b.x/w,v:b.y/h,rho:b.r/h,conf:b.conf,elong:b.elong,angle:b.angle,used:false}));
-  const T=S.tracks,pairs=[];
+  const T=S.tracks,pairs=[],gate=(p,q)=>Math.max(0.03,2.2*Math.max(p.rho,q.rho)),dist=(p,q)=>Math.hypot((p.u-q.u)*a,p.v-q.v);
   for(const t of T){ t.pu=t.u+S.shift[0]; t.pv=t.v+S.shift[1]; t.m=null; }
-  for(const t of T) for(const c of cand){ const d=Math.hypot((t.pu-c.u)*a,t.pv-c.v); if(d<Math.max(0.03,2.2*Math.max(t.rho,c.rho))) pairs.push([d,t,c]); }
+  for(const t of T) for(const c of cand){ const d=Math.hypot((t.pu-c.u)*a,t.pv-c.v); if(d<gate(t,c)) pairs.push([d,t,c]); }
   pairs.sort((p,q)=>p[0]-q[0]);
   const du=[],dv=[];
   for(const [,t,c] of pairs){ if(t.m||c.used) continue; t.m=c; c.used=true; du.push(c.u-t.u); dv.push(c.v-t.v); }
   const med=v=>{ if(!v.length) return 0; const s=v.slice().sort((p,q)=>p-q); return s[s.length>>1]; };
   S.shift=[med(du)*0.8,med(dv)*0.8];
-  const keep=[];
+  const now=performance.now();
+  for(const e of S.lost){ e.u+=S.shift[0]; e.v+=S.shift[1]; }
+  S.lost=S.lost.filter(e=>now-e.t<15000&&e.u>-0.3&&e.u<1.3&&e.v>-0.3&&e.v<1.3);
+  const keep=[],dropped=[];
   for(const t of T){
     if(t.m){ const c=t.m; t.u=t.pu+(c.u-t.pu)*0.7; t.v=t.pv+(c.v-t.pv)*0.7; t.rho=t.rho*0.7+c.rho*0.3; t.conf=t.conf*0.65+c.conf*0.35; t.elong=c.elong; t.angle=c.angle; t.hits++; t.miss=0; }
     else { t.u=t.pu; t.v=t.pv; t.miss++; }
     t.status=t.conf>=0.5?'hold':t.conf>=0.33?'unsure':'rejected';
-    if(t.miss<=(t.hits>=4?7:2)&&t.u>-0.1&&t.u<1.1&&t.v>-0.1&&t.v<1.1) keep.push(t);
+    const life=isMarked(t)?30:t.hits>=4?7:2;
+    if(t.miss<=life&&t.u>-0.1&&t.u<1.1&&t.v>-0.1&&t.v<1.1) keep.push(t); else if(t.hits>=3) dropped.push(t);
   }
-  for(const c of cand) if(!c.used) keep.push({id:S.nextTrack++,u:c.u,v:c.v,rho:c.rho,conf:c.conf,elong:c.elong,angle:c.angle,hits:1,miss:0,status:c.conf>=0.5?'hold':c.conf>=0.33?'unsure':'rejected'});
+  const mk=(c,id,old)=>({id,u:c.u,v:c.v,rho:c.rho,conf:c.conf,elong:c.elong,angle:c.angle,hits:old?Math.max(3,Math.min(old.hits,6)):1,miss:0,
+    removed:old?old.removed:false,userOk:old?old.userOk:false,status:c.conf>=0.5?'hold':c.conf>=0.33?'unsure':'rejected'});
+  for(const c of cand) if(!c.used){
+    let bi=-1,bd=Infinity;
+    for(let i=0;i<S.lost.length;i++){ const d=dist(S.lost[i],c); if(d<gate(S.lost[i],c)&&d<bd){ bd=d; bi=i; } }
+    keep.push(bi>=0?mk(c,S.lost[bi].id,S.lost.splice(bi,1)[0]):mk(c,S.nextTrack++,null));
+  }
+  for(const t of dropped){
+    /* The same hold may already be followed again under a new number (the
+       old one drifted off); hand it the old number and the user's choices. */
+    if(isMarked(t)){
+      let tw=null,bd=Infinity;
+      for(const k of keep){ if(isMarked(k)) continue; const d=dist(k,t); if(d<gate(k,t)&&d<bd){ bd=d; tw=k; } }
+      if(tw){ tw.id=t.id; tw.removed=!!t.removed; tw.userOk=!!t.userOk; tw.hits=Math.max(tw.hits,3); continue; }
+    }
+    S.lost.push({id:t.id,u:t.u,v:t.v,rho:t.rho,removed:!!t.removed,userOk:!!t.userOk,hits:t.hits,t:now});
+  }
+  if(S.lost.length>80) S.lost.splice(0,S.lost.length-80);
   S.tracks=keep;
 }
 function checkLiveSolve(){
@@ -1586,13 +1707,15 @@ function applyEdits(){
   E.added.forEach((p,k)=>S.holds.push({id:5000+k,u:p.u,v:p.v,rho:p.rho,conf:1,status:'hold',manual:true,elong:1,angle:0}));
 }
 const isActive=h=>!h.removed&&(h.manual||h.userOk||h.status==='hold');
-function currentHolds(){ return isMoving()?S.tracks.filter(t=>t.hits>=3&&t.miss<=2):S.holds; }
+/* While moving, a chosen start or top hold stays in the plan through a few
+   missed frames instead of flickering out and changing the path. */
+function currentHolds(){ return isMoving()?S.tracks.filter(t=>t.hits>=3&&(t.miss<=2||(t.miss<=12&&isPinned(t)))):S.holds; }
 function onWall(h){ return h.v<=S.cal.floor+0.005&&h.v>=S.cal.top-0.02; }
 function activeHolds(){ return currentHolds().filter(h=>isActive(h)&&onWall(h)); }
 function isStart(h){ return isMoving()?S.edits.startT.includes(h.id):S.edits.start.some(p=>nearPos(h,p)); }
-function hitHold(x,y){
+function hitHold(x,y,withRemoved){
   let best=null,bd=Infinity;
-  for(const h of currentHolds()){ if(h.removed) continue; const [hx,hy]=P(h.u,h.v),d=Math.hypot(hx-x,hy-y); if(d<h.rho*S.view.dh+12&&d<bd){ bd=d; best=h; } }
+  for(const h of currentHolds()){ if(h.removed&&!withRemoved) continue; const [hx,hy]=P(h.u,h.v),d=Math.hypot(hx-x,hy-y); if(d<h.rho*S.view.dh+12&&d<bd){ bd=d; best=h; } }
   return best;
 }
 
@@ -1607,14 +1730,24 @@ async function solveNow(live){
     if(S.model&&!live) setCaption('Not enough holds','Rocksane needs at least two holds of the route colour. Move the colour slider toward Loose, or tap a hold again.',[]);
     return;
   }
-  const k=kU(),a=aspect(),fl=S.cal.floor;
-  const holds=act.map(h=>({id:h.id,X:h.u*a/k,Y:(fl-h.v)/k,r:h.rho/k}));
-  const nearestId=p=>{ let b=null,bd=1e9; for(const h of act){ const d=Math.hypot((h.u-p.u)*a,h.v-p.v); if(d<bd){ bd=d; b=h; } } return b&&bd<0.06?b.id:null; };
+  const k=kU(),a=aspect(),fl=S.cal.floor,ca=cosA();
+  const holds=act.map(h=>({id:h.id,X:h.u*a/k,Y:(fl-h.v)/k/ca,r:h.rho/k}));
+  /* the hold the user chose, not just any hold nearby */
+  const nearestId=p=>{ let b=null,bd=1e9; for(const h of act){ const d=Math.hypot((h.u-p.u)*a,h.v-p.v); if(d<bd){ bd=d; b=h; } } return b&&bd<Math.max(1.5*b.rho,0.02)?b.id:null; };
   const startIds=live?S.edits.startT.filter(id=>act.some(h=>h.id===id)):S.edits.start.map(nearestId).filter(x=>x!=null);
   const topId=live?(act.some(h=>h.id===S.edits.topT)?S.edits.topT:null):(S.edits.top?nearestId(S.edits.top):null);
   const snap=new Map(act.map(h=>[h.id,{u:h.u,v:h.v}]));
   if(live) S.live.solving=true; else busy('Working out your moves…');
-  const res=await solver.call({holds,o:{H:S.heightCm,feet:S.feet,startIds,topId}});
+  const o={H:S.heightCm,span:S.spanCm||S.heightCm,angle:S.angle||0,feet:S.feet,startIds,topId};
+  let res=await solver.call({holds,o});
+  /* Small footholds are often missed in a picture. If the route can't be
+     finished on footholds of this colour, try again with the feet allowed to
+     smear on the wall, and keep that plan if it gets further. */
+  if(tok===S.token&&S.feet!=='open'&&!(res&&res.ok)){
+    const r2=await solver.call({holds,o:Object.assign({},o,{feet:'open'})});
+    const high=r=>r&&r.steps?Math.max(...r.steps.map(q=>Math.max(r.pts[q.lh].Y,r.pts[q.rh].Y))):-1;
+    if(r2&&r2.steps&&(r2.ok||high(r2)>high(res)+5)){ res=r2; res.autoSmear=true; }
+  }
   if(live) S.live.solving=false; else busy(false);
   if(tok!==S.token) return;
   if(!res||!res.steps){
@@ -1634,11 +1767,15 @@ function renderBeta(failRes){
   const b=S.beta;
   if(!b){ sum.textContent=S.model?(failRes?'No route found from the floor.':(isMoving()?'Hold steady while the holds are found.':'Waiting for holds.')):'Choose a route colour to see the moves.'; updateCount(); return; }
   sum.textContent=`${b.hands} hand moves and ${b.feet} foot moves to the top${b.crux>0?`. Crux: move ${b.crux}.`:'.'}`;
+  const smear=!!b.res.autoSmear;
   if(!b.ok){
     const last=b.res.steps[b.res.steps.length-1],y=Math.max(b.res.pts[last.lh].Y,b.res.pts[last.rh].Y);
     sum.textContent=`${b.hands} hand moves and ${b.feet} foot moves before getting stuck.`;
     warn.hidden=false;
-    warn.textContent=`Stuck at about ${(y/100).toFixed(1)} m: the next hold is out of reach for ${S.heightCm} cm, or a hold wasn't found. Try Open feet, a looser colour match, or add the missing hold with Add / remove.`;
+    warn.textContent=`Stuck at about ${(y*cosA()/100).toFixed(1)} m: the next hold is out of reach for ${S.heightCm} cm${S.spanCm?` with a ${S.spanCm} cm arm span`:''}, or a hold wasn't found. ${smear?'':'Try Open feet, '}${smear?'Try':'or'} a looser colour match, add the missing hold with Add hold, or check the wall marks and angle.`;
+  }else if(smear){
+    warn.hidden=false;
+    warn.textContent='Not enough footholds of this colour were found, so some steps put a foot flat on the wall (a smear). If you can see footholds of your colour there, add them with Add hold.';
   }
   b.steps.forEach((s,i)=>{
     const li=document.createElement('li'),bt=document.createElement('button');
@@ -1745,11 +1882,7 @@ function renderChips(){
     box.append(b);
   }
 }
-function chooseModel(m){
-  S.model=m; renderChips();
-  if(isMoving()){ S.tracks=[]; S.beta=null; S.live.solvedSig=''; renderBeta(); }
-  else reclassify();
-}
+function chooseModel(m){ setModel(m); }
 let tolT=0;
 $('#tol').addEventListener('input',e=>{ S.tol=+e.target.value; $('#tolVal').textContent=S.tol; clearTimeout(tolT); tolT=setTimeout(()=>{ if(!isMoving()) reclassify(); },180); });
 $('#showMask').addEventListener('change',e=>{ S.showMask=e.target.checked; $('#maskKey').hidden=!S.showMask; if(!S.showMask){ S.mask=false; render(); } if(!isMoving()) reclassify(); });
@@ -1782,31 +1915,73 @@ function updateStats(){
 }
 const heightEl=$('#height'),wallEl=$('#wallM'),feetEl=$('#feet');
 heightEl.value=S.heightCm; feetEl.value=S.feet;
-heightEl.addEventListener('change',()=>{ const v=Math.max(110,Math.min(215,+heightEl.value||170)); heightEl.value=v; S.heightCm=v; store.set('height',v); solveSoon(); });
+const spanEl=$('#span'),angleEl=$('#angle');
+spanEl.placeholder=S.heightCm; if(S.spanCm) spanEl.value=S.spanCm;
+angleEl.value=String(S.angle||0); if(angleEl.value!==String(S.angle||0)){ S.angle=0; angleEl.value='0'; }
+spanEl.addEventListener('change',()=>{
+  const raw=spanEl.value.trim();
+  if(!raw){ S.spanCm=0; store.set('span',0); solveSoon(); return; }
+  const v=Math.max(100,Math.min(250,Math.round(+raw)||S.heightCm)); spanEl.value=v; S.spanCm=v; store.set('span',v); solveSoon();
+});
+angleEl.addEventListener('change',()=>{ S.angle=+angleEl.value||0; store.set('angle',S.angle); if(!isMoving()) render(); solveSoon(); });
+heightEl.addEventListener('change',()=>{ const v=Math.max(110,Math.min(215,+heightEl.value||170)); heightEl.value=v; S.heightCm=v; store.set('height',v); $('#span').placeholder=v; solveSoon(); });
 wallEl.addEventListener('change',()=>{ const v=Math.max(1.5,Math.min(9,+wallEl.value||4)); wallEl.value=v; S.wallM=v; if(S.src&&S.src.kind!=='sample'){ S.userWallM=v; store.set('wallM',v); } solveSoon(); });
 feetEl.addEventListener('change',()=>{ S.feet=feetEl.value; store.set('feet',S.feet); solveSoon(); });
 $('#callout').addEventListener('change',e=>{ S.callout=e.target.checked; if(S.callout&&S.beta) speak(S.beta.steps[S.step].title); });
-const MODEHINT={floor:'Tap where the wall meets the floor or mat.',walltop:'Now tap the top edge of the wall.',pick:'Tap a hold to use its colour as the route.',edit:'Tap a ringed hold to remove it, tap a dashed amber one to keep it, or tap an empty spot to add a missed hold.',start:'Tap one or two holds to fix the start. Tap a chosen hold again to unset it.',top:'Tap the hold that marks the finish.'};
+/* Tapping the wall: first pick the colour, then choose a tool and tap a hold.
+   The tools stay off until a colour is picked. */
+const TOOLS=['add','remove','start','top'];
+const MODEHINT={floor:'Tap where the wall meets the floor or mat.',walltop:'Now tap the top edge of the wall.',
+  pick:'Tap one hold of your route to pick its colour.',
+  none:'Colour picked. To change a hold, choose Add hold, Remove hold, Set start or Set top, then tap the hold.',
+  add:'Tap a spot where a hold was missed, a dashed amber hold to keep it, or a crossed-out hold to put it back.',
+  remove:'Tap a ringed hold to take it out of the route.',
+  start:'Tap one or two holds to start on, one for each hand. Tap a chosen hold again to unset it.',
+  top:'Tap the finishing hold. Tap it again to unset it.'};
 function setMode(m){
+  if(TOOLS.includes(m)&&!S.model) m='pick';
+  if(m==='none'&&!S.model) m='pick';
   S.mode=m;
-  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===m)));
-  $('#modeHint').textContent=MODEHINT[m]+(isMoving()&&m==='edit'?' To add holds, freeze the frame first.':'');
+  document.querySelectorAll('.seg button').forEach(b=>{
+    b.setAttribute('aria-pressed',String(b.dataset.mode===m));
+    if(TOOLS.includes(b.dataset.mode)) b.disabled=!S.model;
+  });
+  let hint=MODEHINT[m]||'';
+  if(m==='pick'&&S.model) hint='Tap a hold to pick a new colour. Picking the same colour again keeps your start, top and hold changes.';
+  if(m==='add'&&isMoving()) hint='Tap a dashed amber hold to keep it, or a crossed-out hold to put it back. To add a hold by hand, tap Freeze frame first.';
+  $('#modeHint').textContent=hint;
   if(S.src&&!isMoving()) render();
 }
-document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{
+  const m=b.dataset.mode;
+  /* tapping the tool that is on turns it off */
+  setMode(S.mode===m&&S.model?'none':m);
+}));
 function updateMarkUi(){
   const m=S.cal.marked;
   $('#clearMarks').hidden=!m;
   $('#markWall').textContent=m?'Mark again':'Mark wall bottom and top';
-  $('#markHint').textContent=m?'Holds below the floor line or above the top line are ignored.':'Without marks, the whole picture counts as the wall: bottom edge is the floor, top edge is the top of the wall.';
+  $('#markHint').textContent=m?'Holds below the floor line or above the top line are ignored.':'Without marks, the whole picture counts as the wall: bottom edge is the floor, top edge is the top of the wall. If the climber looks too big or too small next to the holds, mark the wall.';
 }
 $('#markWall').addEventListener('click',()=>{
   if(!S.src) return;
+  if(S.mode!=='floor'&&S.mode!=='walltop') S.markReturn=S.mode;
   setMode('floor');
   const r=wrap.getBoundingClientRect(); if(r.top<0||r.bottom>window.innerHeight) wrap.scrollIntoView({block:'start',behavior:reduceMotion?'auto':'smooth'});
   toast('Tap where the wall meets the floor or mat.');
 });
 $('#clearMarks').addEventListener('click',()=>{ S.cal={floor:1,top:0,marked:false}; updateMarkUi(); if(!isMoving()) render(); solveSoon(); });
+/* Edits on one hold. While moving they live on the followed hold (its id);
+   on a still picture they are saved as positions, so they survive a
+   re-read of the picture. */
+function isTop(h){ return isMoving()?S.edits.topT===h.id:!!S.edits.top&&nearPos(h,S.edits.top); }
+function unsetStart(h){ const E=S.edits; if(isMoving()) E.startT=E.startT.filter(id=>id!==h.id); else E.start=E.start.filter(p=>!nearPos(h,p)); }
+function unsetTop(h){ const E=S.edits; if(!isTop(h)) return; if(isMoving()) E.topT=null; else E.top=null; }
+/* A hold chosen as start or top stays in the route even if a later read
+   finds it less clearly. */
+function keepChosen(h){ if(isMoving()) h.userOk=true; else if(!h.manual&&!h.userOk) S.edits.confirmed.push({u:h.u,v:h.v}); }
+let nudgeT=0;
+function nudgeTools(){ const t=$('#tools'); t.classList.remove('nudge'); void t.offsetWidth; t.classList.add('nudge'); clearTimeout(nudgeT); nudgeT=setTimeout(()=>t.classList.remove('nudge'),1000); }
 cv.addEventListener('click',e=>{
   if(!S.src) return;
   const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,u=x/S.view.dw,v=y/S.view.dh;
@@ -1818,39 +1993,50 @@ cv.addEventListener('click',e=>{
   if(S.mode==='walltop'){
     if(v>=S.cal.floor-0.08){ toast('Tap above the floor line.'); return; }
     S.cal.top=Math.max(0,v); S.cal.marked=true;
-    setMode('pick'); updateMarkUi(); toast('Wall marked'); render(); solveSoon(); return;
+    const back=S.markReturn; S.markReturn=null;
+    setMode(back||'none'); updateMarkUi(); toast('Wall marked'); render(); solveSoon(); return;
   }
-  if(S.mode==='pick'){ pickAt(u,v); return; }
-  if(!S.model){ toast('Pick a route colour first.'); return; }
-  const h=hitHold(x,y);
-  if(S.mode==='edit'){
-    if(isMoving()){
-      if(!h){ toast('Freeze the frame to add a missed hold.'); return; }
-      if(isActive(h)){ h.removed=true; h.userOk=false; toast('Hold removed'); } else { h.userOk=true; h.removed=false; toast('Hold kept'); }
-      updateStats(); solveSoon(); return;
-    }
-    const E=S.edits;
-    if(h){
-      if(isActive(h)){
-        E.confirmed=E.confirmed.filter(p=>!nearPos(h,p));
-        if(h.manual) E.added=E.added.filter(p=>!nearPos(h,p)); else E.removed.push({u:h.u,v:h.v});
-        toast('Hold removed');
-      }else{ E.confirmed.push({u:h.u,v:h.v}); E.removed=E.removed.filter(p=>!nearPos(h,p)); toast('Hold kept'); }
-    }else{
+  if(S.mode==='pick'||!S.model){ pickAt(u,v); return; }
+  if(S.mode==='none'){ nudgeTools(); toast('First choose Add hold, Remove hold, Set start or Set top.'); return; }
+  const mv=isMoving(),E=S.edits;
+  const changed=()=>{ if(!mv) applyEdits(); updateStats(); render(); solveSoon(); };
+  if(S.mode==='add'){
+    const h=hitHold(x,y,true);
+    if(h&&h.removed){
+      if(mv) h.removed=false; else E.removed=E.removed.filter(p=>!nearPos(h,p));
+      toast('Hold put back');
+    }else if(h&&!isActive(h)){
+      if(mv) h.userOk=true; else E.confirmed.push({u:h.u,v:h.v});
+      toast('Hold kept');
+    }else if(h){ toast('That hold is already in the route.'); return; }
+    else if(mv){ toast('No hold was found there. Tap Freeze frame first to add one by hand.'); return; }
+    else{
       const rs=S.holds.filter(isActive).map(q=>q.rho).sort((p,q)=>p-q),rho=rs.length?rs[rs.length>>1]:0.012;
       E.added.push({u,v,rho}); toast('Hold added');
     }
-    applyEdits(); updateStats(); render(); solveSoon(); return;
+    changed(); return;
   }
-  if(!h||!isActive(h)){ toast('Tap on a ringed hold.'); return; }
-  const E=S.edits;
+  const h=hitHold(x,y);
+  if(!h||!isActive(h)){ toast(S.mode==='remove'?'Tap a ringed hold to remove it.':'Tap a ringed hold of your route.'); return; }
+  if(S.mode==='remove'){
+    unsetStart(h); unsetTop(h);
+    if(mv){ h.removed=true; h.userOk=false; }
+    else{ E.confirmed=E.confirmed.filter(p=>!nearPos(h,p)); if(h.manual) E.added=E.added.filter(p=>!nearPos(h,p)); else E.removed.push({u:h.u,v:h.v}); }
+    toast('Hold removed'); changed(); return;
+  }
   if(S.mode==='start'){
-    if(isMoving()){ if(E.startT.includes(h.id)) E.startT=E.startT.filter(id=>id!==h.id); else { E.startT.push(h.id); if(E.startT.length>2) E.startT.shift(); } }
-    else{ if(E.start.some(p=>nearPos(h,p))) E.start=E.start.filter(p=>!nearPos(h,p)); else { E.start.push({u:h.u,v:h.v}); if(E.start.length>2) E.start.shift(); } }
+    if(isStart(h)){ unsetStart(h); toast('Start hold unset'); }
+    else{
+      const L=mv?E.startT:E.start;
+      L.push(mv?h.id:{u:h.u,v:h.v}); if(L.length>2) L.shift();
+      keepChosen(h);
+      toast(L.length===2?'Both start holds set':'Start hold set. Tap another one for the other hand.');
+    }
   }else if(S.mode==='top'){
-    if(isMoving()) E.topT=h.id; else E.top={u:h.u,v:h.v};
+    if(isTop(h)){ unsetTop(h); toast('Top unset'); }
+    else{ if(mv) E.topT=h.id; else E.top={u:h.u,v:h.v}; keepChosen(h); toast('Top set'); }
   }
-  render(); solveSoon();
+  changed();
 });
 let toastT=0;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>{ t.hidden=true; },2400); }
@@ -1875,7 +2061,7 @@ function drift(){
   for(const t of S.tracks){ const s=S.betaSnap.get(t.id); if(s&&t.miss<=3){ du+=t.u-s.u; dv+=t.v-s.v; n++; } }
   return n?[du/n,dv/n]:[0,0];
 }
-function cmPx(q,dr){ const k=kU(); return P(q[0]*k/aspect()+dr[0],S.cal.floor-q[1]*k+dr[1]); }
+function cmPx(q,dr){ const k=kU(); return P(q[0]*k/aspect()+dr[0],S.cal.floor-q[1]*k*cosA()+dr[1]); }
 function tagAt(x,y,text,fill,ink){
   ctx.font=`13px ${MARKER}`;
   const w=ctx.measureText(text).width+9,h=17;
@@ -1920,7 +2106,15 @@ function render(){
   }
   const used=b?b.num:new Map();
   for(const h of hs){
-    if(h.removed) continue;
+    if(h.removed){
+      /* While adding, removed holds show crossed out so they can be put back. */
+      if(S.mode!=='add') continue;
+      const [x,y]=P(h.u,h.v),r=h.rho*dh+3,k=Math.min(r*0.5,7);
+      ctx.beginPath(); ctx.arc(x,y,r,0,6.283); ctx.moveTo(x-k,y-k); ctx.lineTo(x+k,y+k); ctx.moveTo(x+k,y-k); ctx.lineTo(x-k,y+k);
+      ctx.setLineDash([4,3]); ctx.lineWidth=3.4; ctx.strokeStyle='rgba(0,0,0,.7)'; ctx.stroke();
+      ctx.lineWidth=1.8; ctx.strokeStyle='#ff6b6b'; ctx.stroke(); ctx.setLineDash([]);
+      continue;
+    }
     const active=isActive(h)&&onWall(h);
     if(!active&&h.status!=='unsure'&&!S.showMask) continue;
     const [x,y]=P(h.u,h.v),r=h.rho*dh+3;
@@ -2022,8 +2216,15 @@ function upperBody(C,a,H,TORSO){
   return {up,across,Sh,head:[Sh[0]+up[0]*0.122*H,Sh[1]+up[1]*0.122*H],lh:joint(-1),rh:joint(1)};
 }
 /* Elbows point out to the side and down, as they do from behind. */
-function elbowAt(A,T,side,H){
-  return bend3d(A,T,ik(A,T,0.19*H,0.26*H,(e1,e2)=>{ const sc=e=>side*(e[0]-A[0])-0.6*(e[1]-A[1]); return sc(e1)>=sc(e2)?e1:e2; }),0.19/0.45,0.55);
+/* arm = shoulder to hand centre (0.48H for an arm span equal to height) */
+function elbowAt(A,T,side,H,arm){
+  return bend3d(A,T,ik(A,T,0.42*arm,0.58*arm,(e1,e2)=>{ const sc=e=>side*(e[0]-A[0])-0.6*(e[1]-A[1]); return sc(e1)>=sc(e2)?e1:e2; }),0.42,0.55);
+}
+/* Reaching to full length lifts the shoulder (up to 0.05H) toward the hand,
+   as a real reach does, so a long move looks like a reach, not a rubber arm. */
+function reachJoint(J,T,arm,H){
+  const dx=T[0]-J[0],dy=T[1]-J[1],d=Math.hypot(dx,dy),x=Math.min(Math.max(0,d-arm),0.05*H);
+  return x>0?[J[0]+dx/d*x,J[1]+dy/d*x]:J;
 }
 /* Where to draw the hips and how far the upper body leans (radians, +
    toward the right). The planner's hip is the centre of the weight; the
@@ -2034,9 +2235,9 @@ function elbowAt(A,T,side,H){
    arm's length, and keeps the hands and arms clear of the head, so a hand
    never sits on the head and an arm never wraps over or behind it. */
 const bodyMemo=new Map();
-function chooseBody(p,H,TORSO){
+function chooseBody(p,H,TORSO,arm){
   const lh=p.lh,rh=p.rh,C0=p.C,r1=v=>v?Math.round(v[0]*10)+','+Math.round(v[1]*10):'-';
-  const key=[H,TORSO,r1(C0),r1(lh),r1(rh),r1(p.lf),r1(p.rf)].join('|');
+  const key=[H,TORSO,arm,r1(C0),r1(lh),r1(rh),r1(p.lf),r1(p.rf)].join('|');
   if(bodyMemo.has(key)) return bodyMemo.get(key);
   const sq=v=>v*v,hm=[(lh[0]+rh[0])/2,(lh[1]+rh[1])/2],matched=Math.hypot(lh[0]-rh[0],lh[1]-rh[1])<0.03*H;
   let footY=-Infinity,onMat=false;
@@ -2056,8 +2257,8 @@ function chooseBody(p,H,TORSO){
       return (across?40:4)*sq(1-e); };
     let c=6*sq(a-a0)+20*sq(Math.max(0,Math.abs(a)-0.3))+0.6*sq(drop/(0.1*H));
     for(const [T,side,kk] of [[lh,-1,'lh'],[rh,1,'rh']]){
-      const J=B[kk],E=elbowAt(J,T,side,H);
-      const d=Math.hypot(T[0]-J[0],T[1]-J[1]); if(d>0.47*H) c+=sq((d-0.47*H)/(0.06*H));
+      const J=reachJoint(B[kk],T,arm,H),E=elbowAt(J,T,side,H,arm);
+      const d=Math.hypot(T[0]-J[0],T[1]-J[1]); if(d>arm) c+=sq((d-arm)/(0.06*H));
       c+=seg(J,E)+seg(E,T);
       /* a hand needs more room above the head than beside it (a matched
          pair counts once) */
@@ -2090,21 +2291,24 @@ function chooseBody(p,H,TORSO){
 /* While a move animates, blend the body between the two held positions so
    the torso turns smoothly instead of flipping between solutions. A move
    started mid-animation blends from what was on screen at that moment. */
-function bodyFor(p,H,TORSO){
-  if(!p.from) return chooseBody(p,H,TORSO);
-  const a=bodyFor(p.from,H,TORSO),b=bodyFor(p.to,H,TORSO);
+function bodyFor(p,H,TORSO,arm){
+  if(!p.from) return chooseBody(p,H,TORSO,arm);
+  const a=bodyFor(p.from,H,TORSO,arm),b=bodyFor(p.to,H,TORSO,arm);
   return {drop:a.drop+(b.drop-a.drop)*p.t,lean:a.lean+(b.lean-a.lean)*p.t};
 }
 function drawClimber(){
   const b=S.beta,H=b.res.H,TORSO=b.res.TORSO,step=b.steps[S.step],p=currentPos(),dr=drift();
-  const editing=S.mode!=='pick',dpr=S.view.dpr,k=kU()*S.view.dh,U=v=>v*H*k;
+  const editing=TOOLS.includes(S.mode)||S.mode==='floor'||S.mode==='walltop',dpr=S.view.dpr,k=kU()*S.view.dh,U=v=>v*H*k;
   const Q=q=>cmPx(q,dr);
-  const bd=bodyFor(p,H,TORSO),C=[p.C[0],p.C[1]-bd.drop],lean=bd.lean,B=upperBody(C,lean,H,TORSO),Sh=B.Sh;
+  /* drawn arm a touch shorter than the planner's reach; the shoulder lift covers the rest */
+  const arm=0.96*(b.res.ARM||0.5*H);
+  const bd=bodyFor(p,H,TORSO,arm),C=[p.C[0],p.C[1]-bd.drop],lean=bd.lean,B=upperBody(C,lean,H,TORSO),Sh=B.Sh;
   const hip={lf:[C[0]-0.07*H,C[1]],rf:[C[0]+0.07*H,C[1]]};
   const ends={},flagged={},J={},shoe={};
   for(const kk of ['lh','rh']){
     const T=p[kk],A=B[kk]; ends[kk]=T;
-    J[kk]={a:Q(A),e:Q(elbowAt(A,T,kk==='lh'?-1:1,H)),h:Q(T)};
+    const A2=reachJoint(A,T,arm,H);
+    J[kk]={a:Q(A2),e:Q(elbowAt(A2,T,kk==='lh'?-1:1,H,arm)),h:Q(T)};
   }
   for(const kk of ['lf','rf']){
     let T=p[kk]; const side=kk==='lf'?-1:1;
@@ -2266,7 +2470,7 @@ $('#coachAsk').addEventListener('click',async()=>{
   if(!S.beta){ toast('Choose a route colour first so there are moves to check.'); return; }
   const out=$('#coachOut'),ask=$('#coachAsk'),stop=$('#coachStop');
   const lines=S.beta.steps.map((s,i)=>`${i===0?'S':i}. ${s.title} (${s.sub})`).join('\n');
-  const prompt=`You are an experienced bouldering coach helping a beginner. The image is a photo of an indoor climbing wall. The holds of one route (colour: ${S.model.name}) are circled, and the ones used are labelled with yellow numbers in the order they are first touched. The climber is ${S.heightCm} cm tall. The bottom of the photo is the floor and the photo shows about ${S.wallM} m of wall.\n\nPlanned sequence:\n${lines}\n\nReply in plain text with no markdown symbols, under 230 words, in three short parts:\n1. Holds: one line per numbered hold with your best guess of its type (jug, edge, crimp, sloper, pinch, pocket, sidepull, undercling, volume) and how to grip it.\n2. Crux: which move looks hardest and one hand or foot tip for it.\n3. Check: anything in the sequence that looks wrong for this wall (for example a circled blob that is not a hold of this colour, or a better foot), and what to do instead.\nIf the photo is unclear, say so briefly.`;
+  const prompt=`You are an experienced bouldering coach helping a beginner. The image is a photo of an indoor climbing wall. The holds of one route (colour: ${S.model.name}) are circled, and the ones used are labelled with yellow numbers in the order they are first touched. The climber is ${S.heightCm} cm tall${S.spanCm?` with a ${S.spanCm} cm arm span`:''}. The bottom of the photo is the floor and the photo shows about ${S.wallM} m of wall${S.angle>0?`, overhanging ${S.angle}°`:S.angle<0?`, a slab leaning back ${-S.angle}°`:', vertical'}.\n\nPlanned sequence:\n${lines}\n\nReply in plain text with no markdown symbols, under 230 words, in three short parts:\n1. Holds: one line per numbered hold with your best guess of its type (jug, edge, crimp, sloper, pinch, pocket, sidepull, undercling, volume) and how to grip it.\n2. Crux: which move looks hardest and one hand or foot tip for it.\n3. Check: anything in the sequence that looks wrong for this wall (for example a circled blob that is not a hold of this colour, or a better foot), and what to do instead.\nIf the photo is unclear, say so briefly.`;
   coachCtl=new AbortController();
   out.hidden=false; out.textContent='Thinking…'; ask.disabled=true; stop.hidden=false;
   try{

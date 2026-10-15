@@ -102,6 +102,11 @@ a{color:var(--accent)}
 .seg button{border:0;border-right:1px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 4px;font:600 .88rem/1.1 var(--f-label);text-transform:uppercase;letter-spacing:.05em;cursor:pointer}
 .seg button:last-child{border-right:0}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.seg.one{grid-template-columns:minmax(0,1fr)}
+.seg button[disabled]{color:var(--muted);opacity:.55;cursor:default}
+#tools.nudge{animation:nudge .9s ease}
+@keyframes nudge{0%,100%{box-shadow:0 0 0 0 transparent}25%,60%{box-shadow:0 0 0 3px var(--accent)}}
+@media (prefers-reduced-motion:reduce){#tools.nudge{animation:none;box-shadow:0 0 0 3px var(--accent)}}
 .field{display:grid;gap:5px;min-width:0}
 .lbl{font:600 .8rem/1 var(--f-label);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -235,20 +240,26 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
             <li><i style="background:#fff"></i>Bright: kept as a route hold</li>
             <li><i style="background:#ff3b3b"></i>Red: right colour, but it's the wall</li>
             <li><i style="background:#ff2bd0"></i>Pink: rejected, not hold-shaped or not on the wall</li>
-            <li><i style="background:#ffbe0b"></i>Amber: unsure, tap it in Add / remove to keep it</li>
+            <li><i style="background:#ffbe0b"></i>Amber: unsure. Choose Add hold and tap it to keep it</li>
           </ul>
           <p class="stat" id="holdStat">—</p>
           <p class="note" id="holdWarn" hidden></p>
           <div class="field">
-            <span class="lbl" id="modeLbl">Tapping the wall will…</span>
-            <div class="seg" role="group" aria-labelledby="modeLbl">
+            <span class="lbl" id="modeLbl">First, pick the colour</span>
+            <div class="seg one" role="group" aria-labelledby="modeLbl">
               <button data-mode="pick" aria-pressed="true">Pick colour</button>
-              <button data-mode="edit" aria-pressed="false">Add / remove</button>
-              <button data-mode="start" aria-pressed="false">Set start</button>
-              <button data-mode="top" aria-pressed="false">Set top</button>
             </div>
           </div>
-          <p class="hint" id="modeHint">Tap a hold to use its colour as the route.</p>
+          <div class="field">
+            <span class="lbl" id="toolLbl">Then choose, and tap a hold</span>
+            <div class="seg" id="tools" role="group" aria-labelledby="toolLbl">
+              <button data-mode="add" aria-pressed="false" disabled>Add hold</button>
+              <button data-mode="remove" aria-pressed="false" disabled>Remove hold</button>
+              <button data-mode="start" aria-pressed="false" disabled>Set start</button>
+              <button data-mode="top" aria-pressed="false" disabled>Set top</button>
+            </div>
+          </div>
+          <p class="hint" id="modeHint">Tap one hold of your route to pick its colour.</p>
         </div>
 
         <div class="blk">
@@ -259,8 +270,36 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
               <div class="unit"><input type="number" id="height" min="110" max="215" step="1" value="170" inputmode="numeric"><span>cm</span></div>
             </div>
             <div class="field">
+              <label class="lbl" for="span">Arm span</label>
+              <div class="unit"><input type="number" id="span" min="100" max="250" step="1" placeholder="170" inputmode="numeric"><span>cm</span></div>
+            </div>
+          </div>
+          <p class="hint">Arm span is fingertip to fingertip with your arms out to the sides. Most people's is about their height; a longer span lets the climber reach further.</p>
+          <div class="two">
+            <div class="field">
               <label class="lbl" for="wallM">Wall height</label>
               <div class="unit"><input type="number" id="wallM" min="1.5" max="9" step="0.1" value="4.2" inputmode="decimal"><span>m</span></div>
+            </div>
+            <div class="field">
+              <label class="lbl" for="angle">Wall angle</label>
+              <select id="angle">
+                <option value="-20">Slab, 20° back</option>
+                <option value="-15">Slab, 15° back</option>
+                <option value="-10">Slab, 10° back</option>
+                <option value="-5">Slab, 5° back</option>
+                <option value="0" selected>Vertical</option>
+                <option value="5">Overhang 5°</option>
+                <option value="10">Overhang 10°</option>
+                <option value="15">Overhang 15°</option>
+                <option value="20">Overhang 20°</option>
+                <option value="25">Overhang 25°</option>
+                <option value="30">Overhang 30°</option>
+                <option value="35">Overhang 35°</option>
+                <option value="40">Overhang 40°</option>
+                <option value="45">Overhang 45°</option>
+                <option value="50">Overhang 50°</option>
+                <option value="60">Overhang 60°</option>
+              </select>
             </div>
           </div>
           <div class="btn-row">
@@ -276,7 +315,7 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
             </select>
           </div>
           <label class="check"><input type="checkbox" id="callout">Call out each move aloud</label>
-          <p class="hint">Bouldering walls are usually 4 to 4.5 m. Marking the wall also ignores anything on the mat or above the wall.</p>
+          <p class="hint">Bouldering walls are usually 4 to 4.5 m tall. Wall angle is how far the wall leans: a slab leans back, an overhang leans out over you. On an angled wall the holds are further apart than they look from the floor, and the coaching changes with the angle.</p>
         </div>
 
         <div class="blk">

@@ -6,7 +6,17 @@ function solveBeta(holds,o){
     const mx=a[0]+dx*l/d,my=a[1]+dy*l/d;
     return [[mx-dy*hh/d,my+dx*hh/d],[mx+dy*hh/d,my-dx*hh/d]];
   }
-  const H=o.H,ARM=0.5*H,LEG=0.56*H,TORSO=0.3*H;
+  /* Body from height H. Arm reach from the shoulder point is half the arm
+     span (span = H unless the user gives theirs). Only if the route can't be
+     finished within that, a last pass lets a hand go up to 6% further, as a
+     deadpoint does, at a steep cost. */
+  const H=o.H,span=o.span>0?o.span:H,ARM=Math.max(0.42*H,Math.min(0.62*H,0.5*H+(span-H)/2)),LEG=0.56*H,TORSO=0.3*H;
+  let ARMX=ARM;
+  /* Wall angle in degrees (+ overhang, - slab); coordinates are along the
+     wall. Overhangs keep the feet higher (body tension) and make every hand
+     move harder; slabs put the weight on the feet and allow high steps. */
+  const ang=o.angle||0,steep=Math.max(0,Math.min(1,ang/45)),slab=Math.max(0,Math.min(1,-ang/20));
+  const GAP=(0.7-0.2*steep)*H,UNDER=(0.3-0.1*steep-0.1*slab)*H,HANDK=1+0.5*steep-0.3*slab;
   const pts=holds.map(h=>({X:h.X,Y:h.Y,r:h.r,kind:'hold',id:h.id}));
   const nHold=pts.length;
   if(nHold<2) return {ok:false,reason:'few'};
@@ -45,7 +55,7 @@ function solveBeta(holds,o){
   function pose(lh,rh,lf,rf){
     const key=key4(lh,rh,lf,rf);
     if(memo.has(key)) return memo.get(key);
-    const A=pts[lh],B=pts[rh],D=[[A.X,A.Y-TORSO,ARM],[B.X,B.Y-TORSO,ARM]];
+    const A=pts[lh],B=pts[rh],D=[[A.X,A.Y-TORSO,ARMX],[B.X,B.Y-TORSO,ARMX]];
     let fx=0,fy=0,nf=0,minFY=Infinity,maxFY=-Infinity;
     const feet=[];
     if(lf>=0){ const F=pts[lf]; D.push([F.X,F.Y,LEG]); fx+=F.X; fy+=F.Y; nf++; feet.push(F); }
@@ -70,14 +80,14 @@ function solveBeta(holds,o){
         if(dd<bd){ bd=dd; best=c; }
       }
       if(best){
-        const st=D.map(d=>Math.hypot(best[0]-d[0],best[1]-d[1])/d[2]);
+        const st=D.map((d,i)=>Math.hypot(best[0]-d[0],best[1]-d[1])/(i<2?ARM:d[2]));
         let s=0; for(const v of st){ const e=Math.max(0,v-0.78); s+=e*e; }
-        for(const v of [st[0],st[1]]){ const e=Math.max(0,v-0.92); s+=3*e*e; }
+        for(const v of [st[0],st[1]]){ const e=Math.max(0,v-0.92); s+=3*e*e; const x=Math.max(0,v-1); s+=12*x*x; }
         let cost=bd/H+10*s;
         const sq=v=>v*v;
         const gap=Math.min(A.Y,B.Y)-maxFY;
-        if(gap<0.7*H) cost+=sq((0.7*H-gap)/(0.18*H));
-        for(const F of feet){ if(F.kind==='floor') continue; const d=best[1]-F.Y; if(d<0.3*H) cost+=sq((0.3*H-d)/(0.12*H)); }
+        if(gap<GAP) cost+=sq((GAP-gap)/(0.18*H));
+        for(const F of feet){ if(F.kind==='floor') continue; const d=best[1]-F.Y; if(d<UNDER) cost+=sq((UNDER-d)/(0.12*H)); }
         cost+=1.2*(2-nf);
         if(feet.length===2&&lf!==rf){ const sp=Math.abs(feet[0].X-feet[1].X); if(sp>0.42*H) cost+=sq((sp-0.42*H)/(0.15*H)); }
         const off=Math.abs(best[0]-fcx); if(off>0.2*H) cost+=sq((off-0.2*H)/(0.15*H));
@@ -198,7 +208,7 @@ function solveBeta(holds,o){
           if(t===cur||t===n.lf||t===n.rf) continue;
           const p=pts[t];
           if(p.Y<maxFY+handGap) continue;
-          if(Math.hypot(p.X-C[0],p.Y-C[1])>TORSO+ARM+0.2*H) continue;
+          if(Math.hypot(p.X-C[0],p.Y-C[1])>TORSO+ARMX+0.3*H) continue;
           const nl=limb==='lh'?t:n.lh,nr=limb==='rh'?t:n.rh;
           let pen=0;
           if(nl!==nr&&pts[nl].X>pts[nr].X+0.02*H) continue; // hands never cross
@@ -214,7 +224,7 @@ function solveBeta(holds,o){
           if(outside>0) pen+=Math.min(1.5,outside/(0.15*H));
           const ps=pose(nl,nr,n.lf,n.rf); if(!ps) continue;
           const d=Math.hypot(p.X-pts[cur].X,p.Y-pts[cur].Y);
-          pen+=0.6*(d/ARM)*(d/ARM);
+          pen+=0.6*HANDK*(d/ARM)*(d/ARM);
           add(nl,nr,n.lf,n.rf,n.g+1+pen,ni,{limb,from:cur,to:t,reach:ps.st[limb==='lh'?0:1]},ps);
         }
       }
@@ -239,8 +249,9 @@ function solveBeta(holds,o){
     if(better(t)) r=t; if(r&&r.ok) break;
   }
   if(!r||!r.ok){ const t=search(false,pairs,MAX); if(better(t)) r=t; }
+  if(!r||!r.ok){ ARMX=1.06*ARM; memo.clear(); const t=search(false,pairs,MAX); if(t) t.stretch=true; if(better(t)) r=t; }
   if(!r) return {ok:false,reason:'nostart',H};
-  return {ok:r.ok,reason:r.ok?'':'stuck',strict:r.strict,top,H,TORSO,ARM,LEG,expanded:r.expanded,
+  return {ok:r.ok,reason:r.ok?'':'stuck',strict:r.strict,stretch:!!r.stretch,top,H,TORSO,ARM,LEG,angle:ang,expanded:r.expanded,
     pts:pts.map(p=>({X:p.X,Y:p.Y,r:p.r,kind:p.kind,id:p.id})),
     steps:r.chain.map(n=>({lh:n.lh,rh:n.rh,lf:n.lf,rf:n.rf,C:n.pose.C,st:n.pose.st,move:n.move,g:n.g}))};
 }
@@ -256,7 +267,7 @@ function holdKind(h){
   return {name:'jug or sloper',grip:'Big hold: wrap your fingers over the top. If it feels round, open your hand and keep your body below it.'};
 }
 function buildBeta(res,meta){
-  const {steps,pts,top,H}=res;
+  const {steps,pts,top,H}=res,ang=res.angle||0;
   const num=new Map();let k=0;
   const use=i=>{ if(i>=0&&pts[i].kind==='hold'&&!num.has(pts[i].id)) num.set(pts[i].id,++k); };
   use(steps[0].lh); use(steps[0].rh);
@@ -265,14 +276,17 @@ function buildBeta(res,meta){
   const r5=v=>Math.max(5,Math.round(v/5)*5);
   const dir=(dx,dy)=>{ const p=[]; if(Math.abs(dy)>=8) p.push(`${r5(Math.abs(dy))} cm ${dy>0?'up':'down'}`); if(Math.abs(dx)>=8) p.push(`${r5(Math.abs(dx))} cm ${dx>0?'right':'left'}`); return p.length?p.join(', '):'a small adjustment'; };
   const footTips=['Watch your foot all the way onto the hold and place it quietly.','Stand on the inside edge of your big toe, then shift your weight over that foot.','Feet first: get this foot set before you reach with a hand.'];
-  let footTipN=0,restN=0;
+  let footTipN=0,restN=0,steepN=0;
   const NAME={lh:'Left hand',rh:'Right hand',lf:'Left foot',rf:'Right foot'};
   const out=[];
   const posOf=(s)=>({lh:[pts[s.lh].X,pts[s.lh].Y],rh:[pts[s.rh].X,pts[s.rh].Y],lf:s.lf>=0?[pts[s.lf].X,pts[s.lf].Y]:null,rf:s.rf>=0?[pts[s.rf].X,pts[s.rf].Y]:null,C:s.C});
   const s0=steps[0];
   out.push({type:'start',title:'Start position',
     sub:s0.lh===s0.rh?`Both hands on ${hn(s0.lh)}. Feet stay on the mat for now.`:`Left hand on ${hn(s0.lh)}, right hand on ${hn(s0.rh)}. Feet stay on the mat for now.`,
-    tips:['Read the whole route first: start, top, the hardest move and any good rest.','Hang on straight arms and keep your hips close to the wall.'],
+    tips:['Read the whole route first: start, top, the hardest move and any good rest.',
+      ang>=10?`Overhang (${ang}°): keep your hips close to the wall and pull with your toes so your feet stay on. Hang on straight arms.`
+      :ang<=-5?`Slab (${-ang}° back): trust your feet. Stand tall over your toes, hips away from the wall, hands mostly for balance.`
+      :'Hang on straight arms and keep your hips close to the wall.'],
     pos:posOf(s0),limb:null,cost:0,list:'Start: hands on '+(s0.lh===s0.rh?hn(s0.lh):`${hn(s0.lh)} + ${hn(s0.rh)}`)});
   let crux=-1,cruxC=-1;
   for(let i=1;i<steps.length;i++){
@@ -303,7 +317,8 @@ function buildBeta(res,meta){
           tips.push(flagged?`Keep your ${leg} leg flagged out to the ${leg} as you reach. It stops your body swinging open.`
             :`${feet.length===2?'Both feet are':'Your foot is'} on your ${opp} side, so you may swing open. Flag your ${leg} leg out to the ${leg} as you reach.`);
         }
-        if(m.reach>0.9) tips.push('Long reach, close to your full arm length. Push up with your legs, straighten your arms and turn your hip into the wall.');
+        if(m.reach>1) tips.push('Just past your reach standing still: push hard with your legs and catch the hold as you rise (a deadpoint).');
+        else if(m.reach>0.9) tips.push('Long reach, close to your full arm length. Push up with your legs, straighten your arms and turn your hip into the wall.');
         if(other===m.to) tips.push('Match: bring the second hand onto this hold and shuffle your fingers to make room.');
         const nl=s.lh,nr=s.rh;
         if(nl!==nr&&pts[nl].X>pts[nr].X+0.04*H) tips.push('Cross-through: reach across your body and keep the other arm straight.');
@@ -312,6 +327,7 @@ function buildBeta(res,meta){
            the same side and hang off the other hand. */
         const sameFoot=m.limb==='lh'?s.lf:s.rf,sideW=m.limb==='lh'?'left':'right',otherW=m.limb==='lh'?'right':'left';
         if(tips.length<2&&sameFoot>=0&&pts[sameFoot].kind!=='floor') tips.push(`Push through your ${sideW} foot and hang straight-armed off your ${otherW} hand as you reach.`);
+        if(ang>=20&&steepN<2&&tips.length<2){ tips.push('On this steep wall, keep pulling with your toes as you move so your feet don\'t cut loose.'); steepN++; }
         if(kind&&tips.length<2) tips.push(kind.grip);
       }
       if(cost>cruxC){ cruxC=cost; crux=out.length; }
