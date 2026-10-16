@@ -10,11 +10,13 @@
      node test/plan.js                 WALL=420 (cm), feet rules
      WALL=300 FEET=open node test/plan.js
      ANGLE=30 SPAN=180 node test/plan.js   wall angle in degrees (+ overhang), arm span in cm
-     OTHER=path/to/solver.js node test/plan.js   also report another planner's top count */
+     OTHER=path/to/solver.js node test/plan.js   also report another planner's top count
+     TYPES=guess node test/plan.js     give every hold its guessed type (TYPES=sloper: every hold a sloper) */
 const {load,V}=require('./harness.js');
 const fs=require('fs'),path=require('path');
 const ROOT=path.join(__dirname,'..');
-const loadSolver=f=>{ const m={}; new Function('m',fs.readFileSync(f,'utf8')+'\nm.solveBeta=solveBeta;m.buildBeta=typeof buildBeta==="function"?buildBeta:null;')(m); return m; };
+const HOLDS=fs.readFileSync(path.join(ROOT,'src','holds.js'),'utf8');
+const loadSolver=f=>{ const m={}; new Function('m',HOLDS+'\n'+fs.readFileSync(f,'utf8')+'\nm.solveBeta=solveBeta;m.buildBeta=typeof buildBeta==="function"?buildBeta:null;m.guessType=typeof guessType==="function"?guessType:null;m.DEMOS=DEMOS;')(m); return m; };
 const NEW=loadSolver(path.join(ROOT,'src','solver.js')),OTHER=process.env.OTHER?loadSolver(process.env.OTHER):null;
 /* the drawing's body search, taken from app.js */
 const app=fs.readFileSync(path.join(ROOT,'src','app.js'),'utf8');
@@ -22,7 +24,7 @@ const grab=name=>{ const i=app.indexOf('function '+name+'('); let d=0; for(let k
 const fig=new Function(['ik','bend3d','upperBody','elbowAt','reachJoint','chooseBody'].map(grab).join('\n')+'\nvar bodyMemo=new Map();return {upperBody,elbowAt,reachJoint,chooseBody,bodyMemo};')();
 const dir=process.env.RCC_DIR||path.join(__dirname,'data','rcc','datasets','orig_dataset_yolo');
 const WALL=+(process.env.WALL||420),FEET=process.env.FEET||'rules',H=170,TORSO=0.3*H;
-const ANGLE=+(process.env.ANGLE||0),SPAN=+(process.env.SPAN||0),COS=Math.cos(Math.abs(ANGLE)*Math.PI/180);
+const TYPES=process.env.TYPES||'',ANGLE=+(process.env.ANGLE||0),SPAN=+(process.env.SPAN||0),COS=Math.cos(Math.abs(ANGLE)*Math.PI/180);
 (async()=>{
   const files=[];
   for(const s of ['train','valid','test']) for(const f of fs.readdirSync(path.join(dir,s,'images'))) files.push([s,f]);
@@ -42,7 +44,8 @@ const ANGLE=+(process.env.ANGLE||0),SPAN=+(process.env.SPAN||0),COS=Math.cos(Mat
       let res=V.classify(I,pk.model,5,{}); res=V.classify(I,V.refine(I,pk.model,res),5,{});
       const holds=res.blobs.filter(b=>b.status==='hold'); if(holds.length<2) continue;
       /* the photo shows the wall's height; distances along an angled wall are longer */
-      const k=img.h/WALL,hs=holds.map((b,i)=>({id:i,X:b.x/k,Y:(img.h-b.y)/k/COS,r:b.r/k}));
+      const k=img.h/WALL,hs=holds.map((b,i)=>({id:i,X:b.x/k,Y:(img.h-b.y)/k/COS,r:b.r/k,elong:b.elong,angle:b.angle}));
+      for(const h of hs) h.type=TYPES==='guess'?NEW.guessType({rCm:h.r,elong:h.elong,angle:h.angle}):TYPES||null;
       T.routes++;
       const opt={H,feet:FEET,angle:ANGLE,span:SPAN};
       const t0=Date.now(),r=NEW.solveBeta(hs,opt); T.ms+=Date.now()-t0;
@@ -62,7 +65,7 @@ const ANGLE=+(process.env.ANGLE||0),SPAN=+(process.env.SPAN||0),COS=Math.cos(Mat
         if(st.move.limb[1]==='f'&&st.lf>=0&&st.lf===st.rf) T.footMatch++;
       }
       /* the figure at each held position */
-      const beta=NEW.buildBeta(r,new Map(hs.map(h=>[h.id,{rCm:h.r,elong:1,angle:0}])));
+      const beta=NEW.buildBeta(r,new Map(hs.map(h=>[h.id,{rCm:h.r,elong:h.elong||1,angle:h.angle||0,type:h.type}])));
       for(const [i,st] of beta.steps.entries()){
         const p=st.pos; fig.bodyMemo.clear();
         const arm=0.96*r.ARM,b=fig.chooseBody(p,H,TORSO,arm),B=fig.upperBody([p.C[0],p.C[1]-b.drop],b.lean,H,TORSO),hd=B.head;
@@ -83,7 +86,7 @@ const ANGLE=+(process.env.ANGLE||0),SPAN=+(process.env.SPAN||0),COS=Math.cos(Mat
       console.log(f.slice(0,6).padEnd(6),nm.padEnd(7),'holds',String(hs.length).padStart(2),r.ok?(r.strict?'top (strict)':'top (relaxed)'):'stuck','moves',r.steps.length-1,line.length?'| '+line.join('; '):'');
     }
   }
-  console.log(`\nWALL ${WALL} cm, angle ${ANGLE}°, span ${SPAN||H} cm, feet ${FEET}: ${T.routes} routes, top ${T.top} (strict ${T.strictTop}, deadpoint ${T.stretchTop})${FEET!=='open'?`, ${T.top+T.smearTop} with the app's smear fallback`:''}${OTHER?`, other planner top ${T.otherTop}`:''}, ${T.ms} ms planning`);
+  console.log(`\nWALL ${WALL} cm, angle ${ANGLE}°, span ${SPAN||H} cm, feet ${FEET}${TYPES?', hold types '+TYPES:''}: ${T.routes} routes, top ${T.top} (strict ${T.strictTop}, deadpoint ${T.stretchTop})${FEET!=='open'?`, ${T.top+T.smearTop} with the app's smear fallback`:''}${OTHER?`, other planner top ${T.otherTop}`:''}, ${T.ms} ms planning`);
   console.log(`moves ${T.moves}: crossed hands ${T.handCross}, crossed feet ${T.footCross}, foot above hips ${T.footAboveHip}, flags ${T.flags}, matched hands ${T.handMatch}, matched feet ${T.footMatch}`);
   console.log(`figure at ${T.held} held positions: lean over 0.45 rad ${T.bigLean}, hand on the head ${T.handOnHead}, arm behind the head ${T.armBehind}`);
 })();

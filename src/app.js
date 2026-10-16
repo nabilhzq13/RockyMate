@@ -5,6 +5,7 @@ const STANDALONE=false;
 const $=s=>document.querySelector(s);
 const MARKER='"Permanent Marker","Marker Felt",cursive';
 const LIMBCOL={lh:'#18a7e0',rh:'#ec3b74',lf:'#58b52b',rf:'#f59f00'};
+const LIMBS=['lh','rh','lf','rf'];
 const reduceMotion=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
 const store={get(k,d){try{const v=localStorage.getItem('betalens:'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem('betalens:'+k,JSON.stringify(v));}catch(e){}}};
 document.querySelectorAll('[data-only]').forEach(el=>{ el.hidden=(el.dataset.only==='standalone')!==STANDALONE; });
@@ -56,12 +57,12 @@ const veil=document.createElement('canvas'),maskCv=document.createElement('canva
 const gctx=grab.getContext('2d',{willReadFrequently:true});
 const video=document.createElement('video');
 video.muted=true; video.playsInline=true; video.setAttribute('playsinline',''); video.setAttribute('muted','');
-const newEdits=()=>({removed:[],confirmed:[],added:[],start:[],top:null,startT:[],topT:null});
+const newEdits=()=>({removed:[],confirmed:[],added:[],types:[],start:[],top:null,startT:[],topT:null});
 const S={src:null,token:0,lastStill:null,model:null,tol:5,showMask:false,suggest:[],wall:null,frameH:640,
   holds:[],edits:newEdits(),tracks:[],lost:[],nextTrack:1,shift:[0,0],mask:false,
-  beta:null,betaSnap:null,step:0,anim:null,playing:null,mode:'pick',markReturn:null,view:{dw:1,dh:1,dpr:1},
+  beta:null,betaSnap:null,step:0,anim:null,playing:null,navT:0,mode:'pick',markReturn:null,view:{dw:1,dh:1,dpr:1},
   heightCm:store.get('height',170),spanCm:store.get('span',0),angle:store.get('angle',0),wallM:4.2,userWallM:store.get('wallM',4.2),feet:store.get('feet','strict'),callout:false,cal:{floor:1,top:0,marked:false},
-  live:{raf:0,busy:false,last:0,stream:null,url:null,frames:0,fpsT:0,sig:'',sigT:0,solvedSig:'',solving:false,lastSug:0,statT:0,wake:null}};
+  live:{raf:0,busy:false,last:0,stream:null,url:null,frames:0,fpsT:0,sig:'',sigT:0,solvedSig:'',diffT:0,modelT:0,solving:false,lastSug:0,statT:0,wake:null}};
 window.__betaLens=S;
 const isMoving=()=>!!S.src&&(S.src.kind==='video'||S.src.kind==='live');
 const aspect=()=>S.src?S.src.w/S.src.h:1;
@@ -119,7 +120,7 @@ function makeSampleWall(){
 /* ---------- sources: sample, photo, recorded clip, live camera ---------- */
 function setSource(src,opt){
   opt=opt||{};
-  stopPlay();
+  stopPlay(); closeTypePick();
   if(!opt.keepVideo) stopMedia();
   S.src=src; S.token++;
   if(src.kind==='photo'||src.kind==='sample') S.lastStill=src;
@@ -140,7 +141,7 @@ function setSource(src,opt){
   fit(); renderChips(); updateStats(); renderBeta();
   if(opt.reveal!==false&&S.token>1){ const r=wrap.getBoundingClientRect(); if(r.top<0||r.top>window.innerHeight*0.5) wrap.scrollIntoView({block:'start',behavior:reduceMotion?'auto':'smooth'}); }
   if(isMoving()){
-    const L=S.live; Object.assign(L,{busy:false,last:0,sig:'',sigT:0,solvedSig:'',solving:false,lastSug:0,frames:0,fpsT:performance.now()});
+    const L=S.live; Object.assign(L,{busy:false,last:0,sig:'',sigT:0,solvedSig:'',diffT:0,modelT:performance.now(),solving:false,lastSug:0,frames:0,fpsT:performance.now()});
     cancelAnimationFrame(L.raf); L.raf=requestAnimationFrame(loop);
     if(S.model) setCaption('Reading the wall','Hold the phone steady for a second. The moves appear once the holds stop moving.',[]);
     else setCaption('Pick a route colour','Tap one hold of your route on the picture.',[]);
@@ -186,7 +187,7 @@ async function loadVideo(file){
   try{ await video.play(); }catch(e){}
   const ok=await waitVideo(); busy(false);
   if(!ok){ stopMedia(); toast('This clip could not be played here. Try a short MP4, or take a photo instead.'); return; }
-  setSource({kind:'video',el:video,w:video.videoWidth,h:video.videoHeight},{keepModel:true,keepVideo:true});
+  setSource({kind:'video',el:video,w:video.videoWidth,h:video.videoHeight},{keepModel:ownColour(),keepVideo:true});
   setVPlayIcon();
 }
 async function startCamera(){
@@ -205,8 +206,11 @@ async function startCamera(){
   try{ await video.play(); }catch(e){}
   const ok=await waitVideo(); busy(false);
   if(!ok){ stopMedia(); toast('The camera started but sent no picture. Try again.'); return; }
-  setSource({kind:'live',el:video,w:video.videoWidth,h:video.videoHeight},{keepModel:true,keepVideo:true});
+  setSource({kind:'live',el:video,w:video.videoWidth,h:video.videoHeight},{keepModel:ownColour(),keepVideo:true});
 }
+/* A colour picked on the user's own picture carries over to a new clip or
+   the camera (same wall); the sample wall's green does not. */
+function ownColour(){ return !!S.src&&S.src.kind!=='sample'; }
 function freeze(){
   if(!isMoving()||!video.videoWidth) return;
   const sw=video.videoWidth,sh=video.videoHeight,sc=Math.min(1,1600/Math.max(sw,sh));
@@ -216,6 +220,7 @@ function freeze(){
   for(const t of S.tracks){
     if(t.removed) E.removed.push({u:t.u,v:t.v});
     if(t.userOk) E.confirmed.push({u:t.u,v:t.v});
+    if(t.type) E.types.push({u:t.u,v:t.v,type:t.type});
     if(S.edits.startT.includes(t.id)) E.start.push({u:t.u,v:t.v});
     if(S.edits.topT===t.id) E.top={u:t.u,v:t.v};
   }
@@ -229,7 +234,7 @@ $('#fileUp').addEventListener('change',e=>{ loadFile(e.target.files[0]); e.targe
 $('#useSample').addEventListener('click',()=>setSource({kind:'sample',el:makeSampleWall(),w:600,h:900}));
 $('#goLive').addEventListener('click',startCamera);
 $('#vFreeze').addEventListener('click',freeze);
-$('#vStop').addEventListener('click',()=>{ stopMedia(); keepAwake(false); setSource(S.lastStill||{kind:'sample',el:makeSampleWall(),w:600,h:900},{keepModel:true}); });
+$('#vStop').addEventListener('click',()=>{ stopMedia(); keepAwake(false); const st=S.lastStill||{kind:'sample',el:makeSampleWall(),w:600,h:900}; setSource(st,{keepModel:st.kind!=='sample'}); });
 function setVPlayIcon(){
   const p=$('#vPlay'),paused=video.paused;
   p.setAttribute('aria-label',paused?'Play video':'Pause video');
@@ -316,7 +321,7 @@ function sameRoute(a,b){
   const win=Math.max(10,Math.min(28,3*Math.max(a.hueSd||0,b.hueSd||0))),r=(b.chroma||1)/(a.chroma||1);
   return hueGap(a.hue,b.hue)<=win&&r>0.55&&r<1.8;
 }
-function hasEdits(){ const E=S.edits; return !!(E.removed.length||E.confirmed.length||E.added.length||E.start.length||E.top||E.startT.length||E.topT!=null); }
+function hasEdits(){ const E=S.edits; return !!(E.removed.length||E.confirmed.length||E.added.length||E.types.length||E.start.length||E.top||E.startT.length||E.topT!=null); }
 /* A route colour was chosen (tap or chip). Start, top and hold changes belong
    to one route, so they are kept when the same colour is picked again and
    cleared only when the colour really changes. Afterwards a tap on the wall
@@ -324,7 +329,7 @@ function hasEdits(){ const E=S.edits; return !!(E.removed.length||E.confirmed.le
    the colour and change the path. */
 function setModel(m,quiet){
   const old=S.model,same=!!old&&sameRoute(old,m);
-  S.model=m;
+  S.model=m; S.live.modelT=performance.now();
   if(old&&!same&&hasEdits()){ S.edits=newEdits(); if(!quiet) toast('New route colour, so its start, top and hold changes were cleared.'); }
   renderChips();
   if(isMoving()){
@@ -354,7 +359,9 @@ async function sendLive(){
   L.busy=true; L.last=performance.now();
   let f;
   try{ f=grabFrame(video,400); }catch(e){ L.busy=false; return; }
-  const now=performance.now(),sug=!S.model&&now-L.lastSug>2500;
+  /* colour chips: often until a colour is picked, then now and then, so
+     another route's colour can still be chosen from a chip */
+  const now=performance.now(),sug=now-L.lastSug>(S.model?6000:2500);
   if(sug) L.lastSug=now;
   const r=await vision.call({t:'frame',tag:tok,buf:f.buf,w:f.w,h:f.h,model:S.model,tol:S.tol,mask:S.showMask&&!!S.model,pxPerCm:pxPerCmFor(f.h),refine:false,suggest:sug},[f.buf]);
   L.busy=false;
@@ -369,7 +376,7 @@ async function sendLive(){
 }
 /* A hold the user chose as start or top, and any hold they removed or kept. */
 const isPinned=t=>S.edits.startT.includes(t.id)||S.edits.topT===t.id;
-const isMarked=t=>isPinned(t)||!!t.removed||!!t.userOk;
+const isMarked=t=>isPinned(t)||!!t.removed||!!t.userOk||!!t.type;
 /* Follow holds between frames so they don't flicker: match each new blob to
    the nearest known hold, keep a running average, drop holds that vanish.
    Holds the user marked survive longer, and a hold that drops out is
@@ -392,12 +399,14 @@ function updateTracks(blobs,w,h){
   for(const t of T){
     if(t.m){ const c=t.m; t.u=t.pu+(c.u-t.pu)*0.7; t.v=t.pv+(c.v-t.pv)*0.7; t.rho=t.rho*0.7+c.rho*0.3; t.conf=t.conf*0.65+c.conf*0.35; t.elong=c.elong; t.angle=c.angle; t.hits++; t.miss=0; }
     else { t.u=t.pu; t.v=t.pv; t.miss++; }
-    t.status=t.conf>=0.5?'hold':t.conf>=0.33?'unsure':'rejected';
-    const life=isMarked(t)?30:t.hits>=4?7:2;
+    /* hysteresis: a hold near the threshold doesn't blink in and out */
+    const was=t.status;
+    t.status=t.conf>=0.5||(was==='hold'&&t.conf>=0.42)?'hold':t.conf>=0.33||(was==='unsure'&&t.conf>=0.28)?'unsure':'rejected';
+    const life=isMarked(t)?30:t.hits>=10&&nearEdge(t)?14:t.hits>=4?7:2;
     if(t.miss<=life&&t.u>-0.1&&t.u<1.1&&t.v>-0.1&&t.v<1.1) keep.push(t); else if(t.hits>=3) dropped.push(t);
   }
   const mk=(c,id,old)=>({id,u:c.u,v:c.v,rho:c.rho,conf:c.conf,elong:c.elong,angle:c.angle,hits:old?Math.max(3,Math.min(old.hits,6)):1,miss:0,
-    removed:old?old.removed:false,userOk:old?old.userOk:false,status:c.conf>=0.5?'hold':c.conf>=0.33?'unsure':'rejected'});
+    removed:old?old.removed:false,userOk:old?old.userOk:false,type:old?old.type||null:null,status:c.conf>=0.5?'hold':c.conf>=0.33?'unsure':'rejected'});
   for(const c of cand) if(!c.used){
     let bi=-1,bd=Infinity;
     for(let i=0;i<S.lost.length;i++){ const d=dist(S.lost[i],c); if(d<gate(S.lost[i],c)&&d<bd){ bd=d; bi=i; } }
@@ -409,18 +418,27 @@ function updateTracks(blobs,w,h){
     if(isMarked(t)){
       let tw=null,bd=Infinity;
       for(const k of keep){ if(isMarked(k)) continue; const d=dist(k,t); if(d<gate(k,t)&&d<bd){ bd=d; tw=k; } }
-      if(tw){ tw.id=t.id; tw.removed=!!t.removed; tw.userOk=!!t.userOk; tw.hits=Math.max(tw.hits,3); continue; }
+      if(tw){ tw.id=t.id; tw.removed=!!t.removed; tw.userOk=!!t.userOk; tw.type=t.type||null; tw.hits=Math.max(tw.hits,3); continue; }
     }
-    S.lost.push({id:t.id,u:t.u,v:t.v,rho:t.rho,removed:!!t.removed,userOk:!!t.userOk,hits:t.hits,t:now});
+    S.lost.push({id:t.id,u:t.u,v:t.v,rho:t.rho,removed:!!t.removed,userOk:!!t.userOk,type:t.type||null,hits:t.hits,t:now});
   }
   if(S.lost.length>80) S.lost.splice(0,S.lost.length-80);
   S.tracks=keep;
 }
+/* Plan when the followed holds have settled for 0.8 s. A shaky phone can
+   keep one hold blinking, so the first plan also comes 2 s after the colour
+   was picked, and a later re-plan when at least two holds changed for 2 s. */
 function checkLiveSolve(){
-  const L=S.live,act=activeHolds(),sig=act.map(t=>t.id).sort((p,q)=>p-q).join(','),now=performance.now();
+  const L=S.live,act=activeHolds(),ids=act.map(t=>t.id).sort((p,q)=>p-q),sig=ids.join(','),now=performance.now();
   if(sig!==L.sig){ L.sig=sig; L.sigT=now; }
-  if(S.playing||L.solving||act.length<2) return;
-  if(sig!==L.solvedSig&&now-L.sigT>800){ L.solvedSig=sig; solveNow(true); }
+  if(S.playing||L.solving||act.length<2||sig===L.solvedSig) return;
+  /* while the user steps through the moves, a re-plan would jump back to the start */
+  if(S.beta&&now-S.navT<10000) return;
+  const solved=new Set(L.solvedSig?L.solvedSig.split(',').map(Number):[]);
+  const diff=ids.filter(i=>!solved.has(i)).length+[...solved].filter(i=>!ids.includes(i)).length;
+  if(diff>=2){ if(!L.diffT) L.diffT=now; } else L.diffT=0;
+  const settled=now-L.sigT>800,first=!S.beta&&now-L.modelT>2000,big=!!L.diffT&&now-L.diffT>2000;
+  if(settled||first||big){ L.solvedSig=sig; L.diffT=0; solveNow(true); }
 }
 
 /* ---------- holds, edits ---------- */
@@ -430,11 +448,15 @@ function applyEdits(){
   S.holds=S.holds.filter(h=>!h.manual);
   for(const h of S.holds){ h.removed=E.removed.some(p=>nearPos(h,p)); h.userOk=E.confirmed.some(p=>nearPos(h,p)); }
   E.added.forEach((p,k)=>S.holds.push({id:5000+k,u:p.u,v:p.v,rho:p.rho,conf:1,status:'hold',manual:true,elong:1,angle:0}));
+  for(const h of S.holds){ const q=E.types.find(p=>nearPos(h,p)); h.type=q?q.type:null; }
 }
 const isActive=h=>!h.removed&&(h.manual||h.userOk||h.status==='hold');
 /* While moving, a chosen start or top hold stays in the plan through a few
    missed frames instead of flickering out and changing the path. */
-function currentHolds(){ return isMoving()?S.tracks.filter(t=>t.hits>=3&&(t.miss<=2||(t.miss<=12&&isPinned(t)))):S.holds; }
+/* A shaking phone moves holds at the edge of the view in and out of frame;
+   a well-followed hold there stays in the plan while it is briefly out. */
+const nearEdge=t=>t.u<0.06||t.u>0.94||t.v<0.06||t.v>0.94;
+function currentHolds(){ return isMoving()?S.tracks.filter(t=>t.hits>=3&&(t.miss<=(t.hits>=10?(nearEdge(t)?12:4):2)||(t.miss<=12&&isPinned(t)))):S.holds; }
 function onWall(h){ return h.v<=S.cal.floor+0.005&&h.v>=S.cal.top-0.02; }
 function activeHolds(){ return currentHolds().filter(h=>isActive(h)&&onWall(h)); }
 function isStart(h){ return isMoving()?S.edits.startT.includes(h.id):S.edits.start.some(p=>nearPos(h,p)); }
@@ -444,6 +466,8 @@ function hitHold(x,y,withRemoved){
   return best;
 }
 
+/* Size and shape of a hold in cm, and its type if the user set one. */
+function holdMeta(h){ return {rCm:h.rho/kU(),elong:h.elong||1,angle:h.angle||0,type:h.type||null}; }
 /* ---------- solving ---------- */
 let solveT=0;
 function solveSoon(){ if(isMoving()){ S.live.solvedSig=''; S.live.sigT=0; return; } clearTimeout(solveT); solveT=setTimeout(()=>solveNow(false),60); }
@@ -456,7 +480,7 @@ async function solveNow(live){
     return;
   }
   const k=kU(),a=aspect(),fl=S.cal.floor,ca=cosA();
-  const holds=act.map(h=>({id:h.id,X:h.u*a/k,Y:(fl-h.v)/k/ca,r:h.rho/k}));
+  const holds=act.map(h=>({id:h.id,X:h.u*a/k,Y:(fl-h.v)/k/ca,r:h.rho/k,type:h.type||null}));
   /* the hold the user chose, not just any hold nearby */
   const nearestId=p=>{ let b=null,bd=1e9; for(const h of act){ const d=Math.hypot((h.u-p.u)*a,h.v-p.v); if(d<bd){ bd=d; b=h; } } return b&&bd<Math.max(1.5*b.rho,0.02)?b.id:null; };
   const startIds=live?S.edits.startT.filter(id=>act.some(h=>h.id===id)):S.edits.start.map(nearestId).filter(x=>x!=null);
@@ -480,7 +504,7 @@ async function solveNow(live){
     setCaption('No starting position found','None of the low holds can be reached from the floor at your height. Use Set start to tap your start holds, or check Wall in view.',[]);
     return;
   }
-  const meta=new Map(act.map(h=>[h.id,{rCm:h.rho/kU(),elong:h.elong||1,angle:h.angle||0}]));
+  const meta=new Map(act.map(h=>[h.id,holdMeta(h)]));
   S.beta=buildBeta(res,meta); S.betaSnap=snap; S.step=0; S.anim=null;
   renderBeta(); showStep(0,false);
 }
@@ -511,7 +535,7 @@ function renderBeta(failRes){
     const t=document.createElement('span'); t.className='t'; t.textContent=s.list;
     bt.append(k,d,t);
     if(s.crux){ const c=document.createElement('span'); c.className='crux'; c.textContent='Crux'; bt.append(c); } else bt.append(document.createElement('span'));
-    bt.addEventListener('click',()=>{ stopPlay(); showStep(i,true); });
+    bt.addEventListener('click',()=>{ S.navT=performance.now(); stopPlay(); showStep(i,true); });
     li.append(bt); list.append(li);
   });
 }
@@ -522,12 +546,23 @@ function updateCount(){
   $('#next').disabled=!b||S.step>=b.steps.length-1;
   $('#play').disabled=!b;
 }
-function setCaption(title,sub,tips,crux){
+function setCaption(title,sub,tips,crux,how){
   const h=$('#capTitle'); h.textContent=title;
   if(crux){ const c=document.createElement('span'); c.className='crux'; c.textContent='Crux'; h.append(c); }
   $('#capSub').textContent=sub;
   const ul=$('#capTips'); ul.textContent='';
   for(const t of tips){ const li=document.createElement('li'); li.textContent=t; ul.append(li); }
+  /* a button to watch how to use the hold of this move */
+  const row=$('#capHow'); row.textContent='';
+  for(const ty of (how||[]).slice(0,2)) if(HOLD_TYPES[ty]) row.append(howButton(ty,`How to use ${artName(ty)}`));
+  row.hidden=!row.children.length;
+}
+const artName=ty=>{ const n=HOLD_TYPES[ty].name.toLowerCase(); return (/^[aeiou]/.test(n)?'an ':'a ')+n; };
+function howButton(ty,label){
+  const b=document.createElement('button'); b.type='button'; b.className='btn small';
+  b.innerHTML=holdIconSvg(ty); b.append(document.createTextNode(label));
+  b.addEventListener('click',()=>openDemo(ty,b));
+  return b;
 }
 function speak(text){
   if(!S.callout||!('speechSynthesis' in window)) return;
@@ -536,10 +571,13 @@ function speak(text){
 function showStep(i,animate){
   const b=S.beta; if(!b) return;
   i=Math.max(0,Math.min(b.steps.length-1,i));
-  const fromPos=S.anim?currentPos():b.steps[Math.min(S.step,b.steps.length-1)].pos;
+  const H=b.res.H,arm=0.96*(b.res.ARM||0.5*H);
+  /* a move started mid-move starts from what is on screen right now */
+  let fromPos=b.steps[Math.min(S.step,b.steps.length-1)].pos;
+  if(S.anim){ const c=currentPos(); fromPos={C:c.C,lh:c.lh,rh:c.rh,lf:c.lf,rf:c.rf,body:bodyFor(c,H,b.res.TORSO,arm)}; }
   S.step=i;
   const s=b.steps[i];
-  setCaption(s.title,s.sub,s.tips,s.crux);
+  setCaption(s.title,s.sub,s.tips,s.crux,s.how);
   const list=$('#moves'),items=list.children;
   for(let k=0;k<items.length;k++){
     const bt=items[k].firstChild;
@@ -550,24 +588,63 @@ function showStep(i,animate){
   }
   updateCount();
   if(animate) speak(s.title);
-  if(animate&&!reduceMotion){ S.anim={from:fromPos,to:s.pos,t0:performance.now(),dur:520}; if(!isMoving()) requestAnimationFrame(tick); }
+  if(animate&&!reduceMotion){
+    /* longer moves take longer: 0.65 to 1.15 s */
+    const dist=Math.max(...LIMBS.map(k=>{ const a=fromPos[k]||flagPos(k,fromPos.C,H),z=s.pos[k]||flagPos(k,s.pos.C,H); return Math.hypot(z[0]-a[0],z[1]-a[1]); }));
+    const dyn=(s.reach||0)>1;
+    S.anim={from:fromPos,to:s.pos,t0:performance.now(),dur:Math.max(650,Math.min(1150,560+5*dist)),opt:{H,dyn,bob:dyn?0.035*H:0}};
+    if(!isMoving()) requestAnimationFrame(tick);
+  }
   else { S.anim=null; if(!isMoving()) render(); }
 }
 function tick(){ if(!S.anim) return; render(); if(performance.now()-S.anim.t0<S.anim.dur) requestAnimationFrame(tick); else { S.anim=null; render(); } }
-function flagPos(limb,C){ const H=S.beta.res.H,sd=limb==='lf'?-1:1; return [C[0]+sd*0.4*H,C[1]-0.16*H]; }
-const lerp=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+function flagPos(limb,C,H){ const sd=limb==='lf'?-1:1; return [C[0]+sd*0.4*H,C[1]-0.16*H]; }
+/* Minimum-jerk timing: the smooth speed profile of human reaching (Flash and
+   Hogan, 1985). Starts and stops gently, fastest in the middle. */
+function ease(t){ t=t<0?0:t>1?1:t; return t*t*t*(10+t*(6*t-15)); }
+function sameP(a,b){ return a===b||(!!a&&!!b&&Math.abs(a[0]-b[0])<0.01&&Math.abs(a[1]-b[1])<0.01); }
+/* One move between two held positions, the way climbers are coached to move:
+   on a hand move the legs drive the hips up first and the hand follows on a
+   curved path, arriving last; on a foot move the foot lifts and goes first,
+   then the hips shift over it. o.sag swings the hips through low, like a
+   pendulum (slopers); o.dyn with o.bob is a deadpoint: the hips rise fast
+   and the hand catches the hold at the top of the rise. */
+function blendPose(from,to,t,o){
+  const H=o.H,moved=LIMBS.filter(k=>!sameP(from[k],to[k]));
+  const hand=moved.some(k=>k[1]==='h'),foot=moved.some(k=>k[1]==='f');
+  let hipT,limbT;
+  if(hand&&!foot){ hipT=ease(t/(o.dyn?0.55:0.7)); limbT=ease((t-(o.dyn?0.3:0.22))/(o.dyn?0.62:0.78)); }
+  else if(foot&&!hand){ limbT=ease(t/0.62); hipT=ease((t-0.3)/0.7); }
+  else { hipT=ease(t); limbT=hipT; }
+  const C=[from.C[0]+(to.C[0]-from.C[0])*hipT,from.C[1]+(to.C[1]-from.C[1])*hipT];
+  if(o.sag) C[1]-=o.sag*Math.sin(Math.PI*hipT);
+  if(o.bob) C[1]+=o.bob*Math.sin(Math.PI*ease(t));
+  const out={C,from,to,t:hipT};
+  for(const k of LIMBS){
+    if(!moved.includes(k)){ out[k]=to[k]; continue; }
+    if(!to[k]&&t>=1){ out[k]=null; continue; }
+    const A=from[k]||flagPos(k,from.C,H),B=to[k]||flagPos(k,to.C,H),dx=B[0]-A[0],dy=B[1]-A[1],len=Math.hypot(dx,dy);
+    let x=A[0]+dx*limbT,y=A[1]+dy*limbT;
+    if(len>1){
+      /* hands swing out, away from the body; feet lift off and come back in */
+      let nx=-dy/len,ny=dx/len;
+      if(nx*(x-C[0])+ny*(y-C[1])<0){ nx=-nx; ny=-ny; }
+      const hd=k[1]==='h',amp=Math.min(hd?0.05*H:0.035*H,(hd?0.14:0.18)*len)*Math.sin(Math.PI*limbT);
+      x+=nx*amp; y+=ny*amp+(hd?0:0.3*amp);
+    }
+    out[k]=[x,y];
+  }
+  return out;
+}
 function currentPos(){
   const s=S.beta.steps[S.step].pos;
   if(!S.anim) return s;
-  const {from,to,t0,dur}=S.anim;
-  let t=Math.min(1,(performance.now()-t0)/dur); t=t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+  const {from,to,t0,dur,opt}=S.anim,t=Math.min(1,(performance.now()-t0)/dur);
   if(t>=1&&isMoving()) S.anim=null;
-  const o={C:lerp(from.C,to.C,t),from,to,t};
-  for(const k of ['lh','rh','lf','rf']){ const a=from[k]||flagPos(k,from.C),b=to[k]||flagPos(k,to.C); o[k]=(!to[k]&&t>=1)?null:lerp(a,b,t); }
-  return o;
+  return blendPose(from,to,t,opt);
 }
-$('#prev').addEventListener('click',()=>{ stopPlay(); showStep(S.step-1,true); });
-$('#next').addEventListener('click',()=>{ stopPlay(); showStep(S.step+1,true); });
+$('#prev').addEventListener('click',()=>{ S.navT=performance.now(); stopPlay(); showStep(S.step-1,true); });
+$('#next').addEventListener('click',()=>{ S.navT=performance.now(); stopPlay(); showStep(S.step+1,true); });
 $('#play').addEventListener('click',()=>{ if(S.playing){ stopPlay(); return; } startPlay(); });
 function startPlay(){
   const b=S.beta; if(!b) return;
@@ -582,10 +659,10 @@ function setPlayBtn(on){
   p.querySelector('path').setAttribute('d',on?'M6 4.5h4v15H6zM14 4.5h4v15h-4z':'M7 4.5v15l13-7.5z');
 }
 document.addEventListener('keydown',e=>{
-  if($('#view-wall').hidden) return;
+  if($('#view-wall').hidden||!$('#demo').hidden) return;
   if(/INPUT|SELECT|TEXTAREA/.test((e.target&&e.target.tagName)||'')) return;
-  if(e.key==='ArrowRight'){ stopPlay(); showStep(S.step+1,true); e.preventDefault(); }
-  if(e.key==='ArrowLeft'){ stopPlay(); showStep(S.step-1,true); e.preventDefault(); }
+  if(e.key==='ArrowRight'){ S.navT=performance.now(); stopPlay(); showStep(S.step+1,true); e.preventDefault(); }
+  if(e.key==='ArrowLeft'){ S.navT=performance.now(); stopPlay(); showStep(S.step-1,true); e.preventDefault(); }
 });
 
 /* ---------- colour chips + controls ---------- */
@@ -593,8 +670,10 @@ const sameModel=(a,b)=>a===b||(!!a&&!!b&&a.achro===b.achro&&Math.abs(a.mean[0]-b
 function renderChips(){
   const box=$('#chips'); box.textContent='';
   const rank=m=>m.achro?2:/brown|beige/.test(m.name)?1:0;
-  const list=S.suggest.slice().sort((p,q)=>rank(p)-rank(q)||(q.count||0)-(p.count||0)).slice(0,7);
   const cur=S.model;
+  /* once a colour is picked, suggestions of that same colour would only be a
+     second chip with the same name */
+  const list=S.suggest.filter(m=>!cur||sameModel(m,cur)||!sameRoute(cur,m)).sort((p,q)=>rank(p)-rank(q)||(q.count||0)-(p.count||0)).slice(0,7);
   if(cur&&!list.some(m=>sameModel(m,cur))) list.unshift(cur);
   if(!list.length){ const p=document.createElement('p'); p.className='hint'; p.textContent=S.src?(isMoving()?'Looking for hold colours…':'No clear hold colours yet. Tap a hold on the picture.'):''; box.append(p); return; }
   for(const m of list){
@@ -655,10 +734,11 @@ feetEl.addEventListener('change',()=>{ S.feet=feetEl.value; store.set('feet',S.f
 $('#callout').addEventListener('change',e=>{ S.callout=e.target.checked; if(S.callout&&S.beta) speak(S.beta.steps[S.step].title); });
 /* Tapping the wall: first pick the colour, then choose a tool and tap a hold.
    The tools stay off until a colour is picked. */
-const TOOLS=['add','remove','start','top'];
+const TOOLS=['add','remove','type','start','top'];
 const MODEHINT={floor:'Tap where the wall meets the floor or mat.',walltop:'Now tap the top edge of the wall.',
   pick:'Tap one hold of your route to pick its colour.',
-  none:'Colour picked. To change a hold, choose Add hold, Remove hold, Set start or Set top, then tap the hold.',
+  none:'Colour picked. To change a hold, choose Add hold, Remove hold, Hold type, Set start or Set top, then tap the hold.',
+  type:'Tap a ringed hold and choose what type it is: jug, crimp, sloper and so on. The plan and the tips use it.',
   add:'Tap a spot where a hold was missed, a dashed amber hold to keep it, or a crossed-out hold to put it back.',
   remove:'Tap a ringed hold to take it out of the route.',
   start:'Tap one or two holds to start on, one for each hand. Tap a chosen hold again to unset it.',
@@ -667,6 +747,7 @@ function setMode(m){
   if(TOOLS.includes(m)&&!S.model) m='pick';
   if(m==='none'&&!S.model) m='pick';
   S.mode=m;
+  if(m!=='type') closeTypePick(true);
   document.querySelectorAll('.seg button').forEach(b=>{
     b.setAttribute('aria-pressed',String(b.dataset.mode===m));
     if(TOOLS.includes(b.dataset.mode)) b.disabled=!S.model;
@@ -722,7 +803,7 @@ cv.addEventListener('click',e=>{
     setMode(back||'none'); updateMarkUi(); toast('Wall marked'); render(); solveSoon(); return;
   }
   if(S.mode==='pick'||!S.model){ pickAt(u,v); return; }
-  if(S.mode==='none'){ nudgeTools(); toast('First choose Add hold, Remove hold, Set start or Set top.'); return; }
+  if(S.mode==='none'){ nudgeTools(); toast('First choose Add hold, Remove hold, Hold type, Set start or Set top.'); return; }
   const mv=isMoving(),E=S.edits;
   const changed=()=>{ if(!mv) applyEdits(); updateStats(); render(); solveSoon(); };
   if(S.mode==='add'){
@@ -743,10 +824,11 @@ cv.addEventListener('click',e=>{
   }
   const h=hitHold(x,y);
   if(!h||!isActive(h)){ toast(S.mode==='remove'?'Tap a ringed hold to remove it.':'Tap a ringed hold of your route.'); return; }
+  if(S.mode==='type'){ openTypePick(h); return; }
   if(S.mode==='remove'){
     unsetStart(h); unsetTop(h);
-    if(mv){ h.removed=true; h.userOk=false; }
-    else{ E.confirmed=E.confirmed.filter(p=>!nearPos(h,p)); if(h.manual) E.added=E.added.filter(p=>!nearPos(h,p)); else E.removed.push({u:h.u,v:h.v}); }
+    if(mv){ h.removed=true; h.userOk=false; h.type=null; }
+    else{ E.confirmed=E.confirmed.filter(p=>!nearPos(h,p)); E.types=E.types.filter(p=>!nearPos(h,p)); if(h.manual) E.added=E.added.filter(p=>!nearPos(h,p)); else E.removed.push({u:h.u,v:h.v}); }
     toast('Hold removed'); changed(); return;
   }
   if(S.mode==='start'){
@@ -787,14 +869,16 @@ function drift(){
   return n?[du/n,dv/n]:[0,0];
 }
 function cmPx(q,dr){ const k=kU(); return P(q[0]*k/aspect()+dr[0],S.cal.floor-q[1]*k*cosA()+dr[1]); }
-function tagAt(x,y,text,fill,ink){
-  ctx.font=`13px ${MARKER}`;
-  const w=ctx.measureText(text).width+9,h=17;
-  ctx.save(); ctx.translate(x,y); ctx.rotate(-0.06);
-  ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillRect(-w/2+1.2,-h/2+1.6,w,h);
-  ctx.fillStyle=fill; ctx.fillRect(-w/2,-h/2,w,h);
-  ctx.fillStyle=ink; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text,0,1);
-  ctx.restore();
+function tagAt(x,y,text,fill,ink,size,g){
+  size=size||13; g=g||ctx;
+  g.font=`${size}px ${MARKER}`;
+  const w=g.measureText(text).width+9*size/13,h=size+4;
+  g.save(); g.translate(x,y); g.rotate(-0.06);
+  g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(-w/2+1.2,-h/2+1.6,w,h);
+  g.fillStyle=fill; g.fillRect(-w/2,-h/2,w,h);
+  g.fillStyle=ink; g.textAlign='center'; g.textBaseline='middle'; g.fillText(text,0,1);
+  g.restore();
+  return w;
 }
 function render(){
   if(!S.src) return;
@@ -856,6 +940,14 @@ function render(){
     if(h.id===topId){ const ty=y-r-14; tagAt(x,ty<12?y+r+14:ty,'TOP','#ffd43b','#211c0a'); }
     const n=used.get(h.id); if(n!=null) tagAt(x+r*0.85+7,y-r*0.85-6,String(n),'#ffd43b','#211c0a');
     if(isStart(h)) tagAt(x-r-10,y,'S','#ffffff','#14181c');
+    /* the hold type: set ones always, guesses while the Hold type tool is on */
+    if(h.type) tagAt(x,y+r+12,HOLD_TYPES[h.type].name,'#ffffff','#14181c',11);
+    else if(S.mode==='type'){ const g=guessType(holdMeta(h)); if(g){ ctx.save(); ctx.globalAlpha=0.72; tagAt(x,y+r+12,HOLD_TYPES[g].name+'?','#dfe3e7','#14181c',11); ctx.restore(); } }
+  }
+  const ph=S.mode==='type'?typePickHold():null;
+  if(ph){
+    const [x,y]=P(ph.u,ph.v),r=ph.rho*dh+7;
+    ctx.beginPath(); ctx.arc(x,y,r,0,6.283); ctx.lineWidth=6; ctx.strokeStyle='rgba(0,0,0,.6)'; ctx.stroke(); ctx.lineWidth=3; ctx.strokeStyle='#ffd43b'; ctx.stroke();
   }
 }
 function ik(Pt,T,L1,L2,pick){
@@ -872,8 +964,6 @@ function ik(Pt,T,L1,L2,pick){
    with the toe on the foothold and the heel toward you. Each layer (arms at
    the back, then body, head on top) gets soft inner shading and a drop
    shadow, rendered once per pose into an offscreen sprite. */
-const figLayers={body:document.createElement('canvas'),arms:document.createElement('canvas'),head:document.createElement('canvas'),mask:document.createElement('canvas'),sprite:document.createElement('canvas')};
-let figKey='';
 const SKIN='#f5f5f2',SHOE='#2c3038',SHOE_RAND='#4a505b';
 function sizeCanvas(cv,w,h){ if(cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; } }
 function capsule(g,A,B,r1,r2){
@@ -906,7 +996,7 @@ function torsoPath(g,L,U){
 /* Fill the parts, darken the edges with an inner shadow cast by everything
    outside the outline (stronger on the lower right, light from the upper
    left), then draw surface details clipped to the shape. */
-function shadeLayer(cv,box,dpr,parts,soft,details){
+function shadeLayer(cv,M,box,dpr,parts,soft,details){
   const W=Math.max(1,Math.ceil(box.w*dpr)),Hh=Math.max(1,Math.ceil(box.h*dpr));
   sizeCanvas(cv,W,Hh);
   const g=cv.getContext('2d');
@@ -914,7 +1004,7 @@ function shadeLayer(cv,box,dpr,parts,soft,details){
   const base=()=>g.setTransform(dpr,0,0,dpr,-box.x*dpr,-box.y*dpr);
   base();
   for(const pt of parts){ g.save(); g.fillStyle=pt.color||SKIN; g.beginPath(); pt.draw(g); g.fill(); g.restore(); base(); }
-  const M=figLayers.mask; sizeCanvas(M,W,Hh);
+  sizeCanvas(M,W,Hh);
   const m=M.getContext('2d');
   m.setTransform(1,0,0,1,0,0); m.globalCompositeOperation='source-over'; m.clearRect(0,0,W,Hh);
   m.fillStyle='#000'; m.fillRect(0,0,W,Hh);
@@ -962,12 +1052,12 @@ function reachJoint(J,T,arm,H){
 const bodyMemo=new Map();
 function chooseBody(p,H,TORSO,arm){
   const lh=p.lh,rh=p.rh,C0=p.C,r1=v=>v?Math.round(v[0]*10)+','+Math.round(v[1]*10):'-';
-  const key=[H,TORSO,arm,r1(C0),r1(lh),r1(rh),r1(p.lf),r1(p.rf)].join('|');
+  const key=[H,TORSO,arm,r1(C0),r1(lh),r1(rh),r1(p.lf),r1(p.rf),p.fixHip?1:0].join('|');
   if(bodyMemo.has(key)) return bodyMemo.get(key);
   const sq=v=>v*v,hm=[(lh[0]+rh[0])/2,(lh[1]+rh[1])/2],matched=Math.hypot(lh[0]-rh[0],lh[1]-rh[1])<0.03*H;
   let footY=-Infinity,onMat=false;
   for(const f of [p.lf,p.rf]) if(f){ if(f[1]>footY) footY=f[1]; if(f[1]<1) onMat=true; }
-  const room=Math.max(0,Math.min(onMat?0.2*H:0.15*H,C0[1]-footY-0.22*H));
+  const room=p.fixHip?0:Math.max(0,Math.min(onMat?0.2*H:0.15*H,C0[1]-footY-0.22*H));
   const a0=Math.max(-0.35,Math.min(0.35,0.5*Math.atan2(hm[0]-C0[0],Math.max(0.3*H,hm[1]-C0[1]))));
   const cost=(drop,a)=>{
     const B=upperBody([C0[0],C0[1]-drop],a,H,TORSO),hd=B.head;
@@ -1017,17 +1107,15 @@ function chooseBody(p,H,TORSO,arm){
    the torso turns smoothly instead of flipping between solutions. A move
    started mid-animation blends from what was on screen at that moment. */
 function bodyFor(p,H,TORSO,arm){
+  if(p.body) return p.body;
   if(!p.from) return chooseBody(p,H,TORSO,arm);
   const a=bodyFor(p.from,H,TORSO,arm),b=bodyFor(p.to,H,TORSO,arm);
   return {drop:a.drop+(b.drop-a.drop)*p.t,lean:a.lean+(b.lean-a.lean)*p.t};
 }
-function drawClimber(){
-  const b=S.beta,H=b.res.H,TORSO=b.res.TORSO,step=b.steps[S.step],p=currentPos(),dr=drift();
-  const editing=TOOLS.includes(S.mode)||S.mode==='floor'||S.mode==='walltop',dpr=S.view.dpr,k=kU()*S.view.dh,U=v=>v*H*k;
-  const Q=q=>cmPx(q,dr);
-  /* drawn arm a touch shorter than the planner's reach; the shoulder lift covers the rest */
-  const arm=0.96*(b.res.ARM||0.5*H);
-  const bd=bodyFor(p,H,TORSO,arm),C=[p.C[0],p.C[1]-bd.drop],lean=bd.lean,B=upperBody(C,lean,H,TORSO),Sh=B.Sh;
+/* Joint positions for a pose (cm), mapped to the screen by Q. bd is the
+   body (hip sink and lean) from bodyFor() or a demo key. */
+function figureGeom(p,H,TORSO,arm,Q,bd){
+  const C=[p.C[0],p.C[1]-bd.drop],B=upperBody(C,bd.lean,H,TORSO),Sh=B.Sh;
   const hip={lf:[C[0]-0.07*H,C[1]],rf:[C[0]+0.07*H,C[1]]};
   const ends={},flagged={},J={},shoe={};
   for(const kk of ['lh','rh']){
@@ -1037,7 +1125,7 @@ function drawClimber(){
   }
   for(const kk of ['lf','rf']){
     let T=p[kk]; const side=kk==='lf'?-1:1;
-    if(!T){ T=flagPos(kk,p.C); flagged[kk]=true; }
+    if(!T){ T=flagPos(kk,p.C,H); flagged[kk]=true; }
     ends[kk]=T;
     /* Toe on the hold, ankle just above it; the leg ends at the ankle. */
     const ank=flagged[kk]?[T[0]-side*0.05*H,T[1]+0.02*H]:[T[0],T[1]+0.05*H];
@@ -1047,13 +1135,19 @@ function drawClimber(){
   }
   const c=Q(C),s=Q(Sh),hd=Q(B.head);
   const pts=[c,s,hd]; for(const kk in J) pts.push(J[kk].a,J[kk].e,J[kk].h); for(const kk in shoe) pts.push(shoe[kk].toe);
+  return {J,shoe,ends,flagged,c,s,hd,pts};
+}
+/* Render the figure into the layer set's sprite (only when the pose or view
+   changed). scale = px per unit of height (H x px per cm). */
+function paintFigure(Ly,G,scale,dpr){
+  const U=v=>v*scale,{J,shoe,c,s,hd,pts}=G;
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   for(const q of pts){ if(q[0]<x0)x0=q[0]; if(q[0]>x1)x1=q[0]; if(q[1]<y0)y0=q[1]; if(q[1]>y1)y1=q[1]; }
   const pad=U(0.24)+14,box={x:Math.floor(x0-pad),y:Math.floor(y0-pad),w:Math.ceil(x1-x0+2*pad),h:Math.ceil(y1-y0+2*pad)};
-  const key=[dpr,box.x,box.y,box.w,box.h,k.toFixed(4)].concat(pts.map(q=>Math.round(q[0]*2)+','+Math.round(q[1]*2))).join('|');
-  const SP=figLayers.sprite,SW=Math.max(1,Math.ceil(box.w*dpr)),SHh=Math.max(1,Math.ceil(box.h*dpr));
-  if(key!==figKey){
-    figKey=key;
+  const key=[dpr,box.x,box.y,box.w,box.h,scale.toFixed(3)].concat(pts.map(q=>Math.round(q[0]*2)+','+Math.round(q[1]*2))).join('|');
+  const SP=Ly.sprite,SW=Math.max(1,Math.ceil(box.w*dpr)),SHh=Math.max(1,Math.ceil(box.h*dpr));
+  if(key!==Ly.key){
+    Ly.key=key;
     const disc=(g,q,r)=>{ g.moveTo(q[0]+r,q[1]); g.arc(q[0],q[1],r,0,Math.PI*2); };
     const L=Math.hypot(s[0]-c[0],s[1]-c[1]),rot=Math.atan2(s[0]-c[0],c[1]-s[1]);
     const local=(g,fn)=>{ g.translate(c[0],c[1]); g.rotate(rot); fn(g); };
@@ -1106,9 +1200,9 @@ function drawClimber(){
       stroke(g,U(0.012),'rgba(62,66,74,0.2)',()=>{ g.moveTo(-U(0.045),U(0.06)); g.quadraticCurveTo(0,U(0.085),U(0.045),U(0.06)); });
       g.restore();
     };
-    shadeLayer(figLayers.body,box,dpr,bodyParts,U(0.065),bodyDetails);
-    shadeLayer(figLayers.arms,box,dpr,armParts,U(0.048),armDetails);
-    shadeLayer(figLayers.head,box,dpr,headParts,U(0.06),headDetails);
+    shadeLayer(Ly.body,Ly.mask,box,dpr,bodyParts,U(0.065),bodyDetails);
+    shadeLayer(Ly.arms,Ly.mask,box,dpr,armParts,U(0.048),armDetails);
+    shadeLayer(Ly.head,Ly.mask,box,dpr,headParts,U(0.06),headDetails);
     sizeCanvas(SP,SW,SHh);
     const g=SP.getContext('2d');
     g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation='source-over'; g.clearRect(0,0,SW,SHh);
@@ -1118,16 +1212,41 @@ function drawClimber(){
     };
     /* Seen from behind, the arms reach past the body toward the wall, so the
        back and the head cover them where they overlap. */
-    drop(figLayers.arms,Math.max(4,U(0.035)),U(0.01),U(0.02),0.38);
-    drop(figLayers.body,Math.max(6,U(0.06)),U(0.016),U(0.032),0.45);
-    drop(figLayers.head,Math.max(4,U(0.035)),U(0.008),U(0.018),0.4);
+    drop(Ly.arms,Math.max(4,U(0.035)),U(0.01),U(0.02),0.38);
+    drop(Ly.body,Math.max(6,U(0.06)),U(0.016),U(0.032),0.45);
+    drop(Ly.head,Math.max(4,U(0.035)),U(0.008),U(0.018),0.4);
     g.shadowColor='transparent';
   }
+  return {sp:SP,box,SW,SHh};
+}
+/* L/R badges on each hand and foot; the limb that moves gets a ring. */
+function drawLimbBadges(g,G,Q,activeLimb,only){
+  for(const kk of LIMBS){
+    if(only&&!only[kk]) continue;
+    const q=Q(G.ends[kk]),hand=kk[1]==='h',r=6.5,active=activeLimb===kk,fl=G.flagged[kk];
+    g.beginPath();
+    if(hand) g.arc(q[0],q[1],r,0,6.283); else g.rect(q[0]-r,q[1]-r,2*r,2*r);
+    g.fillStyle=fl?'rgba(255,255,255,0.92)':LIMBCOL[kk]; g.fill();
+    g.lineWidth=active?3:1.8; g.strokeStyle=active?'#ffffff':'rgba(10,12,14,0.85)'; g.stroke();
+    if(active){ g.beginPath(); g.arc(q[0],q[1],r+5,0,6.283); g.lineWidth=2; g.strokeStyle=LIMBCOL[kk]; g.stroke(); }
+    g.fillStyle=fl?LIMBCOL[kk]:'#ffffff'; g.font='700 9px "Barlow Condensed",sans-serif'; g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(kk[0]==='l'?'L':'R',q[0],q[1]+0.5);
+  }
+}
+const newLayers=()=>({body:document.createElement('canvas'),arms:document.createElement('canvas'),head:document.createElement('canvas'),mask:document.createElement('canvas'),sprite:document.createElement('canvas'),key:''});
+const figLayers=newLayers();
+function drawClimber(){
+  const b=S.beta,H=b.res.H,TORSO=b.res.TORSO,step=b.steps[S.step],p=currentPos(),dr=drift();
+  const editing=TOOLS.includes(S.mode)||S.mode==='floor'||S.mode==='walltop',dpr=S.view.dpr,k=kU()*S.view.dh;
+  const Q=q=>cmPx(q,dr);
+  /* drawn arm a touch shorter than the planner's reach; the shoulder lift covers the rest */
+  const arm=0.96*(b.res.ARM||0.5*H);
+  const G=figureGeom(p,H,TORSO,arm,Q,bodyFor(p,H,TORSO,arm)),F=paintFigure(figLayers,G,H*k,dpr);
   ctx.save(); ctx.globalAlpha=editing?0.35:0.96;
-  ctx.drawImage(SP,0,0,SW,SHh,box.x,box.y,SW/dpr,SHh/dpr);
+  ctx.drawImage(F.sp,0,0,F.SW,F.SHh,F.box.x,F.box.y,F.SW/dpr,F.SHh/dpr);
   ctx.globalAlpha=editing?0.35:1;
   if(step.limb&&S.step>0&&!editing){
-    const prev=b.steps[S.step-1].pos,a=prev[step.limb]||flagPos(step.limb,prev.C),z=step.pos[step.limb]||flagPos(step.limb,step.pos.C);
+    const prev=b.steps[S.step-1].pos,a=prev[step.limb]||flagPos(step.limb,prev.C,H),z=step.pos[step.limb]||flagPos(step.limb,step.pos.C,H);
     const A=Q(a),Z=Q(z),ang=Math.atan2(Z[1]-A[1],Z[0]-A[0]),len=Math.hypot(Z[0]-A[0],Z[1]-A[1]);
     if(len>14){
       ctx.save(); ctx.strokeStyle=LIMBCOL[step.limb]; ctx.lineWidth=2.6; ctx.setLineDash([6,5]);
@@ -1138,21 +1257,289 @@ function drawClimber(){
       ctx.restore();
     }
   }
-  for(const kk of ['lh','rh','lf','rf']){
-    const q=Q(ends[kk]),hand=kk[1]==='h',r=6.5,active=step.limb===kk;
-    ctx.beginPath();
-    if(hand) ctx.arc(q[0],q[1],r,0,6.283); else ctx.rect(q[0]-r,q[1]-r,2*r,2*r);
-    ctx.fillStyle=flagged[kk]?'rgba(255,255,255,0.92)':LIMBCOL[kk]; ctx.fill();
-    ctx.lineWidth=active?3:1.8; ctx.strokeStyle=active?'#ffffff':'rgba(10,12,14,0.85)'; ctx.stroke();
-    if(active){ ctx.beginPath(); ctx.arc(q[0],q[1],r+5,0,6.283); ctx.lineWidth=2; ctx.strokeStyle=LIMBCOL[kk]; ctx.stroke(); }
-    ctx.fillStyle=flagged[kk]?LIMBCOL[kk]:'#ffffff'; ctx.font='700 9px "Barlow Condensed",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(kk[0]==='l'?'L':'R',q[0],q[1]+0.5);
-  }
+  drawLimbBadges(ctx,G,Q,step.limb);
   ctx.restore();
 }
 let lastW=0;
 new ResizeObserver(()=>{ const w=wrap.clientWidth; if(w&&w!==lastW){ lastW=w; fit(); render(); } }).observe(wrap);
 if(document.fonts&&document.fonts.load) document.fonts.load(`16px ${MARKER}`).then(()=>{ if(!isMoving()) render(); }).catch(()=>{});
+
+/* ---------- hold types: the picker ---------- */
+/* The Hold type tool: tap a ringed hold, then choose its type. The choice is
+   saved like the other edits (a position on a still picture, the followed
+   hold while moving), feeds the planner, and changes the tips. */
+let typeRef=null;
+function typePickHold(){
+  if(!typeRef) return null;
+  if(isMoving()) return S.tracks.find(t=>t.id===typeRef.id&&!t.removed)||null;
+  let best=null,bd=Infinity;
+  for(const h of S.holds){ if(h.removed) continue; const d=Math.hypot((h.u-typeRef.u)*aspect(),h.v-typeRef.v); if(d<bd){ bd=d; best=h; } }
+  return best&&bd<Math.max(best.rho,0.01)*1.3?best:null;
+}
+const tpEl=$('#typePick'),tpGrid=$('#tpGrid');
+for(const ty of HOLD_ORDER){
+  const b=document.createElement('button'); b.type='button'; b.className='tp-b'; b.dataset.type=ty; b.setAttribute('aria-pressed','false');
+  b.innerHTML=holdIconSvg(ty)+`<span>${HOLD_TYPES[ty].name}</span>`;
+  b.addEventListener('click',()=>{ const h=typePickHold(); if(!h){ closeTypePick(); return; } setHoldType(h,ty); });
+  tpGrid.append(b);
+}
+function fillTypePick(h){
+  const n=S.beta&&S.beta.num.get(h.id),g=guessType(holdMeta(h)),cur=h.type||null,shown=cur||g;
+  $('#tpTitle').textContent=n!=null?`Hold ${n}: what type is it?`:'What type of hold is it?';
+  $('#tpGuess').textContent=cur?`You set it as ${artName(cur)}.`:`From its size and shape it looks like ${artName(g)}. Choose the real type.`;
+  tpGrid.querySelectorAll('button').forEach(b=>{ b.setAttribute('aria-pressed',String(b.dataset.type===cur)); b.classList.toggle('guess',!cur&&b.dataset.type===g); });
+  $('#tpLine').textContent=HOLD_TYPES[shown].line;
+  $('#tpClear').hidden=!cur;
+  $('#tpShowTxt').textContent=`Show how: ${HOLD_TYPES[shown].name.toLowerCase()}`;
+  tpEl.dataset.show=shown;
+}
+function openTypePick(h){
+  typeRef={id:h.id,u:h.u,v:h.v};
+  fillTypePick(h);
+  tpEl.hidden=false;
+  placeTypePick(h);
+  render();
+}
+/* Next to the hold, never on it: below it inside the picture, else above
+   it, else below it hanging over the player under the picture. */
+function placeTypePick(h){
+  const st=tpEl.parentElement,sr=st.getBoundingClientRect(),cr=cv.getBoundingClientRect(),ox=cr.left-sr.left,oy=cr.top-sr.top;
+  const [x,y]=P(h.u,h.v),r=h.rho*S.view.dh,w=tpEl.offsetWidth,hh=tpEl.offsetHeight,W=st.clientWidth,SH=st.clientHeight;
+  const left=Math.max(8,Math.min(W-w-8,ox+x-w/2)),below=oy+y+r+16,above=oy+y-r-16-hh;
+  let top=below+hh<=oy+S.view.dh-8?below:above>=8?above:below;
+  top=Math.max(8,Math.min(Math.max(8,SH-hh-8),top));
+  tpEl.style.left=left+'px'; tpEl.style.top=top+'px';
+  const rr=tpEl.getBoundingClientRect(); if(rr.top<0||rr.bottom>window.innerHeight) tpEl.scrollIntoView({block:'nearest',behavior:reduceMotion?'auto':'smooth'});
+}
+function closeTypePick(quiet){
+  if(!typeRef&&tpEl.hidden) return;
+  typeRef=null; tpEl.hidden=true;
+  if(!quiet&&S.src&&!isMoving()) render();
+}
+function setHoldType(h,ty){
+  const E=S.edits;
+  if(isMoving()) h.type=ty||null;
+  else{ E.types=E.types.filter(p=>!nearPos(h,p)); if(ty) E.types.push({u:h.u,v:h.v,type:ty}); }
+  if(ty) keepChosen(h);
+  if(!isMoving()) applyEdits();
+  const h2=typePickHold(); if(h2) fillTypePick(h2);
+  toast(ty?`Hold set as ${artName(ty)}`:'Type cleared. The guess is used again.');
+  updateStats(); render(); solveSoon();
+}
+$('#tpClose').addEventListener('click',()=>closeTypePick());
+$('#tpClear').addEventListener('click',()=>{ const h=typePickHold(); if(h) setHoldType(h,null); });
+$('#tpShow').addEventListener('click',e=>openDemo(tpEl.dataset.show||'jug',e.currentTarget));
+
+/* ---------- technique examples ---------- */
+/* A small wall with stylised holds and the same climber, looping one
+   technique per hold type. Moves use blendPose(), like the route player. */
+const demoEl=$('#demo'),demoCv=$('#demoCv'),dctx=demoCv.getContext('2d'),demoLayers=newLayers();
+const DEMO_H=170,DEMO_T=0.3*DEMO_H,DEMO_ARM=0.96*0.5*DEMO_H,DEMO_X0=-108,DEMO_W=216,DEMO_TOP=288;
+const DEMO_HOLD='#f07b22',DEMO_HOLD_DARK='#9c4209';
+for(const ty in DEMOS) for(const k of DEMOS[ty].keys) k.fixHip=true;
+const D={type:null,i:0,phase:'hold',t0:0,dur:0,playing:true,raf:0,opener:null,dirty:true,view:{w:1,h:1,dpr:1,k:1},wall:document.createElement('canvas'),wallKey:''};
+const pathCache=new Map(),pathOf=d=>{ let p=pathCache.get(d); if(!p){ p=new Path2D(d); pathCache.set(d,p); } return p; };
+const demoTypes=$('#demoTypes');
+for(const ty of HOLD_ORDER){
+  const b=document.createElement('button'); b.type='button'; b.className='chip'; b.dataset.type=ty;
+  b.innerHTML=holdIconSvg(ty); b.append(document.createTextNode(HOLD_TYPES[ty].name));
+  b.addEventListener('click',()=>setDemo(ty));
+  demoTypes.append(b);
+}
+function openDemo(ty,opener){
+  if(!DEMOS[ty]) return;
+  stopPlay();
+  D.opener=opener||document.activeElement;
+  demoEl.hidden=false; document.body.classList.add('modal-open');
+  setDemo(ty);
+  $('#demoClose').focus();
+}
+function setDemo(ty){
+  D.type=ty; D.i=0; D.phase='hold'; D.t0=performance.now(); D.dur=DEMOS[ty].keys[0].hold||1500; D.playing=!reduceMotion; D.dirty=true;
+  const T=HOLD_TYPES[ty];
+  $('#demoTitle').textContent=DEMOS[ty].title;
+  $('#demoIcon').innerHTML=holdIconSvg(ty);
+  const ul=$('#demoTips'); ul.textContent='';
+  for(const t of [T.grip,T.body]){ const li=document.createElement('li'); li.textContent=t; ul.append(li); }
+  demoTypes.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.type===ty)));
+  D.wallKey='';
+  fitDemo(); demoCaption(); setDemoPlayBtn();
+  cancelAnimationFrame(D.raf); D.raf=requestAnimationFrame(demoTick);
+}
+function closeDemo(){
+  if(demoEl.hidden) return;
+  demoEl.hidden=true; document.body.classList.remove('modal-open');
+  cancelAnimationFrame(D.raf); D.raf=0;
+  const o=D.opener; D.opener=null;
+  if(o&&o.focus&&document.contains(o)&&!o.closest('[hidden]')) o.focus();
+}
+function fitDemo(){
+  const box=$('#demoStage'),maxW=Math.max(200,box.clientWidth||320),maxH=Math.max(240,Math.min(window.innerHeight*0.52,620));
+  let w=maxW,h=w*DEMO_TOP/DEMO_W; if(h>maxH){ h=maxH; w=h*DEMO_W/DEMO_TOP; }
+  w=Math.floor(w); h=Math.floor(h);
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  demoCv.style.width=w+'px'; demoCv.style.height=h+'px';
+  demoCv.width=Math.round(w*dpr); demoCv.height=Math.round(h*dpr);
+  D.view={w,h,dpr,k:w/DEMO_W}; D.wallKey=''; D.dirty=true;
+}
+function demoCaption(){
+  const keys=DEMOS[D.type].keys,i=D.phase==='move'?D.i+1:D.i;
+  $('#demoCap').textContent=keys[i].cap;
+  $('#demoStep').textContent=`Step ${i+1} of ${keys.length}`;
+  $('#demoPrev').disabled=i===0&&D.phase!=='move';
+}
+function setDemoPlayBtn(){
+  const b=$('#demoPlay');
+  b.querySelector('span').textContent=D.playing?'Pause':'Play';
+  b.querySelector('path').setAttribute('d',D.playing?'M6 4.5h4v15H6zM14 4.5h4v15h-4z':'M7 4.5v15l13-7.5z');
+}
+function demoMove(now){ const keys=DEMOS[D.type].keys; D.phase='move'; D.t0=now; D.dur=reduceMotion?1:(keys[D.i+1].move||950); D.dirty=true; demoCaption(); }
+function demoTick(now){
+  if(demoEl.hidden) return;
+  D.raf=requestAnimationFrame(demoTick);
+  const keys=DEMOS[D.type].keys,last=keys.length-1;
+  if(now-D.t0>=D.dur){
+    if(D.phase==='move'){ D.i++; D.phase='hold'; D.t0=now; D.dur=keys[D.i].hold||(D.i===last?1700:1150); D.dirty=true; demoCaption(); }
+    else if(D.phase==='fadeout'){ D.i=0; D.phase='fadein'; D.t0=now; D.dur=320; demoCaption(); }
+    else if(D.phase==='fadein'){ D.phase='hold'; D.t0=now; D.dur=keys[0].hold||1500; D.dirty=true; }
+    else if(D.phase==='hold'&&D.playing){ if(D.i<last) demoMove(now); else { D.phase='fadeout'; D.t0=now; D.dur=320; } }
+  }
+  /* nothing moves while paused on a still position */
+  if(D.phase==='hold'&&!keys[D.i].shake&&!D.dirty) return;
+  D.dirty=false;
+  drawDemo(now);
+}
+function demoPose(now){
+  const keys=DEMOS[D.type].keys,k=keys[D.i];
+  if(D.phase==='move'){
+    const to=keys[D.i+1],t=Math.min(1,(now-D.t0)/D.dur);
+    return {p:blendPose(k,to,t,{H:DEMO_H,sag:to.sag||0}),active:LIMBS.find(q=>!sameP(k[q],to[q]))||null,alpha:1,free:{}};
+  }
+  const p=Object.assign({},k),free={};
+  p.body=chooseBody(k,DEMO_H,DEMO_T,DEMO_ARM);
+  if(k.shake&&!reduceMotion){ const w=now/1000*2*Math.PI*3.2; p[k.shake]=[k[k.shake][0]+3*Math.sin(w),k[k.shake][1]+2*Math.sin(2*w)]; }
+  if(k.shake) free[k.shake]=true;
+  const f=D.phase==='fadeout'?1-(now-D.t0)/D.dur:D.phase==='fadein'?(now-D.t0)/D.dur:1;
+  return {p,active:null,alpha:Math.max(0,Math.min(1,f)),free};
+}
+function drawDemoHold(g,hd,Q,k){
+  const [x,y]=Q([hd.x,hd.y]);
+  g.save();
+  g.shadowColor='rgba(0,0,0,0.3)'; g.shadowBlur=4; g.shadowOffsetX=1; g.shadowOffsetY=2;
+  if(hd.t==='foot'){
+    const r=4*k; g.beginPath(); g.ellipse(x,y,r*1.4,r,0,0,6.283); g.fillStyle=DEMO_HOLD; g.fill();
+    g.shadowColor='transparent'; g.beginPath(); g.ellipse(x,y-r*0.35,r*0.9,r*0.38,0,0,6.283); g.fillStyle='rgba(255,255,255,0.28)'; g.fill();
+    g.restore(); return;
+  }
+  const ic=HOLD_ICON[hd.t],sz=(hd.s||14)*k/18;
+  let rot=ic.rot||0; if(hd.face==='left') rot=-Math.PI/2; else if(hd.face==='right') rot=Math.PI/2;
+  g.translate(x,y); g.rotate(rot); g.scale(sz,sz); g.translate(-12,-12);
+  const body=pathOf(ic.body);
+  g.fillStyle=DEMO_HOLD; g.fill(body);
+  g.shadowColor='transparent';
+  g.save(); g.clip(body);
+  const rg=g.createRadialGradient(8,7,1,12,12,13); rg.addColorStop(0,'rgba(255,255,255,0.42)'); rg.addColorStop(0.55,'rgba(255,255,255,0)'); rg.addColorStop(1,'rgba(0,0,0,0.22)');
+  g.fillStyle=rg; g.fillRect(0,0,24,24);
+  if(ic.mark){ g.fillStyle=DEMO_HOLD_DARK; g.fill(pathOf(ic.mark)); }
+  g.restore();
+  g.lineWidth=1.2/sz; g.strokeStyle='rgba(40,20,5,0.45)'; g.stroke(body);
+  g.restore();
+}
+function drawDemoWall(g){
+  const {w,h,dpr,k}=D.view,key=[D.type,w,h,dpr].join('|'),W=D.wall;
+  if(D.wallKey!==key){
+    D.wallKey=key; sizeCanvas(W,Math.round(w*dpr),Math.round(h*dpr));
+    const c=W.getContext('2d'),Q=q=>[(q[0]-DEMO_X0)*k,(DEMO_TOP-q[1])*k];
+    c.setTransform(dpr,0,0,dpr,0,0);
+    const bg=c.createLinearGradient(0,0,0,h); bg.addColorStop(0,'#cdd2d8'); bg.addColorStop(1,'#b6bcc3'); c.fillStyle=bg; c.fillRect(0,0,w,h);
+    c.fillStyle='rgba(40,44,50,0.45)';
+    for(let y=10;y<DEMO_TOP;y+=20) for(let x=-100+((y/20)%2?10:0);x<=104;x+=20){ const q=Q([x,y]); c.beginPath(); c.arc(q[0],q[1],Math.max(1,0.75*k),0,6.283); c.fill(); }
+    c.strokeStyle='rgba(60,66,74,0.3)'; c.lineWidth=1.2;
+    for(const x of [-60,60]){ const a=Q([x,0]),b=Q([x,DEMO_TOP]); c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); }
+    for(const y of [120,240]){ const a=Q([DEMO_X0,y]),b=Q([DEMO_X0+DEMO_W,y]); c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); }
+    const m=Q([0,6]); c.fillStyle='#2f3946'; c.fillRect(0,m[1],w,h-m[1]);
+    const hs=DEMOS[D.type].holds;
+    for(const hd of hs) drawDemoHold(c,hd,Q,k);
+    /* name tags on the holds this example is about */
+    for(const hd of hs){
+      if(!hd.main) continue;
+      const q=Q([hd.x,hd.y]),r=(hd.s||14)*k/2,txt=HOLD_TYPES[hd.t].name;
+      c.font=`12px ${MARKER}`; const tw=c.measureText(txt).width+12;
+      let tx=hd.x<0?q[0]-r-tw/2-4:q[0]+r+tw/2+4,ty=q[1]+r*0.6;
+      if(hd.lab==='below'){ tx=q[0]; ty=q[1]+r+12; }
+      tx=Math.max(tw/2+3,Math.min(w-tw/2-3,tx));
+      tagAt(tx,ty,txt,'#ffd43b','#211c0a',12,c);
+    }
+  }
+  g.setTransform(1,0,0,1,0,0); g.drawImage(W,0,0); g.setTransform(dpr,0,0,dpr,0,0);
+}
+function drawArrow(g,A,B){
+  const ang=Math.atan2(B[1]-A[1],B[0]-A[0]),ex=B[0]-Math.cos(ang)*9,ey=B[1]-Math.sin(ang)*9;
+  const head=()=>{ g.beginPath(); g.moveTo(B[0],B[1]); g.lineTo(ex-Math.cos(ang-1.1)*7,ey-Math.sin(ang-1.1)*7); g.lineTo(ex-Math.cos(ang+1.1)*7,ey-Math.sin(ang+1.1)*7); g.closePath(); };
+  g.save(); g.lineCap='round'; g.lineJoin='round';
+  g.strokeStyle='rgba(20,24,28,0.8)'; g.lineWidth=7; g.beginPath(); g.moveTo(A[0],A[1]); g.lineTo(ex,ey); g.stroke(); head(); g.lineWidth=4; g.stroke();
+  g.strokeStyle='#ffd43b'; g.fillStyle='#ffd43b'; g.lineWidth=3.2; g.beginPath(); g.moveTo(A[0],A[1]); g.lineTo(ex,ey); g.stroke(); head(); g.fill();
+  g.restore();
+}
+function drawDemo(now){
+  const {w,h,dpr,k}=D.view,g=dctx,Q=q=>[(q[0]-DEMO_X0)*k,(DEMO_TOP-q[1])*k];
+  g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h);
+  drawDemoWall(g);
+  const {p,active,alpha,free}=demoPose(now);
+  const G=figureGeom(p,DEMO_H,DEMO_T,DEMO_ARM,Q,bodyFor(p,DEMO_H,DEMO_T,DEMO_ARM)),F=paintFigure(demoLayers,G,DEMO_H*k,dpr);
+  const keys=DEMOS[D.type].keys,fk=D.phase==='move'?keys[D.i+1]:keys[D.i];
+  g.save(); g.globalAlpha=alpha;
+  g.drawImage(F.sp,0,0,F.SW,F.SHh,F.box.x,F.box.y,F.SW/dpr,F.SHh/dpr);
+  if(fk.force&&D.phase!=='fadeout'&&D.phase!=='fadein') drawArrow(g,Q(fk.force[0]),Q(fk.force[1]));
+  drawLimbBadges(g,G,Q,active,{lh:!free.lh,rh:!free.rh,lf:true,rf:true});
+  g.restore();
+}
+$('#demoClose').addEventListener('click',closeDemo);
+demoEl.addEventListener('click',e=>{ if(e.target===demoEl) closeDemo(); });
+$('#demoPlay').addEventListener('click',()=>{
+  D.playing=!D.playing; setDemoPlayBtn();
+  const now=performance.now(),last=DEMOS[D.type].keys.length-1;
+  if(D.playing&&D.phase==='hold'){ if(D.i<last) demoMove(now); else { D.phase='fadeout'; D.t0=now; D.dur=320; } }
+});
+$('#demoNext').addEventListener('click',()=>{
+  const now=performance.now(),last=DEMOS[D.type].keys.length-1;
+  D.playing=false; setDemoPlayBtn();
+  if(D.phase==='move') D.i++;
+  if(D.phase==='fadeout'||D.phase==='fadein') D.i=last;
+  if(D.i<last) demoMove(now);
+  else { D.i=0; D.phase='hold'; D.t0=now; D.dur=1500; D.dirty=true; demoCaption(); }
+});
+$('#demoPrev').addEventListener('click',()=>{
+  const now=performance.now();
+  D.playing=false; setDemoPlayBtn();
+  if(D.phase==='move') D.i++;
+  if(D.phase==='fadeout'||D.phase==='fadein') D.i=DEMOS[D.type].keys.length-1;
+  D.i=Math.max(0,D.i-1); D.phase='hold'; D.t0=now; D.dur=1500; D.dirty=true; demoCaption();
+});
+/* keep keyboard focus inside the open example */
+demoEl.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ e.preventDefault(); closeDemo(); return; }
+  if(e.key!=='Tab') return;
+  const f=[...demoEl.querySelectorAll('button:not([disabled])')].filter(b=>b.offsetParent);
+  if(!f.length) return;
+  const i=f.indexOf(document.activeElement);
+  if(e.shiftKey&&(i<=0)){ e.preventDefault(); f[f.length-1].focus(); }
+  else if(!e.shiftKey&&i===f.length-1){ e.preventDefault(); f[0].focus(); }
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!tpEl.hidden&&demoEl.hidden) closeTypePick(); });
+window.addEventListener('resize',()=>{ if(!demoEl.hidden){ fitDemo(); } });
+/* Learn tab: one row per hold type with a button to watch it */
+(function(){
+  const box=$('#holdGuide'); if(!box) return;
+  for(const ty of HOLD_ORDER){
+    const T=HOLD_TYPES[ty],row=document.createElement('div'); row.className='hg';
+    const ic=document.createElement('span'); ic.className='hg-ic'; ic.innerHTML=holdIconSvg(ty);
+    const tx=document.createElement('div'); const b=document.createElement('b'); b.textContent=T.name; const sp=document.createElement('span'); sp.textContent=T.line; tx.append(b,sp);
+    const bt=document.createElement('button'); bt.type='button'; bt.className='btn small'; bt.textContent='Show me'; bt.setAttribute('aria-label',`Show me how to use ${artName(ty)}`);
+    bt.addEventListener('click',()=>openDemo(ty,bt));
+    row.append(ic,tx,bt); box.append(row);
+  }
+})();
 
 /* ---------- tabs ---------- */
 function showTab(name){
@@ -1195,7 +1582,8 @@ $('#coachAsk').addEventListener('click',async()=>{
   if(!S.beta){ toast('Choose a route colour first so there are moves to check.'); return; }
   const out=$('#coachOut'),ask=$('#coachAsk'),stop=$('#coachStop');
   const lines=S.beta.steps.map((s,i)=>`${i===0?'S':i}. ${s.title} (${s.sub})`).join('\n');
-  const prompt=`You are an experienced bouldering coach helping a beginner. The image is a photo of an indoor climbing wall. The holds of one route (colour: ${S.model.name}) are circled, and the ones used are labelled with yellow numbers in the order they are first touched. The climber is ${S.heightCm} cm tall${S.spanCm?` with a ${S.spanCm} cm arm span`:''}. The bottom of the photo is the floor and the photo shows about ${S.wallM} m of wall${S.angle>0?`, overhanging ${S.angle}°`:S.angle<0?`, a slab leaning back ${-S.angle}°`:', vertical'}.\n\nPlanned sequence:\n${lines}\n\nReply in plain text with no markdown symbols, under 230 words, in three short parts:\n1. Holds: one line per numbered hold with your best guess of its type (jug, edge, crimp, sloper, pinch, pocket, sidepull, undercling, volume) and how to grip it.\n2. Crux: which move looks hardest and one hand or foot tip for it.\n3. Check: anything in the sequence that looks wrong for this wall (for example a circled blob that is not a hold of this colour, or a better foot), and what to do instead.\nIf the photo is unclear, say so briefly.`;
+  const typed=activeHolds().filter(h=>h.type&&S.beta.num.has(h.id)).map(h=>`${S.beta.num.get(h.id)} ${HOLD_TYPES[h.type].name.toLowerCase()}`);
+  const prompt=`You are an experienced bouldering coach helping a beginner. The image is a photo of an indoor climbing wall. The holds of one route (colour: ${S.model.name}) are circled, and the ones used are labelled with yellow numbers in the order they are first touched. The climber is ${S.heightCm} cm tall${S.spanCm?` with a ${S.spanCm} cm arm span`:''}. The bottom of the photo is the floor and the photo shows about ${S.wallM} m of wall${S.angle>0?`, overhanging ${S.angle}°`:S.angle<0?`, a slab leaning back ${-S.angle}°`:', vertical'}.${typed.length?`\n\nThe climber says these holds are: ${typed.join(', ')}.`:''}\n\nPlanned sequence:\n${lines}\n\nReply in plain text with no markdown symbols, under 230 words, in three short parts:\n1. Holds: one line per numbered hold with your best guess of its type (jug, edge, crimp, sloper, pinch, pocket, sidepull, undercling, volume) and how to grip it.\n2. Crux: which move looks hardest and one hand or foot tip for it.\n3. Check: anything in the sequence that looks wrong for this wall (for example a circled blob that is not a hold of this colour, or a better foot), and what to do instead.\nIf the photo is unclear, say so briefly.`;
   coachCtl=new AbortController();
   out.hidden=false; out.textContent='Thinking…'; ask.disabled=true; stop.hidden=false;
   try{

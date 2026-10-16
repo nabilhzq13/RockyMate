@@ -15,12 +15,13 @@ src = root / "src"
 page = (src / "page.html").read_text(encoding="utf-8")
 vision = (src / "vision.js").read_text(encoding="utf-8").replace("if(typeof module!=='undefined') module.exports=VisionCore;\n", "")
 solver = (src / "solver.js").read_text(encoding="utf-8")
+holds = (src / "holds.js").read_text(encoding="utf-8")
 app = (src / "app.js").read_text(encoding="utf-8")
 
 def scripts(standalone: bool) -> str:
     a = app.replace("const STANDALONE=false;", f"const STANDALONE={'true' if standalone else 'false'};", 1)
     assert ("STANDALONE=true" in a) == standalone
-    return f"<script>\n{vision}\n{solver}\n</script>\n<script>\n{a}\n</script>\n"
+    return f"<script>\n{vision}\n{solver}\n{holds}\n</script>\n<script>\n{a}\n</script>\n"
 
 def write(path: pathlib.Path, text: str):
     path.parent.mkdir(parents=True, exist_ok=True)

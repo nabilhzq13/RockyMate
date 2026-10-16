@@ -30,6 +30,7 @@
   --lh:#18a7e0; --rh:#ec3b74; --lf:#58b52b; --rf:#f59f00;
   --live:#e5383b;
   --warn:#a85600; --warn-bg:#fff2de;
+  --scrim:rgba(10,12,14,.62); --shadow:rgba(10,12,14,.28); --icon-mark:#7d3507; --icon:#e2701c;
   --f-display:"Permanent Marker","Marker Felt","Chalkboard SE",cursive;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-label:"Barlow Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;
@@ -38,12 +39,12 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
-    --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; color-scheme:dark;
+    --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; --scrim:rgba(0,0,0,.72); --shadow:rgba(0,0,0,.55); --icon-mark:#5a2604; --icon:#f08a3c; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
-  --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; color-scheme:dark;
+  --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; --scrim:rgba(0,0,0,.72); --shadow:rgba(0,0,0,.55); --icon-mark:#5a2604; --icon:#f08a3c; color-scheme:dark;
 }
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -64,7 +65,7 @@ a{color:var(--accent)}
 
 .wall-view{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:20px;align-items:start}
 .stage{display:grid;gap:12px;min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 8px)}
-@media (max-width:920px){.wall-view{grid-template-columns:minmax(0,1fr)}.stage{position:static}}
+@media (max-width:920px){.wall-view{grid-template-columns:minmax(0,1fr)}.stage{position:relative}}
 .canvas-wrap{position:relative;background:var(--stage);border-radius:var(--radius);display:flex;justify-content:center;align-items:center;overflow:hidden;min-height:280px}
 .canvas-wrap.drag{outline:3px dashed var(--accent);outline-offset:-6px}
 #cv{display:block;touch-action:manipulation;cursor:crosshair;max-width:100%}
@@ -116,6 +117,10 @@ a{color:var(--accent)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
 .seg.one{grid-template-columns:minmax(0,1fr)}
 .seg button[disabled]{color:var(--muted);opacity:.55;cursor:default}
+#tools{grid-template-columns:repeat(6,minmax(0,1fr))}
+#tools button{grid-column:span 2;border-bottom:1px solid var(--line)}
+#tools button:nth-child(3){border-right:0}
+#tools button:nth-child(n+4){grid-column:span 3;border-bottom:0}
 #tools.nudge{animation:nudge .9s ease}
 @keyframes nudge{0%,100%{box-shadow:0 0 0 0 transparent}25%,60%{box-shadow:0 0 0 3px var(--accent)}}
 @media (prefers-reduced-motion:reduce){#tools.nudge{animation:none;box-shadow:0 0 0 3px var(--accent)}}
@@ -168,6 +173,50 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
 .gloss dd{margin:2px 0 0;font-size:.92rem;color:var(--muted)}
 .sources{font-size:.92rem;color:var(--muted)}
 .sources ol{margin:6px 0 0;padding-left:1.2em;display:grid;gap:4px}
+.btn.small{min-height:36px;padding:7px 11px;font-size:.88rem}
+.hicon{width:20px;height:20px;flex:none;color:var(--icon)}
+.hicon .mk{fill:var(--icon-mark)}
+.how-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+
+/* Hold type picker: a small panel next to the tapped hold */
+.typepick{position:absolute;z-index:6;width:min(344px,calc(100% - 16px));background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px var(--shadow);padding:10px 10px 12px;display:grid;gap:8px}
+.tp-head{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:start}
+.tp-head b{font:700 1rem/1.2 var(--f-label);text-transform:uppercase;letter-spacing:.05em}
+.tp-head .tp-guess{grid-column:1;font-size:.86rem;color:var(--muted)}
+.tp-x{grid-column:2;grid-row:1/span 2;border:0;background:transparent;color:var(--muted);font-size:1.5rem;line-height:1;width:36px;height:36px;border-radius:8px;cursor:pointer}
+.tp-x:hover{background:var(--soft)}
+.tp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.tp-b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;padding:6px 4px;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--ink);font:600 .84rem/1.05 var(--f-label);text-transform:uppercase;letter-spacing:.03em;cursor:pointer;text-align:center}
+.tp-b span{max-width:100%;overflow-wrap:anywhere}
+.tp-b .hicon{width:22px;height:22px}
+.tp-b.guess{border-style:dashed;border-color:var(--muted)}
+.tp-b[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.tp-b[aria-pressed="true"] .hicon{color:var(--tape)}
+.tp-line{margin:0;font-size:.9rem}
+.tp-row{display:flex;flex-wrap:wrap;gap:8px}
+.tp-row .btn{min-height:38px;padding:8px 12px;font-size:.9rem}
+
+/* Technique example: a dialog over the page */
+body.modal-open{overflow:hidden}
+.demo{position:fixed;inset:0;z-index:40;background:var(--scrim);display:grid;place-items:center;padding:max(12px,env(safe-area-inset-top,0px)) 12px max(12px,env(safe-area-inset-bottom,0px))}
+.demo-card{background:var(--panel);color:var(--ink);border-radius:14px;border:1px solid var(--line);box-shadow:0 18px 50px var(--shadow);width:min(560px,100%);max-height:100%;overflow:auto;overscroll-behavior:contain;padding:14px 16px 16px;display:grid;gap:10px}
+.demo-head{display:flex;align-items:center;gap:10px}
+.demo-head .hicon{width:28px;height:28px}
+.demo-head h2{margin:0;font:700 1.25rem/1.15 var(--f-label);text-transform:uppercase;letter-spacing:.04em;flex:1;min-width:0}
+.demo-stage{display:flex;justify-content:center;background:var(--stage);border-radius:10px;overflow:hidden}
+#demoCv{display:block;max-width:100%}
+.demo-cap{margin:0;font-size:1.02rem;min-height:3em}
+.demo-ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.demo-types{display:flex;flex-wrap:wrap;gap:6px}
+.demo-types .chip{text-transform:none;padding:6px 10px 6px 7px;font-size:.86rem}
+
+/* Learn tab hold guide */
+.hguide{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:8px}
+.hg{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;background:var(--soft);border-radius:8px;padding:9px 10px}
+.hg .hicon{width:30px;height:30px}
+.hg b{display:block;font:700 1rem/1.2 var(--f-label);text-transform:uppercase;letter-spacing:.05em}
+.hg span{font-size:.9rem;color:var(--muted)}
+.lcard.wide{grid-column:1/-1}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
 </style>
 </head>
@@ -196,6 +245,15 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
           <div class="busy" id="busy" hidden>Reading the wall…</div>
           <div class="toast" id="toast" role="status" hidden></div>
         </div>
+        <div class="typepick" id="typePick" role="dialog" aria-labelledby="tpTitle" hidden>
+          <div class="tp-head"><b id="tpTitle">What type of hold is it?</b><span class="tp-guess" id="tpGuess"></span><button type="button" class="tp-x" id="tpClose" aria-label="Close">×</button></div>
+          <div class="tp-grid" id="tpGrid" role="group" aria-label="Hold types"></div>
+          <p class="tp-line" id="tpLine"></p>
+          <div class="tp-row">
+            <button type="button" class="btn primary" id="tpShow"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg><span id="tpShowTxt">Show how</span></button>
+            <button type="button" class="btn" id="tpClear" hidden>Use the guess</button>
+          </div>
+        </div>
         <div class="vbar" id="vbar" hidden>
           <button class="btn icon" id="vPlay" aria-label="Pause video"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4.5h4v15H6zM14 4.5h4v15h-4z"/></svg></button>
           <input type="range" id="vSeek" min="0" max="1000" value="0" aria-label="Position in the clip">
@@ -213,6 +271,7 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
             <h3 id="capTitle">Pick a route colour</h3>
             <p class="sub" id="capSub">Tap one hold of your route on the photo.</p>
             <ul class="tips" id="capTips"></ul>
+            <div class="how-row" id="capHow" hidden></div>
           </div>
           <div class="legend" aria-label="Legend">
             <span><i class="dot" style="background:var(--lh)"></i>Left hand</span>
@@ -270,6 +329,7 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
             <div class="seg" id="tools" role="group" aria-labelledby="toolLbl">
               <button data-mode="add" aria-pressed="false" disabled>Add hold</button>
               <button data-mode="remove" aria-pressed="false" disabled>Remove hold</button>
+              <button data-mode="type" aria-pressed="false" disabled>Hold type</button>
               <button data-mode="start" aria-pressed="false" disabled>Set start</button>
               <button data-mode="top" aria-pressed="false" disabled>Set top</button>
             </div>
@@ -398,20 +458,14 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
             <li>Keep your hips close to the wall. Turn your knees out on vertical walls; on steep walls, twist one hip into the wall.</li>
             <li>The best handholds sit roughly above your feet.</li>
             <li><b>Barn door:</b> when your hand and foot are both on one side, your body swings open like a door. Fix it with a <b>flag</b>: hold the free leg out the other way as a counterweight.</li>
+            <li>Move like a climber: before a hand moves, shift your hips over your feet and drive up with your legs, then reach. On a foot move, place the foot first, then move your weight onto it.</li>
             <li>Moves to learn next: drop knee, back-step, stemming, mantle, heel hook, toe hook.</li>
           </ul>
         </article>
-        <article class="lcard">
-          <h2 class="tape">Hand holds</h2>
-          <dl class="holds">
-            <dt>Jug</dt><dd>Big and deep. Wrap your fingers over it. A place to rest.</dd>
-            <dt>Edge</dt><dd>A flat lip. Open hand or half crimp.</dd>
-            <dt>Crimp</dt><dd>A small edge for your fingertips. Use an open or half crimp. The full crimp (thumb over your index finger) is strongest but hardest on fingers.</dd>
-            <dt>Sloper</dt><dd>Round with no lip. Open hand, as much skin on it as you can, and keep your body below it.</dd>
-            <dt>Pinch</dt><dd>Squeeze between thumb and fingers. Grab the width that fits your hand.</dd>
-            <dt>Pocket</dt><dd>A hole. Put in your strongest fingers, usually middle and ring.</dd>
-            <dt>Sidepull</dt><dd>Faces sideways. Pull across and lean away from it. Underclings face down (palm up); gastons push outward like opening a sliding door.</dd>
-          </dl>
+        <article class="lcard wide">
+          <h2 class="tape">Hold types, and how to use them</h2>
+          <p>Each type asks for a different grip and body position. Tap <b>Show me</b> to watch the climber use it. On your wall, choose <b>Hold type</b> and tap a hold to tell Rocksane what it is.</p>
+          <div class="hguide" id="holdGuide"></div>
         </article>
         <article class="lcard">
           <h2 class="tape">Fall safely</h2>
@@ -450,11 +504,32 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
           <li><a href="https://warwick.ac.uk/services/sport/blog/feed/bouldering-for-beginners/" target="_blank" rel="noopener">Warwick Sport: Bouldering for beginners</a></li>
           <li><a href="https://boulderbox.in/blog/a-beginners-guide-to-climbing-at-boulderbox" target="_blank" rel="noopener">BoulderBox: A beginner's guide</a></li>
           <li><a href="https://blog.movementgyms.com/how-to-use-common-climbing-holds" target="_blank" rel="noopener">Movement: How to use common climbing holds</a></li>
+          <li><a href="https://atomikclimbingholds.com/how-to-use-the-nine-basic-types-of-climbing-handholds" target="_blank" rel="noopener">Atomik: How to use the basic types of climbing handholds</a></li>
+          <li><a href="https://www.climbing.com/skills/how-to-climb-practice-slopers/" target="_blank" rel="noopener">Climbing: How to climb slopers</a></li>
+          <li><a href="https://www.climbing.com/skills/climbing-techniques-how-to-undercling/" target="_blank" rel="noopener">Climbing: How to undercling</a></li>
+          <li><a href="https://earthtreksclimbing.com/what-is-a-gaston-in-climbing/" target="_blank" rel="noopener">Earth Treks: What is a gaston</a></li>
+          <li><a href="https://pubmed.ncbi.nlm.nih.gov/21917019/" target="_blank" rel="noopener">Zampagni et al.: Control of the centre of mass in expert climbers</a></li>
+          <li><a href="https://www.jneurosci.org/content/5/7/1688" target="_blank" rel="noopener">Flash and Hogan: The coordination of arm movements (minimum-jerk model)</a></li>
           <li><a href="https://www.vdiffclimbing.com/boulder-basics/" target="_blank" rel="noopener">VDiff Climbing: Bouldering basics and safety</a></li>
         </ol>
       </div>
     </section>
   </main>
+  <div class="demo" id="demo" hidden>
+    <div class="demo-card" role="dialog" aria-modal="true" aria-labelledby="demoTitle">
+      <div class="demo-head"><span id="demoIcon"></span><h2 id="demoTitle">Technique</h2><button type="button" class="btn icon" id="demoClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="demo-stage" id="demoStage"><canvas id="demoCv" role="img" aria-label="The climber shows the technique on a small wall"></canvas></div>
+      <p class="demo-cap" id="demoCap" aria-live="polite"></p>
+      <div class="demo-ctl">
+        <button type="button" class="btn icon" id="demoPrev" aria-label="Previous step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button type="button" class="btn primary" id="demoPlay"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4.5h4v15H6zM14 4.5h4v15h-4z"/></svg><span>Pause</span></button>
+        <button type="button" class="btn icon" id="demoNext" aria-label="Next step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+        <span class="step-count" id="demoStep"></span>
+      </div>
+      <ul class="tips" id="demoTips"></ul>
+      <div class="demo-types" id="demoTypes" role="group" aria-label="Other hold types"></div>
+    </div>
+  </div>
 </div>
 <script>
 /* Hold-vs-wall vision core. Self-contained so it can run in a Web Worker.
@@ -932,7 +1007,14 @@ function solveBeta(holds,o){
      move harder; slabs put the weight on the feet and allow high steps. */
   const ang=o.angle||0,steep=Math.max(0,Math.min(1,ang/45)),slab=Math.max(0,Math.min(1,-ang/20));
   const GAP=(0.7-0.2*steep)*H,UNDER=(0.3-0.1*steep-0.1*slab)*H,HANDK=1+0.5*steep-0.3*slab;
-  const pts=holds.map(h=>({X:h.X,Y:h.Y,r:h.r,kind:'hold',id:h.id}));
+  /* Hold types the user set (jug, crimp, sloper...). Poorer holds cost more
+     to use, as a hand (HQ) or a foot (FQ), and some ask for a body position:
+     slopers on a straight arm with the hips below, underclings at waist to
+     chest height, sidepulls with the hips off to the side (lean away),
+     gastons close to the chest; pockets and crimps want both feet on. */
+  const HQ={jug:0,crimp:0.35,sloper:0.45,pinch:0.3,pocket:0.4,sidepull:0.25,gaston:0.45,undercling:0.35,volume:0.4};
+  const FQ={jug:0,crimp:0.15,sloper:0.35,pinch:0.2,pocket:0.25,sidepull:0.15,gaston:0.15,undercling:0.25,volume:0};
+  const pts=holds.map(h=>({X:h.X,Y:h.Y,r:h.r,kind:'hold',id:h.id,type:HQ[h.type]!=null?h.type:null}));
   const nHold=pts.length;
   if(nHold<2) return {ok:false,reason:'few'};
   let top=-1;
@@ -1008,6 +1090,17 @@ function solveBeta(holds,o){
         const off=Math.abs(best[0]-fcx); if(off>0.2*H) cost+=sq((off-0.2*H)/(0.15*H));
         if(A.X>best[0]+0.2*H) cost+=sq((A.X-best[0]-0.2*H)/(0.12*H));
         if(B.X<best[0]-0.2*H) cost+=sq((best[0]-0.2*H-B.X)/(0.12*H));
+        for(let i=0;i<2;i++){
+          const Hd=i?B:A,ty=Hd.type;
+          if(i===1&&lh===rh) break;
+          if(!ty) continue;
+          const v=Hd.Y-(best[1]+TORSO),off=Math.abs(Hd.X-best[0]);
+          if(ty==='sloper'){ if(st[i]<0.85) cost+=0.8*sq((0.85-st[i])/0.25); }
+          else if(ty==='undercling'){ if(v>0) cost+=sq(v/(0.12*H)); else if(v<-0.38*H) cost+=sq((-0.38*H-v)/(0.12*H)); }
+          else if(ty==='sidepull'){ if(off<0.12*H) cost+=0.8*sq((0.12*H-off)/(0.08*H)); }
+          else if(ty==='gaston'){ if(off>0.2*H) cost+=0.6*sq((off-0.2*H)/(0.1*H)); if(v>0.15*H) cost+=sq((v-0.15*H)/(0.12*H)); }
+          else if((ty==='pocket'||ty==='crimp')&&nf<2) cost+=0.6;
+        }
         res={C:best,cost,st};
       }
     }
@@ -1052,7 +1145,7 @@ function solveBeta(holds,o){
   }
   pairs.sort((p,q)=>p[2]-q[2]);
 
-  const MAX=o.maxExpand||(o.feet==='open'?16000:26000);
+  const MAX=o.maxExpand||(o.feet==='open'?22000:26000);
   /* Hands never cross and feet never cross, in every pass. strict: feet stay
      well below the hands (0.5H) and below the hips, hands go at least 0.45H
      above the feet. relaxed: feet 0.15H below the hands, high steps allowed
@@ -1106,6 +1199,7 @@ function solveBeta(holds,o){
           let pen=0.8*(d/LEG)*(d/LEG);
           if(nl>=0&&nr>=0&&nl!==nr&&pts[nl].X>pts[nr].X+0.03*H) continue; // feet never cross
           if(p.kind==='smear') pen+=0.8;
+          if(p.type) pen+=FQ[p.type];
           if(t===other) pen+=p.r>=7?0.6:2.0;
           if(cur>=0&&!isFloor(cur)&&p.Y<pts[cur].Y-0.06*H) pen+=0.6;
           add(n.lh,n.rh,nl,nr,n.g+0.5+pen,ni,{limb,from:cur,to:t});
@@ -1125,7 +1219,7 @@ function solveBeta(holds,o){
           if(p.Y<maxFY+handGap) continue;
           if(Math.hypot(p.X-C[0],p.Y-C[1])>TORSO+ARMX+0.3*H) continue;
           const nl=limb==='lh'?t:n.lh,nr=limb==='rh'?t:n.rh;
-          let pen=0;
+          let pen=p.type?HQ[p.type]:0;
           if(nl!==nr&&pts[nl].X>pts[nr].X+0.02*H) continue; // hands never cross
           if(t===other){ if(t!==top&&p.r<4) continue; if(t!==top) pen+=p.r>=7?0.6:1.5; }
           if(p.Y<pts[cur].Y-0.05*H) pen+=0.8;
@@ -1167,19 +1261,27 @@ function solveBeta(holds,o){
   if(!r||!r.ok){ ARMX=1.06*ARM; memo.clear(); const t=search(false,pairs,MAX); if(t) t.stretch=true; if(better(t)) r=t; }
   if(!r) return {ok:false,reason:'nostart',H};
   return {ok:r.ok,reason:r.ok?'':'stuck',strict:r.strict,stretch:!!r.stretch,top,H,TORSO,ARM,LEG,angle:ang,expanded:r.expanded,
-    pts:pts.map(p=>({X:p.X,Y:p.Y,r:p.r,kind:p.kind,id:p.id})),
+    pts:pts.map(p=>({X:p.X,Y:p.Y,r:p.r,kind:p.kind,id:p.id,type:p.type||null})),
     steps:r.chain.map(n=>({lh:n.lh,rh:n.rh,lf:n.lf,rf:n.rf,C:n.pose.C,st:n.pose.st,move:n.move,g:n.g}))};
 }
 
 /* Turns solver output into numbered holds, captions and coaching tips. */
+/* A first guess of the hold type from its size and shape in the picture.
+   Size alone can't tell a jug from a sloper, so the user can set the real
+   type with the Hold type tool; a set type always wins. */
+function guessType(h){
+  if(!h) return null;
+  const d=2*h.rCm,el=h.elong||1,vertical=Math.abs(Math.sin(h.angle||0))>0.7;
+  if(d>=30) return 'volume';
+  if(el>2.2) return vertical?'sidepull':'crimp';
+  if(d<12) return 'crimp';
+  if(el>1.6&&vertical) return 'pinch';
+  return 'jug';
+}
 function holdKind(h){
   if(!h) return null;
-  const d=2*h.rCm,vertical=Math.abs(Math.sin(h.angle))>0.7;
-  if(d>=30) return {name:'volume or big sloper',grip:'Big rounded shape: open hand or palm, and keep your body under it. Great to stand on later.'};
-  if(h.elong>2.2) return vertical?{name:'sidepull or pinch',grip:'Long and upright: grip the side and lean away, or pinch it with your thumb on the far side.'}:{name:'edge or rail',grip:'Long and flat: grip along the top lip with an open hand or half crimp.'};
-  if(d<7) return {name:'small crimp',grip:'Small hold: half crimp on your fingertips and push hard with your feet to take weight off your fingers.'};
-  if(d<14) return {name:'edge or small pinch',grip:'Mid-size hold: try an open hand first, half crimp if it feels thin.'};
-  return {name:'jug or sloper',grip:'Big hold: wrap your fingers over the top. If it feels round, open your hand and keep your body below it.'};
+  const type=h.type&&HOLD_TYPES[h.type]?h.type:guessType(h),T=HOLD_TYPES[type];
+  return {type,set:!!h.type,name:T.name.toLowerCase(),grip:T.grip,body:T.body};
 }
 function buildBeta(res,meta){
   const {steps,pts,top,H}=res,ang=res.angle||0;
@@ -1196,17 +1298,20 @@ function buildBeta(res,meta){
   const out=[];
   const posOf=(s)=>({lh:[pts[s.lh].X,pts[s.lh].Y],rh:[pts[s.rh].X,pts[s.rh].Y],lf:s.lf>=0?[pts[s.lf].X,pts[s.lf].Y]:null,rf:s.rf>=0?[pts[s.rf].X,pts[s.rf].Y]:null,C:s.C});
   const s0=steps[0];
+  const art=w=>(/^[aeiou]/.test(w)?'an ':'a ')+w,lc=t=>t[0].toLowerCase()+t.slice(1),uniq=a=>a.filter((v,i)=>v&&a.indexOf(v)===i);
+  const k0=[holdKind(meta.get(pts[s0.lh].id)),s0.lh===s0.rh?null:holdKind(meta.get(pts[s0.rh].id))].filter(Boolean),k0set=k0.find(q=>q.set);
   out.push({type:'start',title:'Start position',
     sub:s0.lh===s0.rh?`Both hands on ${hn(s0.lh)}. Feet stay on the mat for now.`:`Left hand on ${hn(s0.lh)}, right hand on ${hn(s0.rh)}. Feet stay on the mat for now.`,
     tips:['Read the whole route first: start, top, the hardest move and any good rest.',
       ang>=10?`Overhang (${ang}°): keep your hips close to the wall and pull with your toes so your feet stay on. Hang on straight arms.`
       :ang<=-5?`Slab (${-ang}° back): trust your feet. Stand tall over your toes, hips away from the wall, hands mostly for balance.`
-      :'Hang on straight arms and keep your hips close to the wall.'],
+      :'Hang on straight arms and keep your hips close to the wall.'].concat(k0set?[`You start on ${art(k0set.name)}: ${lc(k0set.grip)}`]:[]),
+    how:uniq(k0.map(q=>q.type)),
     pos:posOf(s0),limb:null,cost:0,list:'Start: hands on '+(s0.lh===s0.rh?hn(s0.lh):`${hn(s0.lh)} + ${hn(s0.rh)}`)});
   let crux=-1,cruxC=-1;
   for(let i=1;i<steps.length;i++){
     const s=steps[i],p=steps[i-1],m=s.move,hand=m.limb[1]==='h';
-    const tips=[];let title,sub,ff=false;
+    const tips=[];let title,sub,ff=false,how=[];
     const cost=s.g-p.g;
     const from=m.from>=0?pts[m.from]:null,to=m.to>=0?pts[m.to]:null;
     if(m.to===-1){
@@ -1218,10 +1323,12 @@ function buildBeta(res,meta){
       const hold=meta.get(to.id),kind=holdKind(hold);
       const other=m.limb==='lh'?s.rh:s.lh;
       title=`${NAME[m.limb]} → ${hn(m.to)}`;
-      sub=`${dir(to.X-from.X,to.Y-from.Y)}${kind?' · looks like '+(/^[aeiou]/.test(kind.name)?'an ':'a ')+kind.name:''}`;
+      sub=`${dir(to.X-from.X,to.Y-from.Y)}${kind?(kind.set?' · '+kind.name:' · looks like '+art(kind.name)):''}`;
+      if(kind) how=[kind.type];
       if(m.to===res.top&&other===res.top){ tips.push('Match the top hold with both hands and hold it still. That is the send.'); tips.push('Climb down if you can, or drop onto the mat with bent knees.'); }
       else{
         if(m.to===res.top) tips.push('Top hold! Bring your other hand across to match it.');
+        if(kind&&kind.set) tips.push(`${HOLD_TYPES[kind.type].name}: ${lc(kind.grip)} ${kind.body}`);
         const supports=[pts[other]];
         if(s.lf>=0) supports.push(pts[s.lf]); if(s.rf>=0) supports.push(pts[s.rf]);
         const C=p.C,sideT=Math.sign(to.X-C[0]);
@@ -1243,7 +1350,7 @@ function buildBeta(res,meta){
         const sameFoot=m.limb==='lh'?s.lf:s.rf,sideW=m.limb==='lh'?'left':'right',otherW=m.limb==='lh'?'right':'left';
         if(tips.length<2&&sameFoot>=0&&pts[sameFoot].kind!=='floor') tips.push(`Push through your ${sideW} foot and hang straight-armed off your ${otherW} hand as you reach.`);
         if(ang>=20&&steepN<2&&tips.length<2){ tips.push('On this steep wall, keep pulling with your toes as you move so your feet don\'t cut loose.'); steepN++; }
-        if(kind&&tips.length<2) tips.push(kind.grip);
+        if(kind&&!kind.set&&tips.length<2) tips.push(`Looks like ${art(kind.name)}: ${lc(kind.grip)}`);
       }
       if(cost>cruxC){ cruxC=cost; crux=out.length; }
     }else{
@@ -1251,9 +1358,11 @@ function buildBeta(res,meta){
       const fromFloor=from&&from.kind==='floor';
       title=to.kind==='smear'?`${NAME[m.limb]} → smear on the wall`:`${NAME[m.limb]} → ${hn(m.to)}`;
       sub=fromFloor?'Off the mat and onto the wall':(from?dir(to.X-from.X,to.Y-from.Y):'Back onto the wall');
-      if(kind&&!fromFloor) sub+=' · '+kind.name;
+      if(kind&&!fromFloor) sub+=' · '+(kind.set?kind.name:'looks like '+art(kind.name));
       if(fromFloor&&!out.some(o=>o.fromFloor)) tips.push('Step on with your toe and stand up through your leg. Don\'t pull up with your arms.');
       if(to.kind==='smear') tips.push('No foothold here: press the sole flat on the wall, heel low, and push into the wall.');
+      if(kind&&kind.set&&kind.type==='volume'){ tips.push('Stand on the volume\'s face with your sole pressed flat, then move your hips over it.'); how=['volume']; }
+      else if(kind&&kind.set&&kind.type==='sloper') tips.push('Sloping foothold: press the sole on it, heel low, and keep your weight right over it.');
       if(to.Y>p.C[1]-0.02*H) tips.push('High step: lift the foot, move your hip over it, then stand up.');
       const otherF=m.limb==='lf'?s.rf:s.lf;
       if(m.to===otherF) tips.push('Swap feet: slide one foot off as the other goes on.');
@@ -1261,15 +1370,141 @@ function buildBeta(res,meta){
       ff=fromFloor;
     }
     const lhH=meta.get(pts[s.lh].id),rhH=meta.get(pts[s.rh].id);
-    if(restN<2&&hand&&s.lf>=0&&s.rf>=0&&lhH&&rhH&&lhH.rCm>=8&&rhH.rCm>=8&&pts[s.lf].kind==='hold'&&pts[s.rf].kind==='hold'&&tips.length<3&&s.lh!==res.top){
+    /* a rest needs two big holds (or two the user marked as jugs or volumes) */
+    const good=h=>!!h&&(h.type?h.type==='jug'||h.type==='volume':h.rCm>=8);
+    if(restN<2&&hand&&s.lf>=0&&s.rf>=0&&good(lhH)&&good(rhH)&&pts[s.lf].kind==='hold'&&pts[s.rf].kind==='hold'&&tips.length<3&&s.lh!==res.top){
       tips.push('Good rest: hang on straight arms and shake out one hand at a time.'); restN++;
+      if(!how.includes('jug')&&(lhH.type==='jug'||rhH.type==='jug')) how.push('jug');
     }
-    out.push({type:'move',limb:m.limb,title,sub,tips:tips.slice(0,3),pos:posOf(s),cost,fromFloor:ff,list:title});
+    out.push({type:'move',limb:m.limb,title,sub,tips:tips.slice(0,3),how,reach:m.reach||0,pos:posOf(s),cost,fromFloor:ff,list:title});
   }
   if(crux>0) out[crux].crux=true;
   const hands=out.filter(o=>o.limb&&o.limb[1]==='h').length,feet=out.filter(o=>o.limb&&o.limb[1]==='f').length;
   return {steps:out,num,ok:res.ok,hands,feet,crux,res};
 }
+
+/* Hold types, their icons, and the animated technique examples.
+   Used by buildBeta() (tips) and app.js (Hold type tool, demo player, Learn
+   tab). Technique sources are listed in the Learn tab. */
+const HOLD_ORDER=['jug','crimp','sloper','pinch','pocket','sidepull','gaston','undercling','volume'];
+const HOLD_TYPES={
+  jug:{name:'Jug',grip:'Wrap all your fingers over the lip.',body:'A place to rest: hang on straight arms and shake out each hand.',
+    line:'Big and deep. Wrap your fingers over it and rest.'},
+  crimp:{name:'Crimp',grip:'Half crimp: fingertips on the edge, fingers bent, thumb beside your index finger.',body:'Push hard with your feet to take weight off your fingers, and move quickly.',
+    line:'A small edge for your fingertips. Feet do the work.'},
+  sloper:{name:'Sloper',grip:'Open hand, with as much skin on it as you can.',body:'Keep your arm straight and your hips low, under the hold. Swing your hips toward the next hold, then reach.',
+    line:'Round, with no lip. Open hand, hips low, move with a swing.'},
+  pinch:{name:'Pinch',grip:'Squeeze between your thumb and fingers.',body:'Keep your elbow low and your hips close to the wall.',
+    line:'Squeeze it between thumb and fingers.'},
+  pocket:{name:'Pocket',grip:'Put in your strongest fingers, usually middle and ring.',body:'Set both feet first and move slowly, so your fingers don\'t twist in the hole.',
+    line:'A hole. Strongest fingers in, feet set, slow moves.'},
+  sidepull:{name:'Sidepull',grip:'Grip the edge that faces sideways and pull it toward your body.',body:'Lean away from it and push your feet the other way.',
+    line:'Faces sideways. Pull it in and lean away.'},
+  gaston:{name:'Gaston',grip:'Thumb down and elbow out: push it away from your body, like opening a sliding door.',body:'Keep it near your chest and step your feet up high.',
+    line:'Faces away from you. Push it outward, elbow out.'},
+  undercling:{name:'Undercling',grip:'Palm up: pull up on the edge underneath.',body:'Step your feet up high and stand up until the hold is at your waist, then reach.',
+    line:'Faces down. Feet high, stand up, hold it at your waist.'},
+  volume:{name:'Volume',grip:'Press with an open palm, or grip its edges.',body:'Great to stand on: step onto it, move your hips over it and stand up.',
+    line:'A big shape on the wall. Use its edges, stand on its faces.'}
+};
+/* Icons in a 24 x 24 box: the hold's shape, and its darker gripping edge.
+   Sidepull, gaston and undercling are a jug turned to face sideways, toward
+   you, or down; `rot` turns the jug icon (radians). */
+const JUG_ICON={body:'M4 14c0-5 3.6-9 8-9s8 4 8 9c0 3-2 5-5 5H9c-3 0-5-2-5-5z',mark:'M6.6 11.4c1.2-3 3-4.3 5.4-4.3s4.2 1.3 5.4 4.3c-1.6-1-3.4-1.5-5.4-1.5s-3.8.5-5.4 1.5z'};
+const HOLD_ICON={
+  jug:JUG_ICON,
+  crimp:{body:'M3 10.6h18a1.9 1.9 0 0 1 0 3.8H3a1.9 1.9 0 0 1 0-3.8z',mark:'M3.2 10.6h17.6v1.3H3.2z'},
+  sloper:{body:'M3 17.2c0-6.2 4-10.7 9-10.7s9 4.5 9 10.7c0 .9-.7 1.3-1.6 1.3H4.6c-.9 0-1.6-.4-1.6-1.3z',mark:null},
+  pinch:{body:'M9.2 3.2h5.6a2.2 2.2 0 0 1 2.2 2.2v13.2a2.2 2.2 0 0 1-2.2 2.2H9.2A2.2 2.2 0 0 1 7 18.6V5.4a2.2 2.2 0 0 1 2.2-2.2z',mark:'M7 7.6h2v8.8H7zM15 7.6h2v8.8h-2z'},
+  pocket:{body:'M12 3.6a8.4 8.4 0 1 1 0 16.8a8.4 8.4 0 1 1 0-16.8z',mark:'M8.3 11.4a3.7 2.7 0 1 0 7.4 0a3.7 2.7 0 1 0-7.4 0z'},
+  sidepull:Object.assign({rot:Math.PI/2},JUG_ICON),
+  gaston:Object.assign({rot:-Math.PI/2},JUG_ICON),
+  undercling:Object.assign({rot:Math.PI},JUG_ICON),
+  volume:{body:'M2.5 20.5L12 3.5l9.5 17z',mark:'M12 3.5l9.5 17H12z'}
+};
+function holdIconSvg(type){
+  const ic=HOLD_ICON[type]; if(!ic) return '';
+  const t=ic.rot?` transform="rotate(${Math.round(ic.rot*180/Math.PI)} 12 12)"`:'';
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" class="hicon"><g${t}><path d="${ic.body}" fill="currentColor"/>${ic.mark?`<path class="mk" d="${ic.mark}"/>`:''}</g></svg>`;
+}
+/* Technique examples, in cm on a small wall section (x -108..108, floor at
+   y 0). A 170 cm climber; each key is a held position: hands lh/rh, feet
+   lf/rf (null = off the wall), hips C. Moving from one key to the next uses
+   the same timing as the route player: on a hand move the hips lead and the
+   hand follows, on a foot move the foot goes first and the hips follow.
+   sag: the hips swing through low, like a pendulum. shake: that hand hangs
+   free and shakes out. force: an arrow showing which way to pull or push.
+   Holds: t type (or 'foot'), x y centre, s size in cm, face which way a
+   sidepull or gaston opens, main for the holds the example is about (they get
+   a name tag, beside them or lab:'below'). */
+const DEMOS={
+  jug:{title:'Rest on a jug',
+    holds:[{t:'jug',x:-16,y:240,s:15,main:1},{t:'jug',x:20,y:236,s:15,main:1},{t:'foot',x:-24,y:44},{t:'foot',x:24,y:48}],
+    keys:[
+      {lh:[-16,240],rh:[20,236],lf:[-24,44],rf:[24,48],C:[2,114],cap:'Jugs are the biggest holds. Wrap your fingers over the lip and hang on straight arms, so your skeleton takes the weight.'},
+      {lh:[-40,100],rh:[20,236],lf:[-24,44],rf:[24,48],C:[8,112],shake:'lh',cap:'Drop one arm below your waist and shake it out. Breathe.'},
+      {lh:[-16,240],rh:[20,236],lf:[-24,44],rf:[24,48],C:[2,114],cap:'Put it back and hang straight-armed again.'},
+      {lh:[-16,240],rh:[44,102],lf:[-24,44],rf:[24,48],C:[-4,112],shake:'rh',cap:'Then shake out the other arm.'},
+      {lh:[-16,240],rh:[20,236],lf:[-24,44],rf:[24,48],C:[2,114],cap:'Rested. Climb on before your feet get tired.'}]},
+  crimp:{title:'Crimps: let your feet do the work',
+    holds:[{t:'crimp',x:-34,y:214,s:10,main:1},{t:'crimp',x:14,y:222,s:10,main:1},{t:'crimp',x:-14,y:262,s:10,main:1},{t:'foot',x:-24,y:44},{t:'foot',x:24,y:48},{t:'foot',x:-26,y:92}],
+    keys:[
+      {lh:[-34,214],rh:[14,222],lf:[-24,44],rf:[24,48],C:[0,108],cap:'Crimps are small edges. Half crimp: fingertips on the edge, fingers bent, thumb beside your index finger.'},
+      {lh:[-34,214],rh:[14,222],lf:[-26,92],rf:[24,48],C:[-6,112],cap:'Feet first. Step up onto a higher foothold.',force:[[-26,104],[-26,84]]},
+      {lh:[-34,214],rh:[14,222],lf:[-26,92],rf:[24,48],C:[-10,140],cap:'Stand up through that foot. Your legs take the weight off your fingers.',force:[[-26,104],[-26,84]]},
+      {lh:[-14,262],rh:[14,222],lf:[-26,92],rf:[24,48],C:[-10,140],move:700,cap:'Reach quickly and precisely. Small holds don\'t reward slow, hesitant moves.'}]},
+  sloper:{title:'Slopers: hips low, swing through',
+    holds:[{t:'sloper',x:-30,y:222,s:18,main:1},{t:'sloper',x:10,y:216,s:16,main:1},{t:'sloper',x:40,y:246,s:18,main:1},{t:'foot',x:-22,y:42},{t:'foot',x:24,y:44}],
+    keys:[
+      {lh:[-30,222],rh:[10,216],lf:[-22,42],rf:[24,44],C:[-8,100],cap:'Slopers are round, with no lip. Open your hand and get as much skin on the hold as you can.'},
+      {lh:[-30,222],rh:[10,216],lf:[-22,42],rf:[24,44],C:[-22,96],move:800,cap:'Keep your arms straight and your hips low, under the holds.'},
+      {lh:[-30,222],rh:[10,216],lf:[-22,42],rf:[24,44],C:[12,118],sag:9,move:1000,hold:250,cap:'Swing your hips toward the next sloper…',force:[[-14,104],[20,128]]},
+      {lh:[-30,222],rh:[40,246],lf:[-22,42],rf:[24,44],C:[14,120],move:520,hold:700,cap:'…and catch it as the swing peaks, fingers open.'},
+      {lh:[-30,222],rh:[40,246],lf:[-22,42],rf:[24,44],C:[14,114],cap:'Settle low under both holds, arms straight. Smooth moves keep you on.'}]},
+  pinch:{title:'Pinches: squeeze with your thumb',
+    holds:[{t:'pinch',x:-24,y:226,s:14,main:1},{t:'pinch',x:30,y:218,s:14,main:1},{t:'pinch',x:20,y:262,s:14,main:1},{t:'foot',x:-24,y:44},{t:'foot',x:24,y:46},{t:'foot',x:26,y:90}],
+    keys:[
+      {lh:[-24,226],rh:[30,218],lf:[-24,44],rf:[24,46],C:[0,112],cap:'Pinches: squeeze between your thumb and fingers. Grab where the width fits your hand.'},
+      {lh:[-24,226],rh:[30,218],lf:[-24,44],rf:[26,90],C:[6,116],cap:'Keep your elbows low and step a foot up.'},
+      {lh:[-24,226],rh:[30,218],lf:[-24,44],rf:[26,90],C:[8,136],cap:'Stand up on it, squeezing all the way.'},
+      {lh:[-24,226],rh:[20,262],lf:[-24,44],rf:[26,90],C:[8,136],cap:'Reach to the next pinch with your thumb ready to wrap it.'}]},
+  pocket:{title:'Pockets: strong fingers, still feet',
+    holds:[{t:'pocket',x:-32,y:222,s:12,main:1},{t:'jug',x:22,y:222,s:14},{t:'pocket',x:12,y:262,s:12,main:1},{t:'foot',x:-24,y:44},{t:'foot',x:24,y:46},{t:'foot',x:-24,y:82}],
+    keys:[
+      {lh:[-32,222],rh:[22,222],lf:[-24,44],rf:[24,46],C:[0,112],cap:'Pockets are holes. Use your strongest fingers, usually middle and ring.'},
+      {lh:[-32,222],rh:[22,222],lf:[-24,82],rf:[24,46],C:[-6,116],cap:'Set your feet first, both on, before a hand lets go.'},
+      {lh:[-32,222],rh:[22,222],lf:[-24,82],rf:[24,46],C:[-6,134],cap:'Stand up smoothly. Keep the pocket hand still so your fingers don\'t twist.'},
+      {lh:[-32,222],rh:[12,262],lf:[-24,82],rf:[24,46],C:[-6,134],move:1300,cap:'Reach slowly and place your fingers precisely: a static move.'}]},
+  sidepull:{title:'Sidepulls: lean away',
+    holds:[{t:'sidepull',x:-56,y:186,s:16,face:'left',main:1},{t:'jug',x:10,y:210,s:14},{t:'jug',x:34,y:252,s:14},{t:'foot',x:-30,y:46},{t:'foot',x:10,y:44}],
+    keys:[
+      {lh:[-56,186],rh:[10,210],lf:[-30,46],rf:[10,44],C:[-8,112],cap:'A sidepull faces sideways. Grip its edge and pull it toward your body.'},
+      {lh:[-56,186],rh:[10,210],lf:[-30,46],rf:[10,44],C:[16,116],move:1100,cap:'Lean away from it and push your feet the other way. The opposition holds you on.',force:[[-48,186],[-22,186]]},
+      {lh:[-56,186],rh:[34,252],lf:[-30,46],rf:[10,44],C:[18,124],cap:'Now the other hand can reach far, held on by the lean.',force:[[-48,186],[-22,186]]}]},
+  gaston:{title:'Gastons: push it open',
+    holds:[{t:'gaston',x:24,y:190,s:15,face:'left',main:1,lab:'below'},{t:'jug',x:-30,y:214,s:14},{t:'jug',x:-20,y:262,s:14},{t:'foot',x:-22,y:44},{t:'foot',x:22,y:46},{t:'foot',x:24,y:88}],
+    keys:[
+      {lh:[-30,214],rh:[24,190],lf:[-22,44],rf:[22,46],C:[-4,116],cap:'A gaston faces away from your body. Thumb down, elbow out, and push it outward, like opening a sliding door.',force:[[30,182],[54,182]]},
+      {lh:[-30,214],rh:[24,190],lf:[-22,44],rf:[24,88],C:[2,120],cap:'Keep pushing out and step a foot up high.',force:[[30,182],[54,182]]},
+      {lh:[-30,214],rh:[24,190],lf:[-22,44],rf:[24,88],C:[4,138],cap:'Stand up. The push gets stronger as the hold comes down to your chest.',force:[[30,182],[54,182]]},
+      {lh:[-20,262],rh:[24,190],lf:[-22,44],rf:[24,88],C:[4,138],cap:'Then reach high with the other hand.'}]},
+  undercling:{title:'Underclings: feet high, stand up',
+    holds:[{t:'undercling',x:30,y:150,s:15,main:1,lab:'below'},{t:'jug',x:-28,y:212,s:14},{t:'jug',x:-14,y:276,s:14},{t:'foot',x:-22,y:44},{t:'foot',x:22,y:46},{t:'foot',x:-22,y:96},{t:'foot',x:26,y:104}],
+    keys:[
+      {lh:[-28,212],rh:[30,150],lf:[-22,44],rf:[22,46],C:[0,112],cap:'An undercling faces down. Palm up, and pull up on it.',force:[[40,142],[40,166]]},
+      {lh:[-28,212],rh:[30,150],lf:[-22,96],rf:[22,46],C:[-4,118],cap:'Walk your feet up high…'},
+      {lh:[-28,212],rh:[30,150],lf:[-22,96],rf:[26,104],C:[2,122],cap:'…both of them.'},
+      {lh:[-28,212],rh:[30,150],lf:[-22,96],rf:[26,104],C:[4,160],move:1100,cap:'Stand up until the hold is at your waist and your arm is almost straight.',force:[[40,142],[40,166]]},
+      {lh:[-14,276],rh:[30,150],lf:[-22,96],rf:[26,104],C:[4,160],cap:'Now you can reach far above you.'}]},
+  volume:{title:'Volumes: stand on them',
+    holds:[{t:'volume',x:8,y:96,s:46,main:1},{t:'jug',x:-28,y:226,s:14},{t:'jug',x:34,y:236,s:14},{t:'jug',x:-12,y:272,s:14},{t:'foot',x:-24,y:44},{t:'foot',x:26,y:46}],
+    keys:[
+      {lh:[-28,226],rh:[34,236],lf:[-24,44],rf:[26,46],C:[0,116],cap:'Volumes are big shapes bolted to the wall. Grip their edges, and stand on their faces.'},
+      {lh:[-28,226],rh:[34,236],lf:[-24,44],rf:[22,98],C:[6,120],cap:'Step onto it with the sole pressed flat on its face.',force:[[22,112],[22,92]]},
+      {lh:[-28,226],rh:[34,236],lf:[-4,92],rf:[22,98],C:[8,124],cap:'Bring the other foot onto it too.'},
+      {lh:[-28,226],rh:[34,236],lf:[-4,92],rf:[22,98],C:[8,152],move:1100,cap:'Move your hips over it and stand up.'},
+      {lh:[-12,272],rh:[34,236],lf:[-4,92],rf:[22,98],C:[8,152],cap:'Now the next hold is easy to reach.'}]}
+};
 
 </script>
 <script>
@@ -1280,6 +1515,7 @@ const STANDALONE=true;
 const $=s=>document.querySelector(s);
 const MARKER='"Permanent Marker","Marker Felt",cursive';
 const LIMBCOL={lh:'#18a7e0',rh:'#ec3b74',lf:'#58b52b',rf:'#f59f00'};
+const LIMBS=['lh','rh','lf','rf'];
 const reduceMotion=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
 const store={get(k,d){try{const v=localStorage.getItem('betalens:'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem('betalens:'+k,JSON.stringify(v));}catch(e){}}};
 document.querySelectorAll('[data-only]').forEach(el=>{ el.hidden=(el.dataset.only==='standalone')!==STANDALONE; });
@@ -1331,12 +1567,12 @@ const veil=document.createElement('canvas'),maskCv=document.createElement('canva
 const gctx=grab.getContext('2d',{willReadFrequently:true});
 const video=document.createElement('video');
 video.muted=true; video.playsInline=true; video.setAttribute('playsinline',''); video.setAttribute('muted','');
-const newEdits=()=>({removed:[],confirmed:[],added:[],start:[],top:null,startT:[],topT:null});
+const newEdits=()=>({removed:[],confirmed:[],added:[],types:[],start:[],top:null,startT:[],topT:null});
 const S={src:null,token:0,lastStill:null,model:null,tol:5,showMask:false,suggest:[],wall:null,frameH:640,
   holds:[],edits:newEdits(),tracks:[],lost:[],nextTrack:1,shift:[0,0],mask:false,
-  beta:null,betaSnap:null,step:0,anim:null,playing:null,mode:'pick',markReturn:null,view:{dw:1,dh:1,dpr:1},
+  beta:null,betaSnap:null,step:0,anim:null,playing:null,navT:0,mode:'pick',markReturn:null,view:{dw:1,dh:1,dpr:1},
   heightCm:store.get('height',170),spanCm:store.get('span',0),angle:store.get('angle',0),wallM:4.2,userWallM:store.get('wallM',4.2),feet:store.get('feet','strict'),callout:false,cal:{floor:1,top:0,marked:false},
-  live:{raf:0,busy:false,last:0,stream:null,url:null,frames:0,fpsT:0,sig:'',sigT:0,solvedSig:'',solving:false,lastSug:0,statT:0,wake:null}};
+  live:{raf:0,busy:false,last:0,stream:null,url:null,frames:0,fpsT:0,sig:'',sigT:0,solvedSig:'',diffT:0,modelT:0,solving:false,lastSug:0,statT:0,wake:null}};
 window.__betaLens=S;
 const isMoving=()=>!!S.src&&(S.src.kind==='video'||S.src.kind==='live');
 const aspect=()=>S.src?S.src.w/S.src.h:1;
@@ -1394,7 +1630,7 @@ function makeSampleWall(){
 /* ---------- sources: sample, photo, recorded clip, live camera ---------- */
 function setSource(src,opt){
   opt=opt||{};
-  stopPlay();
+  stopPlay(); closeTypePick();
   if(!opt.keepVideo) stopMedia();
   S.src=src; S.token++;
   if(src.kind==='photo'||src.kind==='sample') S.lastStill=src;
@@ -1415,7 +1651,7 @@ function setSource(src,opt){
   fit(); renderChips(); updateStats(); renderBeta();
   if(opt.reveal!==false&&S.token>1){ const r=wrap.getBoundingClientRect(); if(r.top<0||r.top>window.innerHeight*0.5) wrap.scrollIntoView({block:'start',behavior:reduceMotion?'auto':'smooth'}); }
   if(isMoving()){
-    const L=S.live; Object.assign(L,{busy:false,last:0,sig:'',sigT:0,solvedSig:'',solving:false,lastSug:0,frames:0,fpsT:performance.now()});
+    const L=S.live; Object.assign(L,{busy:false,last:0,sig:'',sigT:0,solvedSig:'',diffT:0,modelT:performance.now(),solving:false,lastSug:0,frames:0,fpsT:performance.now()});
     cancelAnimationFrame(L.raf); L.raf=requestAnimationFrame(loop);
     if(S.model) setCaption('Reading the wall','Hold the phone steady for a second. The moves appear once the holds stop moving.',[]);
     else setCaption('Pick a route colour','Tap one hold of your route on the picture.',[]);
@@ -1461,7 +1697,7 @@ async function loadVideo(file){
   try{ await video.play(); }catch(e){}
   const ok=await waitVideo(); busy(false);
   if(!ok){ stopMedia(); toast('This clip could not be played here. Try a short MP4, or take a photo instead.'); return; }
-  setSource({kind:'video',el:video,w:video.videoWidth,h:video.videoHeight},{keepModel:true,keepVideo:true});
+  setSource({kind:'video',el:video,w:video.videoWidth,h:video.videoHeight},{keepModel:ownColour(),keepVideo:true});
   setVPlayIcon();
 }
 async function startCamera(){
@@ -1480,8 +1716,11 @@ async function startCamera(){
   try{ await video.play(); }catch(e){}
   const ok=await waitVideo(); busy(false);
   if(!ok){ stopMedia(); toast('The camera started but sent no picture. Try again.'); return; }
-  setSource({kind:'live',el:video,w:video.videoWidth,h:video.videoHeight},{keepModel:true,keepVideo:true});
+  setSource({kind:'live',el:video,w:video.videoWidth,h:video.videoHeight},{keepModel:ownColour(),keepVideo:true});
 }
+/* A colour picked on the user's own picture carries over to a new clip or
+   the camera (same wall); the sample wall's green does not. */
+function ownColour(){ return !!S.src&&S.src.kind!=='sample'; }
 function freeze(){
   if(!isMoving()||!video.videoWidth) return;
   const sw=video.videoWidth,sh=video.videoHeight,sc=Math.min(1,1600/Math.max(sw,sh));
@@ -1491,6 +1730,7 @@ function freeze(){
   for(const t of S.tracks){
     if(t.removed) E.removed.push({u:t.u,v:t.v});
     if(t.userOk) E.confirmed.push({u:t.u,v:t.v});
+    if(t.type) E.types.push({u:t.u,v:t.v,type:t.type});
     if(S.edits.startT.includes(t.id)) E.start.push({u:t.u,v:t.v});
     if(S.edits.topT===t.id) E.top={u:t.u,v:t.v};
   }
@@ -1504,7 +1744,7 @@ $('#fileUp').addEventListener('change',e=>{ loadFile(e.target.files[0]); e.targe
 $('#useSample').addEventListener('click',()=>setSource({kind:'sample',el:makeSampleWall(),w:600,h:900}));
 $('#goLive').addEventListener('click',startCamera);
 $('#vFreeze').addEventListener('click',freeze);
-$('#vStop').addEventListener('click',()=>{ stopMedia(); keepAwake(false); setSource(S.lastStill||{kind:'sample',el:makeSampleWall(),w:600,h:900},{keepModel:true}); });
+$('#vStop').addEventListener('click',()=>{ stopMedia(); keepAwake(false); const st=S.lastStill||{kind:'sample',el:makeSampleWall(),w:600,h:900}; setSource(st,{keepModel:st.kind!=='sample'}); });
 function setVPlayIcon(){
   const p=$('#vPlay'),paused=video.paused;
   p.setAttribute('aria-label',paused?'Play video':'Pause video');
@@ -1591,7 +1831,7 @@ function sameRoute(a,b){
   const win=Math.max(10,Math.min(28,3*Math.max(a.hueSd||0,b.hueSd||0))),r=(b.chroma||1)/(a.chroma||1);
   return hueGap(a.hue,b.hue)<=win&&r>0.55&&r<1.8;
 }
-function hasEdits(){ const E=S.edits; return !!(E.removed.length||E.confirmed.length||E.added.length||E.start.length||E.top||E.startT.length||E.topT!=null); }
+function hasEdits(){ const E=S.edits; return !!(E.removed.length||E.confirmed.length||E.added.length||E.types.length||E.start.length||E.top||E.startT.length||E.topT!=null); }
 /* A route colour was chosen (tap or chip). Start, top and hold changes belong
    to one route, so they are kept when the same colour is picked again and
    cleared only when the colour really changes. Afterwards a tap on the wall
@@ -1599,7 +1839,7 @@ function hasEdits(){ const E=S.edits; return !!(E.removed.length||E.confirmed.le
    the colour and change the path. */
 function setModel(m,quiet){
   const old=S.model,same=!!old&&sameRoute(old,m);
-  S.model=m;
+  S.model=m; S.live.modelT=performance.now();
   if(old&&!same&&hasEdits()){ S.edits=newEdits(); if(!quiet) toast('New route colour, so its start, top and hold changes were cleared.'); }
   renderChips();
   if(isMoving()){
@@ -1629,7 +1869,9 @@ async function sendLive(){
   L.busy=true; L.last=performance.now();
   let f;
   try{ f=grabFrame(video,400); }catch(e){ L.busy=false; return; }
-  const now=performance.now(),sug=!S.model&&now-L.lastSug>2500;
+  /* colour chips: often until a colour is picked, then now and then, so
+     another route's colour can still be chosen from a chip */
+  const now=performance.now(),sug=now-L.lastSug>(S.model?6000:2500);
   if(sug) L.lastSug=now;
   const r=await vision.call({t:'frame',tag:tok,buf:f.buf,w:f.w,h:f.h,model:S.model,tol:S.tol,mask:S.showMask&&!!S.model,pxPerCm:pxPerCmFor(f.h),refine:false,suggest:sug},[f.buf]);
   L.busy=false;
@@ -1644,7 +1886,7 @@ async function sendLive(){
 }
 /* A hold the user chose as start or top, and any hold they removed or kept. */
 const isPinned=t=>S.edits.startT.includes(t.id)||S.edits.topT===t.id;
-const isMarked=t=>isPinned(t)||!!t.removed||!!t.userOk;
+const isMarked=t=>isPinned(t)||!!t.removed||!!t.userOk||!!t.type;
 /* Follow holds between frames so they don't flicker: match each new blob to
    the nearest known hold, keep a running average, drop holds that vanish.
    Holds the user marked survive longer, and a hold that drops out is
@@ -1667,12 +1909,14 @@ function updateTracks(blobs,w,h){
   for(const t of T){
     if(t.m){ const c=t.m; t.u=t.pu+(c.u-t.pu)*0.7; t.v=t.pv+(c.v-t.pv)*0.7; t.rho=t.rho*0.7+c.rho*0.3; t.conf=t.conf*0.65+c.conf*0.35; t.elong=c.elong; t.angle=c.angle; t.hits++; t.miss=0; }
     else { t.u=t.pu; t.v=t.pv; t.miss++; }
-    t.status=t.conf>=0.5?'hold':t.conf>=0.33?'unsure':'rejected';
-    const life=isMarked(t)?30:t.hits>=4?7:2;
+    /* hysteresis: a hold near the threshold doesn't blink in and out */
+    const was=t.status;
+    t.status=t.conf>=0.5||(was==='hold'&&t.conf>=0.42)?'hold':t.conf>=0.33||(was==='unsure'&&t.conf>=0.28)?'unsure':'rejected';
+    const life=isMarked(t)?30:t.hits>=10&&nearEdge(t)?14:t.hits>=4?7:2;
     if(t.miss<=life&&t.u>-0.1&&t.u<1.1&&t.v>-0.1&&t.v<1.1) keep.push(t); else if(t.hits>=3) dropped.push(t);
   }
   const mk=(c,id,old)=>({id,u:c.u,v:c.v,rho:c.rho,conf:c.conf,elong:c.elong,angle:c.angle,hits:old?Math.max(3,Math.min(old.hits,6)):1,miss:0,
-    removed:old?old.removed:false,userOk:old?old.userOk:false,status:c.conf>=0.5?'hold':c.conf>=0.33?'unsure':'rejected'});
+    removed:old?old.removed:false,userOk:old?old.userOk:false,type:old?old.type||null:null,status:c.conf>=0.5?'hold':c.conf>=0.33?'unsure':'rejected'});
   for(const c of cand) if(!c.used){
     let bi=-1,bd=Infinity;
     for(let i=0;i<S.lost.length;i++){ const d=dist(S.lost[i],c); if(d<gate(S.lost[i],c)&&d<bd){ bd=d; bi=i; } }
@@ -1684,18 +1928,27 @@ function updateTracks(blobs,w,h){
     if(isMarked(t)){
       let tw=null,bd=Infinity;
       for(const k of keep){ if(isMarked(k)) continue; const d=dist(k,t); if(d<gate(k,t)&&d<bd){ bd=d; tw=k; } }
-      if(tw){ tw.id=t.id; tw.removed=!!t.removed; tw.userOk=!!t.userOk; tw.hits=Math.max(tw.hits,3); continue; }
+      if(tw){ tw.id=t.id; tw.removed=!!t.removed; tw.userOk=!!t.userOk; tw.type=t.type||null; tw.hits=Math.max(tw.hits,3); continue; }
     }
-    S.lost.push({id:t.id,u:t.u,v:t.v,rho:t.rho,removed:!!t.removed,userOk:!!t.userOk,hits:t.hits,t:now});
+    S.lost.push({id:t.id,u:t.u,v:t.v,rho:t.rho,removed:!!t.removed,userOk:!!t.userOk,type:t.type||null,hits:t.hits,t:now});
   }
   if(S.lost.length>80) S.lost.splice(0,S.lost.length-80);
   S.tracks=keep;
 }
+/* Plan when the followed holds have settled for 0.8 s. A shaky phone can
+   keep one hold blinking, so the first plan also comes 2 s after the colour
+   was picked, and a later re-plan when at least two holds changed for 2 s. */
 function checkLiveSolve(){
-  const L=S.live,act=activeHolds(),sig=act.map(t=>t.id).sort((p,q)=>p-q).join(','),now=performance.now();
+  const L=S.live,act=activeHolds(),ids=act.map(t=>t.id).sort((p,q)=>p-q),sig=ids.join(','),now=performance.now();
   if(sig!==L.sig){ L.sig=sig; L.sigT=now; }
-  if(S.playing||L.solving||act.length<2) return;
-  if(sig!==L.solvedSig&&now-L.sigT>800){ L.solvedSig=sig; solveNow(true); }
+  if(S.playing||L.solving||act.length<2||sig===L.solvedSig) return;
+  /* while the user steps through the moves, a re-plan would jump back to the start */
+  if(S.beta&&now-S.navT<10000) return;
+  const solved=new Set(L.solvedSig?L.solvedSig.split(',').map(Number):[]);
+  const diff=ids.filter(i=>!solved.has(i)).length+[...solved].filter(i=>!ids.includes(i)).length;
+  if(diff>=2){ if(!L.diffT) L.diffT=now; } else L.diffT=0;
+  const settled=now-L.sigT>800,first=!S.beta&&now-L.modelT>2000,big=!!L.diffT&&now-L.diffT>2000;
+  if(settled||first||big){ L.solvedSig=sig; L.diffT=0; solveNow(true); }
 }
 
 /* ---------- holds, edits ---------- */
@@ -1705,11 +1958,15 @@ function applyEdits(){
   S.holds=S.holds.filter(h=>!h.manual);
   for(const h of S.holds){ h.removed=E.removed.some(p=>nearPos(h,p)); h.userOk=E.confirmed.some(p=>nearPos(h,p)); }
   E.added.forEach((p,k)=>S.holds.push({id:5000+k,u:p.u,v:p.v,rho:p.rho,conf:1,status:'hold',manual:true,elong:1,angle:0}));
+  for(const h of S.holds){ const q=E.types.find(p=>nearPos(h,p)); h.type=q?q.type:null; }
 }
 const isActive=h=>!h.removed&&(h.manual||h.userOk||h.status==='hold');
 /* While moving, a chosen start or top hold stays in the plan through a few
    missed frames instead of flickering out and changing the path. */
-function currentHolds(){ return isMoving()?S.tracks.filter(t=>t.hits>=3&&(t.miss<=2||(t.miss<=12&&isPinned(t)))):S.holds; }
+/* A shaking phone moves holds at the edge of the view in and out of frame;
+   a well-followed hold there stays in the plan while it is briefly out. */
+const nearEdge=t=>t.u<0.06||t.u>0.94||t.v<0.06||t.v>0.94;
+function currentHolds(){ return isMoving()?S.tracks.filter(t=>t.hits>=3&&(t.miss<=(t.hits>=10?(nearEdge(t)?12:4):2)||(t.miss<=12&&isPinned(t)))):S.holds; }
 function onWall(h){ return h.v<=S.cal.floor+0.005&&h.v>=S.cal.top-0.02; }
 function activeHolds(){ return currentHolds().filter(h=>isActive(h)&&onWall(h)); }
 function isStart(h){ return isMoving()?S.edits.startT.includes(h.id):S.edits.start.some(p=>nearPos(h,p)); }
@@ -1719,6 +1976,8 @@ function hitHold(x,y,withRemoved){
   return best;
 }
 
+/* Size and shape of a hold in cm, and its type if the user set one. */
+function holdMeta(h){ return {rCm:h.rho/kU(),elong:h.elong||1,angle:h.angle||0,type:h.type||null}; }
 /* ---------- solving ---------- */
 let solveT=0;
 function solveSoon(){ if(isMoving()){ S.live.solvedSig=''; S.live.sigT=0; return; } clearTimeout(solveT); solveT=setTimeout(()=>solveNow(false),60); }
@@ -1731,7 +1990,7 @@ async function solveNow(live){
     return;
   }
   const k=kU(),a=aspect(),fl=S.cal.floor,ca=cosA();
-  const holds=act.map(h=>({id:h.id,X:h.u*a/k,Y:(fl-h.v)/k/ca,r:h.rho/k}));
+  const holds=act.map(h=>({id:h.id,X:h.u*a/k,Y:(fl-h.v)/k/ca,r:h.rho/k,type:h.type||null}));
   /* the hold the user chose, not just any hold nearby */
   const nearestId=p=>{ let b=null,bd=1e9; for(const h of act){ const d=Math.hypot((h.u-p.u)*a,h.v-p.v); if(d<bd){ bd=d; b=h; } } return b&&bd<Math.max(1.5*b.rho,0.02)?b.id:null; };
   const startIds=live?S.edits.startT.filter(id=>act.some(h=>h.id===id)):S.edits.start.map(nearestId).filter(x=>x!=null);
@@ -1755,7 +2014,7 @@ async function solveNow(live){
     setCaption('No starting position found','None of the low holds can be reached from the floor at your height. Use Set start to tap your start holds, or check Wall in view.',[]);
     return;
   }
-  const meta=new Map(act.map(h=>[h.id,{rCm:h.rho/kU(),elong:h.elong||1,angle:h.angle||0}]));
+  const meta=new Map(act.map(h=>[h.id,holdMeta(h)]));
   S.beta=buildBeta(res,meta); S.betaSnap=snap; S.step=0; S.anim=null;
   renderBeta(); showStep(0,false);
 }
@@ -1786,7 +2045,7 @@ function renderBeta(failRes){
     const t=document.createElement('span'); t.className='t'; t.textContent=s.list;
     bt.append(k,d,t);
     if(s.crux){ const c=document.createElement('span'); c.className='crux'; c.textContent='Crux'; bt.append(c); } else bt.append(document.createElement('span'));
-    bt.addEventListener('click',()=>{ stopPlay(); showStep(i,true); });
+    bt.addEventListener('click',()=>{ S.navT=performance.now(); stopPlay(); showStep(i,true); });
     li.append(bt); list.append(li);
   });
 }
@@ -1797,12 +2056,23 @@ function updateCount(){
   $('#next').disabled=!b||S.step>=b.steps.length-1;
   $('#play').disabled=!b;
 }
-function setCaption(title,sub,tips,crux){
+function setCaption(title,sub,tips,crux,how){
   const h=$('#capTitle'); h.textContent=title;
   if(crux){ const c=document.createElement('span'); c.className='crux'; c.textContent='Crux'; h.append(c); }
   $('#capSub').textContent=sub;
   const ul=$('#capTips'); ul.textContent='';
   for(const t of tips){ const li=document.createElement('li'); li.textContent=t; ul.append(li); }
+  /* a button to watch how to use the hold of this move */
+  const row=$('#capHow'); row.textContent='';
+  for(const ty of (how||[]).slice(0,2)) if(HOLD_TYPES[ty]) row.append(howButton(ty,`How to use ${artName(ty)}`));
+  row.hidden=!row.children.length;
+}
+const artName=ty=>{ const n=HOLD_TYPES[ty].name.toLowerCase(); return (/^[aeiou]/.test(n)?'an ':'a ')+n; };
+function howButton(ty,label){
+  const b=document.createElement('button'); b.type='button'; b.className='btn small';
+  b.innerHTML=holdIconSvg(ty); b.append(document.createTextNode(label));
+  b.addEventListener('click',()=>openDemo(ty,b));
+  return b;
 }
 function speak(text){
   if(!S.callout||!('speechSynthesis' in window)) return;
@@ -1811,10 +2081,13 @@ function speak(text){
 function showStep(i,animate){
   const b=S.beta; if(!b) return;
   i=Math.max(0,Math.min(b.steps.length-1,i));
-  const fromPos=S.anim?currentPos():b.steps[Math.min(S.step,b.steps.length-1)].pos;
+  const H=b.res.H,arm=0.96*(b.res.ARM||0.5*H);
+  /* a move started mid-move starts from what is on screen right now */
+  let fromPos=b.steps[Math.min(S.step,b.steps.length-1)].pos;
+  if(S.anim){ const c=currentPos(); fromPos={C:c.C,lh:c.lh,rh:c.rh,lf:c.lf,rf:c.rf,body:bodyFor(c,H,b.res.TORSO,arm)}; }
   S.step=i;
   const s=b.steps[i];
-  setCaption(s.title,s.sub,s.tips,s.crux);
+  setCaption(s.title,s.sub,s.tips,s.crux,s.how);
   const list=$('#moves'),items=list.children;
   for(let k=0;k<items.length;k++){
     const bt=items[k].firstChild;
@@ -1825,24 +2098,63 @@ function showStep(i,animate){
   }
   updateCount();
   if(animate) speak(s.title);
-  if(animate&&!reduceMotion){ S.anim={from:fromPos,to:s.pos,t0:performance.now(),dur:520}; if(!isMoving()) requestAnimationFrame(tick); }
+  if(animate&&!reduceMotion){
+    /* longer moves take longer: 0.65 to 1.15 s */
+    const dist=Math.max(...LIMBS.map(k=>{ const a=fromPos[k]||flagPos(k,fromPos.C,H),z=s.pos[k]||flagPos(k,s.pos.C,H); return Math.hypot(z[0]-a[0],z[1]-a[1]); }));
+    const dyn=(s.reach||0)>1;
+    S.anim={from:fromPos,to:s.pos,t0:performance.now(),dur:Math.max(650,Math.min(1150,560+5*dist)),opt:{H,dyn,bob:dyn?0.035*H:0}};
+    if(!isMoving()) requestAnimationFrame(tick);
+  }
   else { S.anim=null; if(!isMoving()) render(); }
 }
 function tick(){ if(!S.anim) return; render(); if(performance.now()-S.anim.t0<S.anim.dur) requestAnimationFrame(tick); else { S.anim=null; render(); } }
-function flagPos(limb,C){ const H=S.beta.res.H,sd=limb==='lf'?-1:1; return [C[0]+sd*0.4*H,C[1]-0.16*H]; }
-const lerp=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+function flagPos(limb,C,H){ const sd=limb==='lf'?-1:1; return [C[0]+sd*0.4*H,C[1]-0.16*H]; }
+/* Minimum-jerk timing: the smooth speed profile of human reaching (Flash and
+   Hogan, 1985). Starts and stops gently, fastest in the middle. */
+function ease(t){ t=t<0?0:t>1?1:t; return t*t*t*(10+t*(6*t-15)); }
+function sameP(a,b){ return a===b||(!!a&&!!b&&Math.abs(a[0]-b[0])<0.01&&Math.abs(a[1]-b[1])<0.01); }
+/* One move between two held positions, the way climbers are coached to move:
+   on a hand move the legs drive the hips up first and the hand follows on a
+   curved path, arriving last; on a foot move the foot lifts and goes first,
+   then the hips shift over it. o.sag swings the hips through low, like a
+   pendulum (slopers); o.dyn with o.bob is a deadpoint: the hips rise fast
+   and the hand catches the hold at the top of the rise. */
+function blendPose(from,to,t,o){
+  const H=o.H,moved=LIMBS.filter(k=>!sameP(from[k],to[k]));
+  const hand=moved.some(k=>k[1]==='h'),foot=moved.some(k=>k[1]==='f');
+  let hipT,limbT;
+  if(hand&&!foot){ hipT=ease(t/(o.dyn?0.55:0.7)); limbT=ease((t-(o.dyn?0.3:0.22))/(o.dyn?0.62:0.78)); }
+  else if(foot&&!hand){ limbT=ease(t/0.62); hipT=ease((t-0.3)/0.7); }
+  else { hipT=ease(t); limbT=hipT; }
+  const C=[from.C[0]+(to.C[0]-from.C[0])*hipT,from.C[1]+(to.C[1]-from.C[1])*hipT];
+  if(o.sag) C[1]-=o.sag*Math.sin(Math.PI*hipT);
+  if(o.bob) C[1]+=o.bob*Math.sin(Math.PI*ease(t));
+  const out={C,from,to,t:hipT};
+  for(const k of LIMBS){
+    if(!moved.includes(k)){ out[k]=to[k]; continue; }
+    if(!to[k]&&t>=1){ out[k]=null; continue; }
+    const A=from[k]||flagPos(k,from.C,H),B=to[k]||flagPos(k,to.C,H),dx=B[0]-A[0],dy=B[1]-A[1],len=Math.hypot(dx,dy);
+    let x=A[0]+dx*limbT,y=A[1]+dy*limbT;
+    if(len>1){
+      /* hands swing out, away from the body; feet lift off and come back in */
+      let nx=-dy/len,ny=dx/len;
+      if(nx*(x-C[0])+ny*(y-C[1])<0){ nx=-nx; ny=-ny; }
+      const hd=k[1]==='h',amp=Math.min(hd?0.05*H:0.035*H,(hd?0.14:0.18)*len)*Math.sin(Math.PI*limbT);
+      x+=nx*amp; y+=ny*amp+(hd?0:0.3*amp);
+    }
+    out[k]=[x,y];
+  }
+  return out;
+}
 function currentPos(){
   const s=S.beta.steps[S.step].pos;
   if(!S.anim) return s;
-  const {from,to,t0,dur}=S.anim;
-  let t=Math.min(1,(performance.now()-t0)/dur); t=t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+  const {from,to,t0,dur,opt}=S.anim,t=Math.min(1,(performance.now()-t0)/dur);
   if(t>=1&&isMoving()) S.anim=null;
-  const o={C:lerp(from.C,to.C,t),from,to,t};
-  for(const k of ['lh','rh','lf','rf']){ const a=from[k]||flagPos(k,from.C),b=to[k]||flagPos(k,to.C); o[k]=(!to[k]&&t>=1)?null:lerp(a,b,t); }
-  return o;
+  return blendPose(from,to,t,opt);
 }
-$('#prev').addEventListener('click',()=>{ stopPlay(); showStep(S.step-1,true); });
-$('#next').addEventListener('click',()=>{ stopPlay(); showStep(S.step+1,true); });
+$('#prev').addEventListener('click',()=>{ S.navT=performance.now(); stopPlay(); showStep(S.step-1,true); });
+$('#next').addEventListener('click',()=>{ S.navT=performance.now(); stopPlay(); showStep(S.step+1,true); });
 $('#play').addEventListener('click',()=>{ if(S.playing){ stopPlay(); return; } startPlay(); });
 function startPlay(){
   const b=S.beta; if(!b) return;
@@ -1857,10 +2169,10 @@ function setPlayBtn(on){
   p.querySelector('path').setAttribute('d',on?'M6 4.5h4v15H6zM14 4.5h4v15h-4z':'M7 4.5v15l13-7.5z');
 }
 document.addEventListener('keydown',e=>{
-  if($('#view-wall').hidden) return;
+  if($('#view-wall').hidden||!$('#demo').hidden) return;
   if(/INPUT|SELECT|TEXTAREA/.test((e.target&&e.target.tagName)||'')) return;
-  if(e.key==='ArrowRight'){ stopPlay(); showStep(S.step+1,true); e.preventDefault(); }
-  if(e.key==='ArrowLeft'){ stopPlay(); showStep(S.step-1,true); e.preventDefault(); }
+  if(e.key==='ArrowRight'){ S.navT=performance.now(); stopPlay(); showStep(S.step+1,true); e.preventDefault(); }
+  if(e.key==='ArrowLeft'){ S.navT=performance.now(); stopPlay(); showStep(S.step-1,true); e.preventDefault(); }
 });
 
 /* ---------- colour chips + controls ---------- */
@@ -1868,8 +2180,10 @@ const sameModel=(a,b)=>a===b||(!!a&&!!b&&a.achro===b.achro&&Math.abs(a.mean[0]-b
 function renderChips(){
   const box=$('#chips'); box.textContent='';
   const rank=m=>m.achro?2:/brown|beige/.test(m.name)?1:0;
-  const list=S.suggest.slice().sort((p,q)=>rank(p)-rank(q)||(q.count||0)-(p.count||0)).slice(0,7);
   const cur=S.model;
+  /* once a colour is picked, suggestions of that same colour would only be a
+     second chip with the same name */
+  const list=S.suggest.filter(m=>!cur||sameModel(m,cur)||!sameRoute(cur,m)).sort((p,q)=>rank(p)-rank(q)||(q.count||0)-(p.count||0)).slice(0,7);
   if(cur&&!list.some(m=>sameModel(m,cur))) list.unshift(cur);
   if(!list.length){ const p=document.createElement('p'); p.className='hint'; p.textContent=S.src?(isMoving()?'Looking for hold colours…':'No clear hold colours yet. Tap a hold on the picture.'):''; box.append(p); return; }
   for(const m of list){
@@ -1930,10 +2244,11 @@ feetEl.addEventListener('change',()=>{ S.feet=feetEl.value; store.set('feet',S.f
 $('#callout').addEventListener('change',e=>{ S.callout=e.target.checked; if(S.callout&&S.beta) speak(S.beta.steps[S.step].title); });
 /* Tapping the wall: first pick the colour, then choose a tool and tap a hold.
    The tools stay off until a colour is picked. */
-const TOOLS=['add','remove','start','top'];
+const TOOLS=['add','remove','type','start','top'];
 const MODEHINT={floor:'Tap where the wall meets the floor or mat.',walltop:'Now tap the top edge of the wall.',
   pick:'Tap one hold of your route to pick its colour.',
-  none:'Colour picked. To change a hold, choose Add hold, Remove hold, Set start or Set top, then tap the hold.',
+  none:'Colour picked. To change a hold, choose Add hold, Remove hold, Hold type, Set start or Set top, then tap the hold.',
+  type:'Tap a ringed hold and choose what type it is: jug, crimp, sloper and so on. The plan and the tips use it.',
   add:'Tap a spot where a hold was missed, a dashed amber hold to keep it, or a crossed-out hold to put it back.',
   remove:'Tap a ringed hold to take it out of the route.',
   start:'Tap one or two holds to start on, one for each hand. Tap a chosen hold again to unset it.',
@@ -1942,6 +2257,7 @@ function setMode(m){
   if(TOOLS.includes(m)&&!S.model) m='pick';
   if(m==='none'&&!S.model) m='pick';
   S.mode=m;
+  if(m!=='type') closeTypePick(true);
   document.querySelectorAll('.seg button').forEach(b=>{
     b.setAttribute('aria-pressed',String(b.dataset.mode===m));
     if(TOOLS.includes(b.dataset.mode)) b.disabled=!S.model;
@@ -1997,7 +2313,7 @@ cv.addEventListener('click',e=>{
     setMode(back||'none'); updateMarkUi(); toast('Wall marked'); render(); solveSoon(); return;
   }
   if(S.mode==='pick'||!S.model){ pickAt(u,v); return; }
-  if(S.mode==='none'){ nudgeTools(); toast('First choose Add hold, Remove hold, Set start or Set top.'); return; }
+  if(S.mode==='none'){ nudgeTools(); toast('First choose Add hold, Remove hold, Hold type, Set start or Set top.'); return; }
   const mv=isMoving(),E=S.edits;
   const changed=()=>{ if(!mv) applyEdits(); updateStats(); render(); solveSoon(); };
   if(S.mode==='add'){
@@ -2018,10 +2334,11 @@ cv.addEventListener('click',e=>{
   }
   const h=hitHold(x,y);
   if(!h||!isActive(h)){ toast(S.mode==='remove'?'Tap a ringed hold to remove it.':'Tap a ringed hold of your route.'); return; }
+  if(S.mode==='type'){ openTypePick(h); return; }
   if(S.mode==='remove'){
     unsetStart(h); unsetTop(h);
-    if(mv){ h.removed=true; h.userOk=false; }
-    else{ E.confirmed=E.confirmed.filter(p=>!nearPos(h,p)); if(h.manual) E.added=E.added.filter(p=>!nearPos(h,p)); else E.removed.push({u:h.u,v:h.v}); }
+    if(mv){ h.removed=true; h.userOk=false; h.type=null; }
+    else{ E.confirmed=E.confirmed.filter(p=>!nearPos(h,p)); E.types=E.types.filter(p=>!nearPos(h,p)); if(h.manual) E.added=E.added.filter(p=>!nearPos(h,p)); else E.removed.push({u:h.u,v:h.v}); }
     toast('Hold removed'); changed(); return;
   }
   if(S.mode==='start'){
@@ -2062,14 +2379,16 @@ function drift(){
   return n?[du/n,dv/n]:[0,0];
 }
 function cmPx(q,dr){ const k=kU(); return P(q[0]*k/aspect()+dr[0],S.cal.floor-q[1]*k*cosA()+dr[1]); }
-function tagAt(x,y,text,fill,ink){
-  ctx.font=`13px ${MARKER}`;
-  const w=ctx.measureText(text).width+9,h=17;
-  ctx.save(); ctx.translate(x,y); ctx.rotate(-0.06);
-  ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillRect(-w/2+1.2,-h/2+1.6,w,h);
-  ctx.fillStyle=fill; ctx.fillRect(-w/2,-h/2,w,h);
-  ctx.fillStyle=ink; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text,0,1);
-  ctx.restore();
+function tagAt(x,y,text,fill,ink,size,g){
+  size=size||13; g=g||ctx;
+  g.font=`${size}px ${MARKER}`;
+  const w=g.measureText(text).width+9*size/13,h=size+4;
+  g.save(); g.translate(x,y); g.rotate(-0.06);
+  g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(-w/2+1.2,-h/2+1.6,w,h);
+  g.fillStyle=fill; g.fillRect(-w/2,-h/2,w,h);
+  g.fillStyle=ink; g.textAlign='center'; g.textBaseline='middle'; g.fillText(text,0,1);
+  g.restore();
+  return w;
 }
 function render(){
   if(!S.src) return;
@@ -2131,6 +2450,14 @@ function render(){
     if(h.id===topId){ const ty=y-r-14; tagAt(x,ty<12?y+r+14:ty,'TOP','#ffd43b','#211c0a'); }
     const n=used.get(h.id); if(n!=null) tagAt(x+r*0.85+7,y-r*0.85-6,String(n),'#ffd43b','#211c0a');
     if(isStart(h)) tagAt(x-r-10,y,'S','#ffffff','#14181c');
+    /* the hold type: set ones always, guesses while the Hold type tool is on */
+    if(h.type) tagAt(x,y+r+12,HOLD_TYPES[h.type].name,'#ffffff','#14181c',11);
+    else if(S.mode==='type'){ const g=guessType(holdMeta(h)); if(g){ ctx.save(); ctx.globalAlpha=0.72; tagAt(x,y+r+12,HOLD_TYPES[g].name+'?','#dfe3e7','#14181c',11); ctx.restore(); } }
+  }
+  const ph=S.mode==='type'?typePickHold():null;
+  if(ph){
+    const [x,y]=P(ph.u,ph.v),r=ph.rho*dh+7;
+    ctx.beginPath(); ctx.arc(x,y,r,0,6.283); ctx.lineWidth=6; ctx.strokeStyle='rgba(0,0,0,.6)'; ctx.stroke(); ctx.lineWidth=3; ctx.strokeStyle='#ffd43b'; ctx.stroke();
   }
 }
 function ik(Pt,T,L1,L2,pick){
@@ -2147,8 +2474,6 @@ function ik(Pt,T,L1,L2,pick){
    with the toe on the foothold and the heel toward you. Each layer (arms at
    the back, then body, head on top) gets soft inner shading and a drop
    shadow, rendered once per pose into an offscreen sprite. */
-const figLayers={body:document.createElement('canvas'),arms:document.createElement('canvas'),head:document.createElement('canvas'),mask:document.createElement('canvas'),sprite:document.createElement('canvas')};
-let figKey='';
 const SKIN='#f5f5f2',SHOE='#2c3038',SHOE_RAND='#4a505b';
 function sizeCanvas(cv,w,h){ if(cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; } }
 function capsule(g,A,B,r1,r2){
@@ -2181,7 +2506,7 @@ function torsoPath(g,L,U){
 /* Fill the parts, darken the edges with an inner shadow cast by everything
    outside the outline (stronger on the lower right, light from the upper
    left), then draw surface details clipped to the shape. */
-function shadeLayer(cv,box,dpr,parts,soft,details){
+function shadeLayer(cv,M,box,dpr,parts,soft,details){
   const W=Math.max(1,Math.ceil(box.w*dpr)),Hh=Math.max(1,Math.ceil(box.h*dpr));
   sizeCanvas(cv,W,Hh);
   const g=cv.getContext('2d');
@@ -2189,7 +2514,7 @@ function shadeLayer(cv,box,dpr,parts,soft,details){
   const base=()=>g.setTransform(dpr,0,0,dpr,-box.x*dpr,-box.y*dpr);
   base();
   for(const pt of parts){ g.save(); g.fillStyle=pt.color||SKIN; g.beginPath(); pt.draw(g); g.fill(); g.restore(); base(); }
-  const M=figLayers.mask; sizeCanvas(M,W,Hh);
+  sizeCanvas(M,W,Hh);
   const m=M.getContext('2d');
   m.setTransform(1,0,0,1,0,0); m.globalCompositeOperation='source-over'; m.clearRect(0,0,W,Hh);
   m.fillStyle='#000'; m.fillRect(0,0,W,Hh);
@@ -2237,12 +2562,12 @@ function reachJoint(J,T,arm,H){
 const bodyMemo=new Map();
 function chooseBody(p,H,TORSO,arm){
   const lh=p.lh,rh=p.rh,C0=p.C,r1=v=>v?Math.round(v[0]*10)+','+Math.round(v[1]*10):'-';
-  const key=[H,TORSO,arm,r1(C0),r1(lh),r1(rh),r1(p.lf),r1(p.rf)].join('|');
+  const key=[H,TORSO,arm,r1(C0),r1(lh),r1(rh),r1(p.lf),r1(p.rf),p.fixHip?1:0].join('|');
   if(bodyMemo.has(key)) return bodyMemo.get(key);
   const sq=v=>v*v,hm=[(lh[0]+rh[0])/2,(lh[1]+rh[1])/2],matched=Math.hypot(lh[0]-rh[0],lh[1]-rh[1])<0.03*H;
   let footY=-Infinity,onMat=false;
   for(const f of [p.lf,p.rf]) if(f){ if(f[1]>footY) footY=f[1]; if(f[1]<1) onMat=true; }
-  const room=Math.max(0,Math.min(onMat?0.2*H:0.15*H,C0[1]-footY-0.22*H));
+  const room=p.fixHip?0:Math.max(0,Math.min(onMat?0.2*H:0.15*H,C0[1]-footY-0.22*H));
   const a0=Math.max(-0.35,Math.min(0.35,0.5*Math.atan2(hm[0]-C0[0],Math.max(0.3*H,hm[1]-C0[1]))));
   const cost=(drop,a)=>{
     const B=upperBody([C0[0],C0[1]-drop],a,H,TORSO),hd=B.head;
@@ -2292,17 +2617,15 @@ function chooseBody(p,H,TORSO,arm){
    the torso turns smoothly instead of flipping between solutions. A move
    started mid-animation blends from what was on screen at that moment. */
 function bodyFor(p,H,TORSO,arm){
+  if(p.body) return p.body;
   if(!p.from) return chooseBody(p,H,TORSO,arm);
   const a=bodyFor(p.from,H,TORSO,arm),b=bodyFor(p.to,H,TORSO,arm);
   return {drop:a.drop+(b.drop-a.drop)*p.t,lean:a.lean+(b.lean-a.lean)*p.t};
 }
-function drawClimber(){
-  const b=S.beta,H=b.res.H,TORSO=b.res.TORSO,step=b.steps[S.step],p=currentPos(),dr=drift();
-  const editing=TOOLS.includes(S.mode)||S.mode==='floor'||S.mode==='walltop',dpr=S.view.dpr,k=kU()*S.view.dh,U=v=>v*H*k;
-  const Q=q=>cmPx(q,dr);
-  /* drawn arm a touch shorter than the planner's reach; the shoulder lift covers the rest */
-  const arm=0.96*(b.res.ARM||0.5*H);
-  const bd=bodyFor(p,H,TORSO,arm),C=[p.C[0],p.C[1]-bd.drop],lean=bd.lean,B=upperBody(C,lean,H,TORSO),Sh=B.Sh;
+/* Joint positions for a pose (cm), mapped to the screen by Q. bd is the
+   body (hip sink and lean) from bodyFor() or a demo key. */
+function figureGeom(p,H,TORSO,arm,Q,bd){
+  const C=[p.C[0],p.C[1]-bd.drop],B=upperBody(C,bd.lean,H,TORSO),Sh=B.Sh;
   const hip={lf:[C[0]-0.07*H,C[1]],rf:[C[0]+0.07*H,C[1]]};
   const ends={},flagged={},J={},shoe={};
   for(const kk of ['lh','rh']){
@@ -2312,7 +2635,7 @@ function drawClimber(){
   }
   for(const kk of ['lf','rf']){
     let T=p[kk]; const side=kk==='lf'?-1:1;
-    if(!T){ T=flagPos(kk,p.C); flagged[kk]=true; }
+    if(!T){ T=flagPos(kk,p.C,H); flagged[kk]=true; }
     ends[kk]=T;
     /* Toe on the hold, ankle just above it; the leg ends at the ankle. */
     const ank=flagged[kk]?[T[0]-side*0.05*H,T[1]+0.02*H]:[T[0],T[1]+0.05*H];
@@ -2322,13 +2645,19 @@ function drawClimber(){
   }
   const c=Q(C),s=Q(Sh),hd=Q(B.head);
   const pts=[c,s,hd]; for(const kk in J) pts.push(J[kk].a,J[kk].e,J[kk].h); for(const kk in shoe) pts.push(shoe[kk].toe);
+  return {J,shoe,ends,flagged,c,s,hd,pts};
+}
+/* Render the figure into the layer set's sprite (only when the pose or view
+   changed). scale = px per unit of height (H x px per cm). */
+function paintFigure(Ly,G,scale,dpr){
+  const U=v=>v*scale,{J,shoe,c,s,hd,pts}=G;
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   for(const q of pts){ if(q[0]<x0)x0=q[0]; if(q[0]>x1)x1=q[0]; if(q[1]<y0)y0=q[1]; if(q[1]>y1)y1=q[1]; }
   const pad=U(0.24)+14,box={x:Math.floor(x0-pad),y:Math.floor(y0-pad),w:Math.ceil(x1-x0+2*pad),h:Math.ceil(y1-y0+2*pad)};
-  const key=[dpr,box.x,box.y,box.w,box.h,k.toFixed(4)].concat(pts.map(q=>Math.round(q[0]*2)+','+Math.round(q[1]*2))).join('|');
-  const SP=figLayers.sprite,SW=Math.max(1,Math.ceil(box.w*dpr)),SHh=Math.max(1,Math.ceil(box.h*dpr));
-  if(key!==figKey){
-    figKey=key;
+  const key=[dpr,box.x,box.y,box.w,box.h,scale.toFixed(3)].concat(pts.map(q=>Math.round(q[0]*2)+','+Math.round(q[1]*2))).join('|');
+  const SP=Ly.sprite,SW=Math.max(1,Math.ceil(box.w*dpr)),SHh=Math.max(1,Math.ceil(box.h*dpr));
+  if(key!==Ly.key){
+    Ly.key=key;
     const disc=(g,q,r)=>{ g.moveTo(q[0]+r,q[1]); g.arc(q[0],q[1],r,0,Math.PI*2); };
     const L=Math.hypot(s[0]-c[0],s[1]-c[1]),rot=Math.atan2(s[0]-c[0],c[1]-s[1]);
     const local=(g,fn)=>{ g.translate(c[0],c[1]); g.rotate(rot); fn(g); };
@@ -2381,9 +2710,9 @@ function drawClimber(){
       stroke(g,U(0.012),'rgba(62,66,74,0.2)',()=>{ g.moveTo(-U(0.045),U(0.06)); g.quadraticCurveTo(0,U(0.085),U(0.045),U(0.06)); });
       g.restore();
     };
-    shadeLayer(figLayers.body,box,dpr,bodyParts,U(0.065),bodyDetails);
-    shadeLayer(figLayers.arms,box,dpr,armParts,U(0.048),armDetails);
-    shadeLayer(figLayers.head,box,dpr,headParts,U(0.06),headDetails);
+    shadeLayer(Ly.body,Ly.mask,box,dpr,bodyParts,U(0.065),bodyDetails);
+    shadeLayer(Ly.arms,Ly.mask,box,dpr,armParts,U(0.048),armDetails);
+    shadeLayer(Ly.head,Ly.mask,box,dpr,headParts,U(0.06),headDetails);
     sizeCanvas(SP,SW,SHh);
     const g=SP.getContext('2d');
     g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation='source-over'; g.clearRect(0,0,SW,SHh);
@@ -2393,16 +2722,41 @@ function drawClimber(){
     };
     /* Seen from behind, the arms reach past the body toward the wall, so the
        back and the head cover them where they overlap. */
-    drop(figLayers.arms,Math.max(4,U(0.035)),U(0.01),U(0.02),0.38);
-    drop(figLayers.body,Math.max(6,U(0.06)),U(0.016),U(0.032),0.45);
-    drop(figLayers.head,Math.max(4,U(0.035)),U(0.008),U(0.018),0.4);
+    drop(Ly.arms,Math.max(4,U(0.035)),U(0.01),U(0.02),0.38);
+    drop(Ly.body,Math.max(6,U(0.06)),U(0.016),U(0.032),0.45);
+    drop(Ly.head,Math.max(4,U(0.035)),U(0.008),U(0.018),0.4);
     g.shadowColor='transparent';
   }
+  return {sp:SP,box,SW,SHh};
+}
+/* L/R badges on each hand and foot; the limb that moves gets a ring. */
+function drawLimbBadges(g,G,Q,activeLimb,only){
+  for(const kk of LIMBS){
+    if(only&&!only[kk]) continue;
+    const q=Q(G.ends[kk]),hand=kk[1]==='h',r=6.5,active=activeLimb===kk,fl=G.flagged[kk];
+    g.beginPath();
+    if(hand) g.arc(q[0],q[1],r,0,6.283); else g.rect(q[0]-r,q[1]-r,2*r,2*r);
+    g.fillStyle=fl?'rgba(255,255,255,0.92)':LIMBCOL[kk]; g.fill();
+    g.lineWidth=active?3:1.8; g.strokeStyle=active?'#ffffff':'rgba(10,12,14,0.85)'; g.stroke();
+    if(active){ g.beginPath(); g.arc(q[0],q[1],r+5,0,6.283); g.lineWidth=2; g.strokeStyle=LIMBCOL[kk]; g.stroke(); }
+    g.fillStyle=fl?LIMBCOL[kk]:'#ffffff'; g.font='700 9px "Barlow Condensed",sans-serif'; g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(kk[0]==='l'?'L':'R',q[0],q[1]+0.5);
+  }
+}
+const newLayers=()=>({body:document.createElement('canvas'),arms:document.createElement('canvas'),head:document.createElement('canvas'),mask:document.createElement('canvas'),sprite:document.createElement('canvas'),key:''});
+const figLayers=newLayers();
+function drawClimber(){
+  const b=S.beta,H=b.res.H,TORSO=b.res.TORSO,step=b.steps[S.step],p=currentPos(),dr=drift();
+  const editing=TOOLS.includes(S.mode)||S.mode==='floor'||S.mode==='walltop',dpr=S.view.dpr,k=kU()*S.view.dh;
+  const Q=q=>cmPx(q,dr);
+  /* drawn arm a touch shorter than the planner's reach; the shoulder lift covers the rest */
+  const arm=0.96*(b.res.ARM||0.5*H);
+  const G=figureGeom(p,H,TORSO,arm,Q,bodyFor(p,H,TORSO,arm)),F=paintFigure(figLayers,G,H*k,dpr);
   ctx.save(); ctx.globalAlpha=editing?0.35:0.96;
-  ctx.drawImage(SP,0,0,SW,SHh,box.x,box.y,SW/dpr,SHh/dpr);
+  ctx.drawImage(F.sp,0,0,F.SW,F.SHh,F.box.x,F.box.y,F.SW/dpr,F.SHh/dpr);
   ctx.globalAlpha=editing?0.35:1;
   if(step.limb&&S.step>0&&!editing){
-    const prev=b.steps[S.step-1].pos,a=prev[step.limb]||flagPos(step.limb,prev.C),z=step.pos[step.limb]||flagPos(step.limb,step.pos.C);
+    const prev=b.steps[S.step-1].pos,a=prev[step.limb]||flagPos(step.limb,prev.C,H),z=step.pos[step.limb]||flagPos(step.limb,step.pos.C,H);
     const A=Q(a),Z=Q(z),ang=Math.atan2(Z[1]-A[1],Z[0]-A[0]),len=Math.hypot(Z[0]-A[0],Z[1]-A[1]);
     if(len>14){
       ctx.save(); ctx.strokeStyle=LIMBCOL[step.limb]; ctx.lineWidth=2.6; ctx.setLineDash([6,5]);
@@ -2413,21 +2767,289 @@ function drawClimber(){
       ctx.restore();
     }
   }
-  for(const kk of ['lh','rh','lf','rf']){
-    const q=Q(ends[kk]),hand=kk[1]==='h',r=6.5,active=step.limb===kk;
-    ctx.beginPath();
-    if(hand) ctx.arc(q[0],q[1],r,0,6.283); else ctx.rect(q[0]-r,q[1]-r,2*r,2*r);
-    ctx.fillStyle=flagged[kk]?'rgba(255,255,255,0.92)':LIMBCOL[kk]; ctx.fill();
-    ctx.lineWidth=active?3:1.8; ctx.strokeStyle=active?'#ffffff':'rgba(10,12,14,0.85)'; ctx.stroke();
-    if(active){ ctx.beginPath(); ctx.arc(q[0],q[1],r+5,0,6.283); ctx.lineWidth=2; ctx.strokeStyle=LIMBCOL[kk]; ctx.stroke(); }
-    ctx.fillStyle=flagged[kk]?LIMBCOL[kk]:'#ffffff'; ctx.font='700 9px "Barlow Condensed",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(kk[0]==='l'?'L':'R',q[0],q[1]+0.5);
-  }
+  drawLimbBadges(ctx,G,Q,step.limb);
   ctx.restore();
 }
 let lastW=0;
 new ResizeObserver(()=>{ const w=wrap.clientWidth; if(w&&w!==lastW){ lastW=w; fit(); render(); } }).observe(wrap);
 if(document.fonts&&document.fonts.load) document.fonts.load(`16px ${MARKER}`).then(()=>{ if(!isMoving()) render(); }).catch(()=>{});
+
+/* ---------- hold types: the picker ---------- */
+/* The Hold type tool: tap a ringed hold, then choose its type. The choice is
+   saved like the other edits (a position on a still picture, the followed
+   hold while moving), feeds the planner, and changes the tips. */
+let typeRef=null;
+function typePickHold(){
+  if(!typeRef) return null;
+  if(isMoving()) return S.tracks.find(t=>t.id===typeRef.id&&!t.removed)||null;
+  let best=null,bd=Infinity;
+  for(const h of S.holds){ if(h.removed) continue; const d=Math.hypot((h.u-typeRef.u)*aspect(),h.v-typeRef.v); if(d<bd){ bd=d; best=h; } }
+  return best&&bd<Math.max(best.rho,0.01)*1.3?best:null;
+}
+const tpEl=$('#typePick'),tpGrid=$('#tpGrid');
+for(const ty of HOLD_ORDER){
+  const b=document.createElement('button'); b.type='button'; b.className='tp-b'; b.dataset.type=ty; b.setAttribute('aria-pressed','false');
+  b.innerHTML=holdIconSvg(ty)+`<span>${HOLD_TYPES[ty].name}</span>`;
+  b.addEventListener('click',()=>{ const h=typePickHold(); if(!h){ closeTypePick(); return; } setHoldType(h,ty); });
+  tpGrid.append(b);
+}
+function fillTypePick(h){
+  const n=S.beta&&S.beta.num.get(h.id),g=guessType(holdMeta(h)),cur=h.type||null,shown=cur||g;
+  $('#tpTitle').textContent=n!=null?`Hold ${n}: what type is it?`:'What type of hold is it?';
+  $('#tpGuess').textContent=cur?`You set it as ${artName(cur)}.`:`From its size and shape it looks like ${artName(g)}. Choose the real type.`;
+  tpGrid.querySelectorAll('button').forEach(b=>{ b.setAttribute('aria-pressed',String(b.dataset.type===cur)); b.classList.toggle('guess',!cur&&b.dataset.type===g); });
+  $('#tpLine').textContent=HOLD_TYPES[shown].line;
+  $('#tpClear').hidden=!cur;
+  $('#tpShowTxt').textContent=`Show how: ${HOLD_TYPES[shown].name.toLowerCase()}`;
+  tpEl.dataset.show=shown;
+}
+function openTypePick(h){
+  typeRef={id:h.id,u:h.u,v:h.v};
+  fillTypePick(h);
+  tpEl.hidden=false;
+  placeTypePick(h);
+  render();
+}
+/* Next to the hold, never on it: below it inside the picture, else above
+   it, else below it hanging over the player under the picture. */
+function placeTypePick(h){
+  const st=tpEl.parentElement,sr=st.getBoundingClientRect(),cr=cv.getBoundingClientRect(),ox=cr.left-sr.left,oy=cr.top-sr.top;
+  const [x,y]=P(h.u,h.v),r=h.rho*S.view.dh,w=tpEl.offsetWidth,hh=tpEl.offsetHeight,W=st.clientWidth,SH=st.clientHeight;
+  const left=Math.max(8,Math.min(W-w-8,ox+x-w/2)),below=oy+y+r+16,above=oy+y-r-16-hh;
+  let top=below+hh<=oy+S.view.dh-8?below:above>=8?above:below;
+  top=Math.max(8,Math.min(Math.max(8,SH-hh-8),top));
+  tpEl.style.left=left+'px'; tpEl.style.top=top+'px';
+  const rr=tpEl.getBoundingClientRect(); if(rr.top<0||rr.bottom>window.innerHeight) tpEl.scrollIntoView({block:'nearest',behavior:reduceMotion?'auto':'smooth'});
+}
+function closeTypePick(quiet){
+  if(!typeRef&&tpEl.hidden) return;
+  typeRef=null; tpEl.hidden=true;
+  if(!quiet&&S.src&&!isMoving()) render();
+}
+function setHoldType(h,ty){
+  const E=S.edits;
+  if(isMoving()) h.type=ty||null;
+  else{ E.types=E.types.filter(p=>!nearPos(h,p)); if(ty) E.types.push({u:h.u,v:h.v,type:ty}); }
+  if(ty) keepChosen(h);
+  if(!isMoving()) applyEdits();
+  const h2=typePickHold(); if(h2) fillTypePick(h2);
+  toast(ty?`Hold set as ${artName(ty)}`:'Type cleared. The guess is used again.');
+  updateStats(); render(); solveSoon();
+}
+$('#tpClose').addEventListener('click',()=>closeTypePick());
+$('#tpClear').addEventListener('click',()=>{ const h=typePickHold(); if(h) setHoldType(h,null); });
+$('#tpShow').addEventListener('click',e=>openDemo(tpEl.dataset.show||'jug',e.currentTarget));
+
+/* ---------- technique examples ---------- */
+/* A small wall with stylised holds and the same climber, looping one
+   technique per hold type. Moves use blendPose(), like the route player. */
+const demoEl=$('#demo'),demoCv=$('#demoCv'),dctx=demoCv.getContext('2d'),demoLayers=newLayers();
+const DEMO_H=170,DEMO_T=0.3*DEMO_H,DEMO_ARM=0.96*0.5*DEMO_H,DEMO_X0=-108,DEMO_W=216,DEMO_TOP=288;
+const DEMO_HOLD='#f07b22',DEMO_HOLD_DARK='#9c4209';
+for(const ty in DEMOS) for(const k of DEMOS[ty].keys) k.fixHip=true;
+const D={type:null,i:0,phase:'hold',t0:0,dur:0,playing:true,raf:0,opener:null,dirty:true,view:{w:1,h:1,dpr:1,k:1},wall:document.createElement('canvas'),wallKey:''};
+const pathCache=new Map(),pathOf=d=>{ let p=pathCache.get(d); if(!p){ p=new Path2D(d); pathCache.set(d,p); } return p; };
+const demoTypes=$('#demoTypes');
+for(const ty of HOLD_ORDER){
+  const b=document.createElement('button'); b.type='button'; b.className='chip'; b.dataset.type=ty;
+  b.innerHTML=holdIconSvg(ty); b.append(document.createTextNode(HOLD_TYPES[ty].name));
+  b.addEventListener('click',()=>setDemo(ty));
+  demoTypes.append(b);
+}
+function openDemo(ty,opener){
+  if(!DEMOS[ty]) return;
+  stopPlay();
+  D.opener=opener||document.activeElement;
+  demoEl.hidden=false; document.body.classList.add('modal-open');
+  setDemo(ty);
+  $('#demoClose').focus();
+}
+function setDemo(ty){
+  D.type=ty; D.i=0; D.phase='hold'; D.t0=performance.now(); D.dur=DEMOS[ty].keys[0].hold||1500; D.playing=!reduceMotion; D.dirty=true;
+  const T=HOLD_TYPES[ty];
+  $('#demoTitle').textContent=DEMOS[ty].title;
+  $('#demoIcon').innerHTML=holdIconSvg(ty);
+  const ul=$('#demoTips'); ul.textContent='';
+  for(const t of [T.grip,T.body]){ const li=document.createElement('li'); li.textContent=t; ul.append(li); }
+  demoTypes.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.type===ty)));
+  D.wallKey='';
+  fitDemo(); demoCaption(); setDemoPlayBtn();
+  cancelAnimationFrame(D.raf); D.raf=requestAnimationFrame(demoTick);
+}
+function closeDemo(){
+  if(demoEl.hidden) return;
+  demoEl.hidden=true; document.body.classList.remove('modal-open');
+  cancelAnimationFrame(D.raf); D.raf=0;
+  const o=D.opener; D.opener=null;
+  if(o&&o.focus&&document.contains(o)&&!o.closest('[hidden]')) o.focus();
+}
+function fitDemo(){
+  const box=$('#demoStage'),maxW=Math.max(200,box.clientWidth||320),maxH=Math.max(240,Math.min(window.innerHeight*0.52,620));
+  let w=maxW,h=w*DEMO_TOP/DEMO_W; if(h>maxH){ h=maxH; w=h*DEMO_W/DEMO_TOP; }
+  w=Math.floor(w); h=Math.floor(h);
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  demoCv.style.width=w+'px'; demoCv.style.height=h+'px';
+  demoCv.width=Math.round(w*dpr); demoCv.height=Math.round(h*dpr);
+  D.view={w,h,dpr,k:w/DEMO_W}; D.wallKey=''; D.dirty=true;
+}
+function demoCaption(){
+  const keys=DEMOS[D.type].keys,i=D.phase==='move'?D.i+1:D.i;
+  $('#demoCap').textContent=keys[i].cap;
+  $('#demoStep').textContent=`Step ${i+1} of ${keys.length}`;
+  $('#demoPrev').disabled=i===0&&D.phase!=='move';
+}
+function setDemoPlayBtn(){
+  const b=$('#demoPlay');
+  b.querySelector('span').textContent=D.playing?'Pause':'Play';
+  b.querySelector('path').setAttribute('d',D.playing?'M6 4.5h4v15H6zM14 4.5h4v15h-4z':'M7 4.5v15l13-7.5z');
+}
+function demoMove(now){ const keys=DEMOS[D.type].keys; D.phase='move'; D.t0=now; D.dur=reduceMotion?1:(keys[D.i+1].move||950); D.dirty=true; demoCaption(); }
+function demoTick(now){
+  if(demoEl.hidden) return;
+  D.raf=requestAnimationFrame(demoTick);
+  const keys=DEMOS[D.type].keys,last=keys.length-1;
+  if(now-D.t0>=D.dur){
+    if(D.phase==='move'){ D.i++; D.phase='hold'; D.t0=now; D.dur=keys[D.i].hold||(D.i===last?1700:1150); D.dirty=true; demoCaption(); }
+    else if(D.phase==='fadeout'){ D.i=0; D.phase='fadein'; D.t0=now; D.dur=320; demoCaption(); }
+    else if(D.phase==='fadein'){ D.phase='hold'; D.t0=now; D.dur=keys[0].hold||1500; D.dirty=true; }
+    else if(D.phase==='hold'&&D.playing){ if(D.i<last) demoMove(now); else { D.phase='fadeout'; D.t0=now; D.dur=320; } }
+  }
+  /* nothing moves while paused on a still position */
+  if(D.phase==='hold'&&!keys[D.i].shake&&!D.dirty) return;
+  D.dirty=false;
+  drawDemo(now);
+}
+function demoPose(now){
+  const keys=DEMOS[D.type].keys,k=keys[D.i];
+  if(D.phase==='move'){
+    const to=keys[D.i+1],t=Math.min(1,(now-D.t0)/D.dur);
+    return {p:blendPose(k,to,t,{H:DEMO_H,sag:to.sag||0}),active:LIMBS.find(q=>!sameP(k[q],to[q]))||null,alpha:1,free:{}};
+  }
+  const p=Object.assign({},k),free={};
+  p.body=chooseBody(k,DEMO_H,DEMO_T,DEMO_ARM);
+  if(k.shake&&!reduceMotion){ const w=now/1000*2*Math.PI*3.2; p[k.shake]=[k[k.shake][0]+3*Math.sin(w),k[k.shake][1]+2*Math.sin(2*w)]; }
+  if(k.shake) free[k.shake]=true;
+  const f=D.phase==='fadeout'?1-(now-D.t0)/D.dur:D.phase==='fadein'?(now-D.t0)/D.dur:1;
+  return {p,active:null,alpha:Math.max(0,Math.min(1,f)),free};
+}
+function drawDemoHold(g,hd,Q,k){
+  const [x,y]=Q([hd.x,hd.y]);
+  g.save();
+  g.shadowColor='rgba(0,0,0,0.3)'; g.shadowBlur=4; g.shadowOffsetX=1; g.shadowOffsetY=2;
+  if(hd.t==='foot'){
+    const r=4*k; g.beginPath(); g.ellipse(x,y,r*1.4,r,0,0,6.283); g.fillStyle=DEMO_HOLD; g.fill();
+    g.shadowColor='transparent'; g.beginPath(); g.ellipse(x,y-r*0.35,r*0.9,r*0.38,0,0,6.283); g.fillStyle='rgba(255,255,255,0.28)'; g.fill();
+    g.restore(); return;
+  }
+  const ic=HOLD_ICON[hd.t],sz=(hd.s||14)*k/18;
+  let rot=ic.rot||0; if(hd.face==='left') rot=-Math.PI/2; else if(hd.face==='right') rot=Math.PI/2;
+  g.translate(x,y); g.rotate(rot); g.scale(sz,sz); g.translate(-12,-12);
+  const body=pathOf(ic.body);
+  g.fillStyle=DEMO_HOLD; g.fill(body);
+  g.shadowColor='transparent';
+  g.save(); g.clip(body);
+  const rg=g.createRadialGradient(8,7,1,12,12,13); rg.addColorStop(0,'rgba(255,255,255,0.42)'); rg.addColorStop(0.55,'rgba(255,255,255,0)'); rg.addColorStop(1,'rgba(0,0,0,0.22)');
+  g.fillStyle=rg; g.fillRect(0,0,24,24);
+  if(ic.mark){ g.fillStyle=DEMO_HOLD_DARK; g.fill(pathOf(ic.mark)); }
+  g.restore();
+  g.lineWidth=1.2/sz; g.strokeStyle='rgba(40,20,5,0.45)'; g.stroke(body);
+  g.restore();
+}
+function drawDemoWall(g){
+  const {w,h,dpr,k}=D.view,key=[D.type,w,h,dpr].join('|'),W=D.wall;
+  if(D.wallKey!==key){
+    D.wallKey=key; sizeCanvas(W,Math.round(w*dpr),Math.round(h*dpr));
+    const c=W.getContext('2d'),Q=q=>[(q[0]-DEMO_X0)*k,(DEMO_TOP-q[1])*k];
+    c.setTransform(dpr,0,0,dpr,0,0);
+    const bg=c.createLinearGradient(0,0,0,h); bg.addColorStop(0,'#cdd2d8'); bg.addColorStop(1,'#b6bcc3'); c.fillStyle=bg; c.fillRect(0,0,w,h);
+    c.fillStyle='rgba(40,44,50,0.45)';
+    for(let y=10;y<DEMO_TOP;y+=20) for(let x=-100+((y/20)%2?10:0);x<=104;x+=20){ const q=Q([x,y]); c.beginPath(); c.arc(q[0],q[1],Math.max(1,0.75*k),0,6.283); c.fill(); }
+    c.strokeStyle='rgba(60,66,74,0.3)'; c.lineWidth=1.2;
+    for(const x of [-60,60]){ const a=Q([x,0]),b=Q([x,DEMO_TOP]); c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); }
+    for(const y of [120,240]){ const a=Q([DEMO_X0,y]),b=Q([DEMO_X0+DEMO_W,y]); c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); }
+    const m=Q([0,6]); c.fillStyle='#2f3946'; c.fillRect(0,m[1],w,h-m[1]);
+    const hs=DEMOS[D.type].holds;
+    for(const hd of hs) drawDemoHold(c,hd,Q,k);
+    /* name tags on the holds this example is about */
+    for(const hd of hs){
+      if(!hd.main) continue;
+      const q=Q([hd.x,hd.y]),r=(hd.s||14)*k/2,txt=HOLD_TYPES[hd.t].name;
+      c.font=`12px ${MARKER}`; const tw=c.measureText(txt).width+12;
+      let tx=hd.x<0?q[0]-r-tw/2-4:q[0]+r+tw/2+4,ty=q[1]+r*0.6;
+      if(hd.lab==='below'){ tx=q[0]; ty=q[1]+r+12; }
+      tx=Math.max(tw/2+3,Math.min(w-tw/2-3,tx));
+      tagAt(tx,ty,txt,'#ffd43b','#211c0a',12,c);
+    }
+  }
+  g.setTransform(1,0,0,1,0,0); g.drawImage(W,0,0); g.setTransform(dpr,0,0,dpr,0,0);
+}
+function drawArrow(g,A,B){
+  const ang=Math.atan2(B[1]-A[1],B[0]-A[0]),ex=B[0]-Math.cos(ang)*9,ey=B[1]-Math.sin(ang)*9;
+  const head=()=>{ g.beginPath(); g.moveTo(B[0],B[1]); g.lineTo(ex-Math.cos(ang-1.1)*7,ey-Math.sin(ang-1.1)*7); g.lineTo(ex-Math.cos(ang+1.1)*7,ey-Math.sin(ang+1.1)*7); g.closePath(); };
+  g.save(); g.lineCap='round'; g.lineJoin='round';
+  g.strokeStyle='rgba(20,24,28,0.8)'; g.lineWidth=7; g.beginPath(); g.moveTo(A[0],A[1]); g.lineTo(ex,ey); g.stroke(); head(); g.lineWidth=4; g.stroke();
+  g.strokeStyle='#ffd43b'; g.fillStyle='#ffd43b'; g.lineWidth=3.2; g.beginPath(); g.moveTo(A[0],A[1]); g.lineTo(ex,ey); g.stroke(); head(); g.fill();
+  g.restore();
+}
+function drawDemo(now){
+  const {w,h,dpr,k}=D.view,g=dctx,Q=q=>[(q[0]-DEMO_X0)*k,(DEMO_TOP-q[1])*k];
+  g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h);
+  drawDemoWall(g);
+  const {p,active,alpha,free}=demoPose(now);
+  const G=figureGeom(p,DEMO_H,DEMO_T,DEMO_ARM,Q,bodyFor(p,DEMO_H,DEMO_T,DEMO_ARM)),F=paintFigure(demoLayers,G,DEMO_H*k,dpr);
+  const keys=DEMOS[D.type].keys,fk=D.phase==='move'?keys[D.i+1]:keys[D.i];
+  g.save(); g.globalAlpha=alpha;
+  g.drawImage(F.sp,0,0,F.SW,F.SHh,F.box.x,F.box.y,F.SW/dpr,F.SHh/dpr);
+  if(fk.force&&D.phase!=='fadeout'&&D.phase!=='fadein') drawArrow(g,Q(fk.force[0]),Q(fk.force[1]));
+  drawLimbBadges(g,G,Q,active,{lh:!free.lh,rh:!free.rh,lf:true,rf:true});
+  g.restore();
+}
+$('#demoClose').addEventListener('click',closeDemo);
+demoEl.addEventListener('click',e=>{ if(e.target===demoEl) closeDemo(); });
+$('#demoPlay').addEventListener('click',()=>{
+  D.playing=!D.playing; setDemoPlayBtn();
+  const now=performance.now(),last=DEMOS[D.type].keys.length-1;
+  if(D.playing&&D.phase==='hold'){ if(D.i<last) demoMove(now); else { D.phase='fadeout'; D.t0=now; D.dur=320; } }
+});
+$('#demoNext').addEventListener('click',()=>{
+  const now=performance.now(),last=DEMOS[D.type].keys.length-1;
+  D.playing=false; setDemoPlayBtn();
+  if(D.phase==='move') D.i++;
+  if(D.phase==='fadeout'||D.phase==='fadein') D.i=last;
+  if(D.i<last) demoMove(now);
+  else { D.i=0; D.phase='hold'; D.t0=now; D.dur=1500; D.dirty=true; demoCaption(); }
+});
+$('#demoPrev').addEventListener('click',()=>{
+  const now=performance.now();
+  D.playing=false; setDemoPlayBtn();
+  if(D.phase==='move') D.i++;
+  if(D.phase==='fadeout'||D.phase==='fadein') D.i=DEMOS[D.type].keys.length-1;
+  D.i=Math.max(0,D.i-1); D.phase='hold'; D.t0=now; D.dur=1500; D.dirty=true; demoCaption();
+});
+/* keep keyboard focus inside the open example */
+demoEl.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ e.preventDefault(); closeDemo(); return; }
+  if(e.key!=='Tab') return;
+  const f=[...demoEl.querySelectorAll('button:not([disabled])')].filter(b=>b.offsetParent);
+  if(!f.length) return;
+  const i=f.indexOf(document.activeElement);
+  if(e.shiftKey&&(i<=0)){ e.preventDefault(); f[f.length-1].focus(); }
+  else if(!e.shiftKey&&i===f.length-1){ e.preventDefault(); f[0].focus(); }
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!tpEl.hidden&&demoEl.hidden) closeTypePick(); });
+window.addEventListener('resize',()=>{ if(!demoEl.hidden){ fitDemo(); } });
+/* Learn tab: one row per hold type with a button to watch it */
+(function(){
+  const box=$('#holdGuide'); if(!box) return;
+  for(const ty of HOLD_ORDER){
+    const T=HOLD_TYPES[ty],row=document.createElement('div'); row.className='hg';
+    const ic=document.createElement('span'); ic.className='hg-ic'; ic.innerHTML=holdIconSvg(ty);
+    const tx=document.createElement('div'); const b=document.createElement('b'); b.textContent=T.name; const sp=document.createElement('span'); sp.textContent=T.line; tx.append(b,sp);
+    const bt=document.createElement('button'); bt.type='button'; bt.className='btn small'; bt.textContent='Show me'; bt.setAttribute('aria-label',`Show me how to use ${artName(ty)}`);
+    bt.addEventListener('click',()=>openDemo(ty,bt));
+    row.append(ic,tx,bt); box.append(row);
+  }
+})();
 
 /* ---------- tabs ---------- */
 function showTab(name){
@@ -2470,7 +3092,8 @@ $('#coachAsk').addEventListener('click',async()=>{
   if(!S.beta){ toast('Choose a route colour first so there are moves to check.'); return; }
   const out=$('#coachOut'),ask=$('#coachAsk'),stop=$('#coachStop');
   const lines=S.beta.steps.map((s,i)=>`${i===0?'S':i}. ${s.title} (${s.sub})`).join('\n');
-  const prompt=`You are an experienced bouldering coach helping a beginner. The image is a photo of an indoor climbing wall. The holds of one route (colour: ${S.model.name}) are circled, and the ones used are labelled with yellow numbers in the order they are first touched. The climber is ${S.heightCm} cm tall${S.spanCm?` with a ${S.spanCm} cm arm span`:''}. The bottom of the photo is the floor and the photo shows about ${S.wallM} m of wall${S.angle>0?`, overhanging ${S.angle}°`:S.angle<0?`, a slab leaning back ${-S.angle}°`:', vertical'}.\n\nPlanned sequence:\n${lines}\n\nReply in plain text with no markdown symbols, under 230 words, in three short parts:\n1. Holds: one line per numbered hold with your best guess of its type (jug, edge, crimp, sloper, pinch, pocket, sidepull, undercling, volume) and how to grip it.\n2. Crux: which move looks hardest and one hand or foot tip for it.\n3. Check: anything in the sequence that looks wrong for this wall (for example a circled blob that is not a hold of this colour, or a better foot), and what to do instead.\nIf the photo is unclear, say so briefly.`;
+  const typed=activeHolds().filter(h=>h.type&&S.beta.num.has(h.id)).map(h=>`${S.beta.num.get(h.id)} ${HOLD_TYPES[h.type].name.toLowerCase()}`);
+  const prompt=`You are an experienced bouldering coach helping a beginner. The image is a photo of an indoor climbing wall. The holds of one route (colour: ${S.model.name}) are circled, and the ones used are labelled with yellow numbers in the order they are first touched. The climber is ${S.heightCm} cm tall${S.spanCm?` with a ${S.spanCm} cm arm span`:''}. The bottom of the photo is the floor and the photo shows about ${S.wallM} m of wall${S.angle>0?`, overhanging ${S.angle}°`:S.angle<0?`, a slab leaning back ${-S.angle}°`:', vertical'}.${typed.length?`\n\nThe climber says these holds are: ${typed.join(', ')}.`:''}\n\nPlanned sequence:\n${lines}\n\nReply in plain text with no markdown symbols, under 230 words, in three short parts:\n1. Holds: one line per numbered hold with your best guess of its type (jug, edge, crimp, sloper, pinch, pocket, sidepull, undercling, volume) and how to grip it.\n2. Crux: which move looks hardest and one hand or foot tip for it.\n3. Check: anything in the sequence that looks wrong for this wall (for example a circled blob that is not a hold of this colour, or a better foot), and what to do instead.\nIf the photo is unclear, say so briefly.`;
   coachCtl=new AbortController();
   out.hidden=false; out.textContent='Thinking…'; ask.disabled=true; stop.hidden=false;
   try{

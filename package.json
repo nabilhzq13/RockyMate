@@ -10,7 +10,9 @@
     "eval:old": "node -e \"process.env.OLDMODE='1';require('./test/eval.js')\"",
     "inspect": "node test/inspect.js",
     "plan": "node test/plan.js",
-    "e2e": "python test/e2e.py"
+    "e2e": "python test/e2e.py",
+    "moves": "node test/moves.js",
+    "clips": "python test/clips.py"
   },
   "devDependencies": {
     "sharp": "^0.35.4"

@@ -5,11 +5,14 @@
     python build.py
     python test/e2e.py
 
-A: the artifact build (dist/beta-lens.html): sample wall, mask view, photo
-   upload + tap, wall marks, the tap tools (add, remove, start, top; off until
-   a colour is picked), wall angle and arm span, recorded clip, freeze frame.
+A: the artifact build (dist/beta-lens.html): sample wall, the move's "How to
+   use" button and the technique example, mask view, photo upload + tap, wall
+   marks, the tap tools (add, remove, hold type, start, top; off until a
+   colour is picked), wall angle and arm span, recorded clip, a hold type set
+   on the clip carried into a frozen frame, the Learn tab hold guide.
 B: the standalone build (dist/beta-lens-live.html) with Chromium's fake camera
-   playing test/media/cam13.y4m; a start hold chosen in live mode must stay.
+   playing test/media/cam13.y4m; a start hold and a hold type chosen in live
+   mode must stay.
 Screenshots go to test/out/e2e. Exits non-zero if any check fails.
 """
 import asyncio, json, socket, subprocess, sys, time
@@ -50,6 +53,14 @@ EDITS = '''()=>{const S=window.__betaLens,E=S.edits,b=S.beta,s0=b&&b.res.steps[0
     startAt:s0?[at(b.res.pts[s0.lh].id),at(b.res.pts[s0.rh].id)]:[],startIds:s0?[b.res.pts[s0.lh].id,b.res.pts[s0.rh].id]:[],
     tools:[...document.querySelectorAll('#tools button')].map(x=>x.disabled),angle:b&&b.res.angle,arm:b&&Math.round(b.res.ARM)}}'''
 near = lambda p, h: p is not None and abs(p[0] - h['u']) < 0.03 and abs(p[1] - h['v']) < 0.03
+# The hold types the user set, and the types the planner was given.
+TYPES = '''()=>{const S=window.__betaLens,mv=S.src&&(S.src.kind==='video'||S.src.kind==='live'),hs=mv?S.tracks:S.holds,b=S.beta;
+  return {edits:S.edits.types.map(t=>t.type),holds:hs.filter(h=>h.type).map(h=>[h.id,h.type]),
+    planned:b?b.res.pts.filter(p=>p.type).map(p=>[p.id,p.type]):[],picker:!document.querySelector('#typePick').hidden}}'''
+# The technique example: open?, its title, and how much of the canvas is the white climber.
+DEMO = '''()=>{const d=document.querySelector('#demo'),c=document.querySelector('#demoCv');let n=0;
+  if(!d.hidden&&c.width){const px=c.getContext('2d').getImageData(0,0,c.width,c.height).data;for(let i=0;i<px.length;i+=64) if(px[i]>236&&px[i+1]>236&&px[i+2]>230) n++;}
+  return {open:!d.hidden,title:document.querySelector('#demoTitle').textContent,cap:document.querySelector('#demoCap').textContent,white:n,focus:document.activeElement&&document.activeElement.id}}'''
 
 def watch(pg, errs, tag):
     pg.on("pageerror", lambda e: errs.append(f"{tag} pageerror: {e}"))
@@ -68,6 +79,19 @@ async def main(base):
         st = await pg.evaluate(STATE)
         check("sample: 15 green holds", st["model"] == "green" and st["active"] == 15, json.dumps(st["active"]))
         check("sample: beta reaches the top", bool(st["beta"] and st["beta"]["ok"]))
+        # each move offers an example for its hold type
+        how = []
+        for _ in range(8):
+            await pg.click("#next"); await pg.wait_for_timeout(300)
+            how = await pg.evaluate('[...document.querySelectorAll("#capHow button")].map(b=>b.textContent)')
+            if how: break
+        await pg.click("#capHow button"); await pg.wait_for_timeout(1600)
+        d = await pg.evaluate(DEMO)
+        check("move: How to use opens the technique example", bool(how) and d["open"] and d["white"] > 40 and bool(d["cap"]), f"{how} -> {d['title']}, {d['white']} climber samples")
+        await pg.screenshot(path=str(OUT / "a_demo.png"))
+        await pg.keyboard.press("Escape"); await pg.wait_for_timeout(200)
+        d = await pg.evaluate(DEMO)
+        check("example: Escape closes it and returns focus", not d["open"] and d["focus"] != "demoClose")
         await pg.click("#showMask"); await pg.wait_for_timeout(1200)
         await pg.screenshot(path=str(OUT / "a_sample_mask.png"))
         await pg.click("#showMask"); await pg.wait_for_timeout(400)
@@ -111,6 +135,21 @@ async def main(base):
         e5 = await pg.evaluate(EDITS)
         check("tools: Remove hold, then Add hold puts it back", e4["removed"] == 1 and e4["active"] == e3["active"] - 1 and e5["removed"] == 0 and e5["active"] == e3["active"])
         await pg.click("[data-mode=add]")
+        # Hold type: tap a hold, choose sloper; the planner gets it
+        await pg.click("[data-mode=type]"); h4 = await pg.evaluate(HOLD, 3)
+        await tap(pg, h4["u"], h4["v"]); await pg.wait_for_timeout(400)
+        t0 = await pg.evaluate(TYPES)
+        await pg.screenshot(path=str(OUT / "a_type_picker.png"))
+        await pg.click("#tpGrid [data-type=sloper]"); await pg.wait_for_timeout(1800)
+        t1 = await pg.evaluate(TYPES)
+        check("hold type: picker opens and sloper reaches the planner", t0["picker"] and t1["edits"] == ["sloper"] and ["sloper"] == [t for _, t in t1["holds"]] and any(t == "sloper" for _, t in t1["planned"]), json.dumps(t1))
+        await pg.click("#tpShow"); await pg.wait_for_timeout(1200)
+        d = await pg.evaluate(DEMO)
+        check("hold type: Show how plays the sloper example", d["open"] and "Slopers" in d["title"] and d["white"] > 40, d["title"])
+        await pg.click("#demoClose"); await pg.wait_for_timeout(200)
+        await pg.click("[data-mode=pick]"); await tap(pg, h2["u"], h2["v"]); await pg.wait_for_timeout(2500)
+        t2 = await pg.evaluate(TYPES)
+        check("hold type: kept when the same colour is picked again", t2["edits"] == ["sloper"] and any(t == "sloper" for _, t in t2["planned"]), json.dumps(t2["planned"]))
         await pg.select_option("#angle", "30"); await pg.fill("#span", "190"); await pg.dispatch_event("#span", "change"); await pg.wait_for_timeout(2000)
         e6 = await pg.evaluate(EDITS)
         check("wall angle and arm span reach the planner", e6["angle"] == 30 and e6["arm"] == 95, f"angle {e6['angle']}, arm {e6['arm']} cm")
@@ -124,9 +163,20 @@ async def main(base):
         st = await pg.evaluate(STATE)
         check("clip: holds tracked + beta", st["active"] >= 5 and bool(st["beta"]), f"{st['active']} holds, {st['live']}")
         await pg.screenshot(path=str(OUT / "a_clip.png"))
+        await pg.click("[data-mode=type]"); h5 = await pg.evaluate(HOLD, 2)
+        await tap(pg, h5["u"], h5["v"]); await pg.wait_for_timeout(300)
+        await pg.click("#tpGrid [data-type=crimp]"); await pg.wait_for_timeout(500)
         await pg.click("#vFreeze")
         await pg.wait_for_function('window.__betaLens.src.kind==="photo"&&window.__betaLens.beta', timeout=20000)
-        check("clip: freeze frame keeps colour", (await pg.evaluate(STATE))["model"] == "red")
+        t3 = await pg.evaluate(TYPES)
+        check("clip: freeze frame keeps colour and the hold type", (await pg.evaluate(STATE))["model"] == "red" and t3["edits"] == ["crimp"] and ["crimp"] == [t for _, t in t3["holds"]], json.dumps(t3["edits"]))
+        # Learn tab: one row per hold type, each opens its example
+        await pg.click("#tab-learn"); await pg.wait_for_timeout(300)
+        rows = await pg.evaluate('document.querySelectorAll("#holdGuide .hg").length')
+        await pg.click('#holdGuide .hg:nth-child(8) button'); await pg.wait_for_timeout(1500)
+        d = await pg.evaluate(DEMO)
+        check("learn: hold guide has 9 types and Show me plays one", rows == 9 and d["open"] and "Underclings" in d["title"] and d["white"] > 40, f"{rows} rows, {d['title']}")
+        await pg.screenshot(path=str(OUT / "a_learn_demo.png"))
         await b.close()
 
         # ---------- B: standalone build with a fake camera ----------
@@ -158,7 +208,18 @@ async def main(base):
             e = await pg.evaluate(EDITS)
             kept = kept and h["id"] in e["startT"]
         check("live: a chosen start hold stays chosen", kept and h["id"] in e["startIds"], f"start {e['startT']}, plan starts on {e['startIds']}")
-        await pg.click("[data-mode=start]")
+        await pg.click("[data-mode=type]")
+        await pg.evaluate('document.querySelector("#cv").scrollIntoView({block:"start"})'); await pg.wait_for_timeout(300)
+        h6 = await pg.evaluate(HOLD, -2)
+        await tap(pg, h6["u"], h6["v"]); await pg.wait_for_timeout(300)
+        await pg.click("#tpGrid [data-type=jug]")
+        kept = True
+        for _ in range(10):
+            await pg.wait_for_timeout(500)
+            t = await pg.evaluate(TYPES)
+            kept = kept and [h6["id"], "jug"] in t["holds"]
+        check("live: a hold type stays on the followed hold", kept and [h6["id"], "jug"] in t["planned"], json.dumps(t["holds"]))
+        await pg.click("[data-mode=type]")
         await pg.click("#play"); await pg.wait_for_timeout(2300)
         await pg.screenshot(path=str(OUT / "b_live.png"))
         await b.close()

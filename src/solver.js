@@ -17,7 +17,14 @@ function solveBeta(holds,o){
      move harder; slabs put the weight on the feet and allow high steps. */
   const ang=o.angle||0,steep=Math.max(0,Math.min(1,ang/45)),slab=Math.max(0,Math.min(1,-ang/20));
   const GAP=(0.7-0.2*steep)*H,UNDER=(0.3-0.1*steep-0.1*slab)*H,HANDK=1+0.5*steep-0.3*slab;
-  const pts=holds.map(h=>({X:h.X,Y:h.Y,r:h.r,kind:'hold',id:h.id}));
+  /* Hold types the user set (jug, crimp, sloper...). Poorer holds cost more
+     to use, as a hand (HQ) or a foot (FQ), and some ask for a body position:
+     slopers on a straight arm with the hips below, underclings at waist to
+     chest height, sidepulls with the hips off to the side (lean away),
+     gastons close to the chest; pockets and crimps want both feet on. */
+  const HQ={jug:0,crimp:0.35,sloper:0.45,pinch:0.3,pocket:0.4,sidepull:0.25,gaston:0.45,undercling:0.35,volume:0.4};
+  const FQ={jug:0,crimp:0.15,sloper:0.35,pinch:0.2,pocket:0.25,sidepull:0.15,gaston:0.15,undercling:0.25,volume:0};
+  const pts=holds.map(h=>({X:h.X,Y:h.Y,r:h.r,kind:'hold',id:h.id,type:HQ[h.type]!=null?h.type:null}));
   const nHold=pts.length;
   if(nHold<2) return {ok:false,reason:'few'};
   let top=-1;
@@ -93,6 +100,17 @@ function solveBeta(holds,o){
         const off=Math.abs(best[0]-fcx); if(off>0.2*H) cost+=sq((off-0.2*H)/(0.15*H));
         if(A.X>best[0]+0.2*H) cost+=sq((A.X-best[0]-0.2*H)/(0.12*H));
         if(B.X<best[0]-0.2*H) cost+=sq((best[0]-0.2*H-B.X)/(0.12*H));
+        for(let i=0;i<2;i++){
+          const Hd=i?B:A,ty=Hd.type;
+          if(i===1&&lh===rh) break;
+          if(!ty) continue;
+          const v=Hd.Y-(best[1]+TORSO),off=Math.abs(Hd.X-best[0]);
+          if(ty==='sloper'){ if(st[i]<0.85) cost+=0.8*sq((0.85-st[i])/0.25); }
+          else if(ty==='undercling'){ if(v>0) cost+=sq(v/(0.12*H)); else if(v<-0.38*H) cost+=sq((-0.38*H-v)/(0.12*H)); }
+          else if(ty==='sidepull'){ if(off<0.12*H) cost+=0.8*sq((0.12*H-off)/(0.08*H)); }
+          else if(ty==='gaston'){ if(off>0.2*H) cost+=0.6*sq((off-0.2*H)/(0.1*H)); if(v>0.15*H) cost+=sq((v-0.15*H)/(0.12*H)); }
+          else if((ty==='pocket'||ty==='crimp')&&nf<2) cost+=0.6;
+        }
         res={C:best,cost,st};
       }
     }
@@ -137,7 +155,7 @@ function solveBeta(holds,o){
   }
   pairs.sort((p,q)=>p[2]-q[2]);
 
-  const MAX=o.maxExpand||(o.feet==='open'?16000:26000);
+  const MAX=o.maxExpand||(o.feet==='open'?22000:26000);
   /* Hands never cross and feet never cross, in every pass. strict: feet stay
      well below the hands (0.5H) and below the hips, hands go at least 0.45H
      above the feet. relaxed: feet 0.15H below the hands, high steps allowed
@@ -191,6 +209,7 @@ function solveBeta(holds,o){
           let pen=0.8*(d/LEG)*(d/LEG);
           if(nl>=0&&nr>=0&&nl!==nr&&pts[nl].X>pts[nr].X+0.03*H) continue; // feet never cross
           if(p.kind==='smear') pen+=0.8;
+          if(p.type) pen+=FQ[p.type];
           if(t===other) pen+=p.r>=7?0.6:2.0;
           if(cur>=0&&!isFloor(cur)&&p.Y<pts[cur].Y-0.06*H) pen+=0.6;
           add(n.lh,n.rh,nl,nr,n.g+0.5+pen,ni,{limb,from:cur,to:t});
@@ -210,7 +229,7 @@ function solveBeta(holds,o){
           if(p.Y<maxFY+handGap) continue;
           if(Math.hypot(p.X-C[0],p.Y-C[1])>TORSO+ARMX+0.3*H) continue;
           const nl=limb==='lh'?t:n.lh,nr=limb==='rh'?t:n.rh;
-          let pen=0;
+          let pen=p.type?HQ[p.type]:0;
           if(nl!==nr&&pts[nl].X>pts[nr].X+0.02*H) continue; // hands never cross
           if(t===other){ if(t!==top&&p.r<4) continue; if(t!==top) pen+=p.r>=7?0.6:1.5; }
           if(p.Y<pts[cur].Y-0.05*H) pen+=0.8;
@@ -252,19 +271,27 @@ function solveBeta(holds,o){
   if(!r||!r.ok){ ARMX=1.06*ARM; memo.clear(); const t=search(false,pairs,MAX); if(t) t.stretch=true; if(better(t)) r=t; }
   if(!r) return {ok:false,reason:'nostart',H};
   return {ok:r.ok,reason:r.ok?'':'stuck',strict:r.strict,stretch:!!r.stretch,top,H,TORSO,ARM,LEG,angle:ang,expanded:r.expanded,
-    pts:pts.map(p=>({X:p.X,Y:p.Y,r:p.r,kind:p.kind,id:p.id})),
+    pts:pts.map(p=>({X:p.X,Y:p.Y,r:p.r,kind:p.kind,id:p.id,type:p.type||null})),
     steps:r.chain.map(n=>({lh:n.lh,rh:n.rh,lf:n.lf,rf:n.rf,C:n.pose.C,st:n.pose.st,move:n.move,g:n.g}))};
 }
 
 /* Turns solver output into numbered holds, captions and coaching tips. */
+/* A first guess of the hold type from its size and shape in the picture.
+   Size alone can't tell a jug from a sloper, so the user can set the real
+   type with the Hold type tool; a set type always wins. */
+function guessType(h){
+  if(!h) return null;
+  const d=2*h.rCm,el=h.elong||1,vertical=Math.abs(Math.sin(h.angle||0))>0.7;
+  if(d>=30) return 'volume';
+  if(el>2.2) return vertical?'sidepull':'crimp';
+  if(d<12) return 'crimp';
+  if(el>1.6&&vertical) return 'pinch';
+  return 'jug';
+}
 function holdKind(h){
   if(!h) return null;
-  const d=2*h.rCm,vertical=Math.abs(Math.sin(h.angle))>0.7;
-  if(d>=30) return {name:'volume or big sloper',grip:'Big rounded shape: open hand or palm, and keep your body under it. Great to stand on later.'};
-  if(h.elong>2.2) return vertical?{name:'sidepull or pinch',grip:'Long and upright: grip the side and lean away, or pinch it with your thumb on the far side.'}:{name:'edge or rail',grip:'Long and flat: grip along the top lip with an open hand or half crimp.'};
-  if(d<7) return {name:'small crimp',grip:'Small hold: half crimp on your fingertips and push hard with your feet to take weight off your fingers.'};
-  if(d<14) return {name:'edge or small pinch',grip:'Mid-size hold: try an open hand first, half crimp if it feels thin.'};
-  return {name:'jug or sloper',grip:'Big hold: wrap your fingers over the top. If it feels round, open your hand and keep your body below it.'};
+  const type=h.type&&HOLD_TYPES[h.type]?h.type:guessType(h),T=HOLD_TYPES[type];
+  return {type,set:!!h.type,name:T.name.toLowerCase(),grip:T.grip,body:T.body};
 }
 function buildBeta(res,meta){
   const {steps,pts,top,H}=res,ang=res.angle||0;
@@ -281,17 +308,20 @@ function buildBeta(res,meta){
   const out=[];
   const posOf=(s)=>({lh:[pts[s.lh].X,pts[s.lh].Y],rh:[pts[s.rh].X,pts[s.rh].Y],lf:s.lf>=0?[pts[s.lf].X,pts[s.lf].Y]:null,rf:s.rf>=0?[pts[s.rf].X,pts[s.rf].Y]:null,C:s.C});
   const s0=steps[0];
+  const art=w=>(/^[aeiou]/.test(w)?'an ':'a ')+w,lc=t=>t[0].toLowerCase()+t.slice(1),uniq=a=>a.filter((v,i)=>v&&a.indexOf(v)===i);
+  const k0=[holdKind(meta.get(pts[s0.lh].id)),s0.lh===s0.rh?null:holdKind(meta.get(pts[s0.rh].id))].filter(Boolean),k0set=k0.find(q=>q.set);
   out.push({type:'start',title:'Start position',
     sub:s0.lh===s0.rh?`Both hands on ${hn(s0.lh)}. Feet stay on the mat for now.`:`Left hand on ${hn(s0.lh)}, right hand on ${hn(s0.rh)}. Feet stay on the mat for now.`,
     tips:['Read the whole route first: start, top, the hardest move and any good rest.',
       ang>=10?`Overhang (${ang}°): keep your hips close to the wall and pull with your toes so your feet stay on. Hang on straight arms.`
       :ang<=-5?`Slab (${-ang}° back): trust your feet. Stand tall over your toes, hips away from the wall, hands mostly for balance.`
-      :'Hang on straight arms and keep your hips close to the wall.'],
+      :'Hang on straight arms and keep your hips close to the wall.'].concat(k0set?[`You start on ${art(k0set.name)}: ${lc(k0set.grip)}`]:[]),
+    how:uniq(k0.map(q=>q.type)),
     pos:posOf(s0),limb:null,cost:0,list:'Start: hands on '+(s0.lh===s0.rh?hn(s0.lh):`${hn(s0.lh)} + ${hn(s0.rh)}`)});
   let crux=-1,cruxC=-1;
   for(let i=1;i<steps.length;i++){
     const s=steps[i],p=steps[i-1],m=s.move,hand=m.limb[1]==='h';
-    const tips=[];let title,sub,ff=false;
+    const tips=[];let title,sub,ff=false,how=[];
     const cost=s.g-p.g;
     const from=m.from>=0?pts[m.from]:null,to=m.to>=0?pts[m.to]:null;
     if(m.to===-1){
@@ -303,10 +333,12 @@ function buildBeta(res,meta){
       const hold=meta.get(to.id),kind=holdKind(hold);
       const other=m.limb==='lh'?s.rh:s.lh;
       title=`${NAME[m.limb]} → ${hn(m.to)}`;
-      sub=`${dir(to.X-from.X,to.Y-from.Y)}${kind?' · looks like '+(/^[aeiou]/.test(kind.name)?'an ':'a ')+kind.name:''}`;
+      sub=`${dir(to.X-from.X,to.Y-from.Y)}${kind?(kind.set?' · '+kind.name:' · looks like '+art(kind.name)):''}`;
+      if(kind) how=[kind.type];
       if(m.to===res.top&&other===res.top){ tips.push('Match the top hold with both hands and hold it still. That is the send.'); tips.push('Climb down if you can, or drop onto the mat with bent knees.'); }
       else{
         if(m.to===res.top) tips.push('Top hold! Bring your other hand across to match it.');
+        if(kind&&kind.set) tips.push(`${HOLD_TYPES[kind.type].name}: ${lc(kind.grip)} ${kind.body}`);
         const supports=[pts[other]];
         if(s.lf>=0) supports.push(pts[s.lf]); if(s.rf>=0) supports.push(pts[s.rf]);
         const C=p.C,sideT=Math.sign(to.X-C[0]);
@@ -328,7 +360,7 @@ function buildBeta(res,meta){
         const sameFoot=m.limb==='lh'?s.lf:s.rf,sideW=m.limb==='lh'?'left':'right',otherW=m.limb==='lh'?'right':'left';
         if(tips.length<2&&sameFoot>=0&&pts[sameFoot].kind!=='floor') tips.push(`Push through your ${sideW} foot and hang straight-armed off your ${otherW} hand as you reach.`);
         if(ang>=20&&steepN<2&&tips.length<2){ tips.push('On this steep wall, keep pulling with your toes as you move so your feet don\'t cut loose.'); steepN++; }
-        if(kind&&tips.length<2) tips.push(kind.grip);
+        if(kind&&!kind.set&&tips.length<2) tips.push(`Looks like ${art(kind.name)}: ${lc(kind.grip)}`);
       }
       if(cost>cruxC){ cruxC=cost; crux=out.length; }
     }else{
@@ -336,9 +368,11 @@ function buildBeta(res,meta){
       const fromFloor=from&&from.kind==='floor';
       title=to.kind==='smear'?`${NAME[m.limb]} → smear on the wall`:`${NAME[m.limb]} → ${hn(m.to)}`;
       sub=fromFloor?'Off the mat and onto the wall':(from?dir(to.X-from.X,to.Y-from.Y):'Back onto the wall');
-      if(kind&&!fromFloor) sub+=' · '+kind.name;
+      if(kind&&!fromFloor) sub+=' · '+(kind.set?kind.name:'looks like '+art(kind.name));
       if(fromFloor&&!out.some(o=>o.fromFloor)) tips.push('Step on with your toe and stand up through your leg. Don\'t pull up with your arms.');
       if(to.kind==='smear') tips.push('No foothold here: press the sole flat on the wall, heel low, and push into the wall.');
+      if(kind&&kind.set&&kind.type==='volume'){ tips.push('Stand on the volume\'s face with your sole pressed flat, then move your hips over it.'); how=['volume']; }
+      else if(kind&&kind.set&&kind.type==='sloper') tips.push('Sloping foothold: press the sole on it, heel low, and keep your weight right over it.');
       if(to.Y>p.C[1]-0.02*H) tips.push('High step: lift the foot, move your hip over it, then stand up.');
       const otherF=m.limb==='lf'?s.rf:s.lf;
       if(m.to===otherF) tips.push('Swap feet: slide one foot off as the other goes on.');
@@ -346,10 +380,13 @@ function buildBeta(res,meta){
       ff=fromFloor;
     }
     const lhH=meta.get(pts[s.lh].id),rhH=meta.get(pts[s.rh].id);
-    if(restN<2&&hand&&s.lf>=0&&s.rf>=0&&lhH&&rhH&&lhH.rCm>=8&&rhH.rCm>=8&&pts[s.lf].kind==='hold'&&pts[s.rf].kind==='hold'&&tips.length<3&&s.lh!==res.top){
+    /* a rest needs two big holds (or two the user marked as jugs or volumes) */
+    const good=h=>!!h&&(h.type?h.type==='jug'||h.type==='volume':h.rCm>=8);
+    if(restN<2&&hand&&s.lf>=0&&s.rf>=0&&good(lhH)&&good(rhH)&&pts[s.lf].kind==='hold'&&pts[s.rf].kind==='hold'&&tips.length<3&&s.lh!==res.top){
       tips.push('Good rest: hang on straight arms and shake out one hand at a time.'); restN++;
+      if(!how.includes('jug')&&(lhH.type==='jug'||rhH.type==='jug')) how.push('jug');
     }
-    out.push({type:'move',limb:m.limb,title,sub,tips:tips.slice(0,3),pos:posOf(s),cost,fromFloor:ff,list:title});
+    out.push({type:'move',limb:m.limb,title,sub,tips:tips.slice(0,3),how,reach:m.reach||0,pos:posOf(s),cost,fromFloor:ff,list:title});
   }
   if(crux>0) out[crux].crux=true;
   const hands=out.filter(o=>o.limb&&o.limb[1]==='h').length,feet=out.filter(o=>o.limb&&o.limb[1]==='f').length;

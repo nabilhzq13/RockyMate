@@ -18,6 +18,7 @@
   --lh:#18a7e0; --rh:#ec3b74; --lf:#58b52b; --rf:#f59f00;
   --live:#e5383b;
   --warn:#a85600; --warn-bg:#fff2de;
+  --scrim:rgba(10,12,14,.62); --shadow:rgba(10,12,14,.28); --icon-mark:#7d3507; --icon:#e2701c;
   --f-display:"Permanent Marker","Marker Felt","Chalkboard SE",cursive;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-label:"Barlow Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;
@@ -26,12 +27,12 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
-    --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; color-scheme:dark;
+    --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; --scrim:rgba(0,0,0,.72); --shadow:rgba(0,0,0,.55); --icon-mark:#5a2604; --icon:#f08a3c; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
-  --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; color-scheme:dark;
+  --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; --scrim:rgba(0,0,0,.72); --shadow:rgba(0,0,0,.55); --icon-mark:#5a2604; --icon:#f08a3c; color-scheme:dark;
 }
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -52,7 +53,7 @@ a{color:var(--accent)}
 
 .wall-view{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:20px;align-items:start}
 .stage{display:grid;gap:12px;min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 8px)}
-@media (max-width:920px){.wall-view{grid-template-columns:minmax(0,1fr)}.stage{position:static}}
+@media (max-width:920px){.wall-view{grid-template-columns:minmax(0,1fr)}.stage{position:relative}}
 .canvas-wrap{position:relative;background:var(--stage);border-radius:var(--radius);display:flex;justify-content:center;align-items:center;overflow:hidden;min-height:280px}
 .canvas-wrap.drag{outline:3px dashed var(--accent);outline-offset:-6px}
 #cv{display:block;touch-action:manipulation;cursor:crosshair;max-width:100%}
@@ -104,6 +105,10 @@ a{color:var(--accent)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
 .seg.one{grid-template-columns:minmax(0,1fr)}
 .seg button[disabled]{color:var(--muted);opacity:.55;cursor:default}
+#tools{grid-template-columns:repeat(6,minmax(0,1fr))}
+#tools button{grid-column:span 2;border-bottom:1px solid var(--line)}
+#tools button:nth-child(3){border-right:0}
+#tools button:nth-child(n+4){grid-column:span 3;border-bottom:0}
 #tools.nudge{animation:nudge .9s ease}
 @keyframes nudge{0%,100%{box-shadow:0 0 0 0 transparent}25%,60%{box-shadow:0 0 0 3px var(--accent)}}
 @media (prefers-reduced-motion:reduce){#tools.nudge{animation:none;box-shadow:0 0 0 3px var(--accent)}}
@@ -156,6 +161,50 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
 .gloss dd{margin:2px 0 0;font-size:.92rem;color:var(--muted)}
 .sources{font-size:.92rem;color:var(--muted)}
 .sources ol{margin:6px 0 0;padding-left:1.2em;display:grid;gap:4px}
+.btn.small{min-height:36px;padding:7px 11px;font-size:.88rem}
+.hicon{width:20px;height:20px;flex:none;color:var(--icon)}
+.hicon .mk{fill:var(--icon-mark)}
+.how-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+
+/* Hold type picker: a small panel next to the tapped hold */
+.typepick{position:absolute;z-index:6;width:min(344px,calc(100% - 16px));background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px var(--shadow);padding:10px 10px 12px;display:grid;gap:8px}
+.tp-head{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:start}
+.tp-head b{font:700 1rem/1.2 var(--f-label);text-transform:uppercase;letter-spacing:.05em}
+.tp-head .tp-guess{grid-column:1;font-size:.86rem;color:var(--muted)}
+.tp-x{grid-column:2;grid-row:1/span 2;border:0;background:transparent;color:var(--muted);font-size:1.5rem;line-height:1;width:36px;height:36px;border-radius:8px;cursor:pointer}
+.tp-x:hover{background:var(--soft)}
+.tp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.tp-b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;padding:6px 4px;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--ink);font:600 .84rem/1.05 var(--f-label);text-transform:uppercase;letter-spacing:.03em;cursor:pointer;text-align:center}
+.tp-b span{max-width:100%;overflow-wrap:anywhere}
+.tp-b .hicon{width:22px;height:22px}
+.tp-b.guess{border-style:dashed;border-color:var(--muted)}
+.tp-b[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.tp-b[aria-pressed="true"] .hicon{color:var(--tape)}
+.tp-line{margin:0;font-size:.9rem}
+.tp-row{display:flex;flex-wrap:wrap;gap:8px}
+.tp-row .btn{min-height:38px;padding:8px 12px;font-size:.9rem}
+
+/* Technique example: a dialog over the page */
+body.modal-open{overflow:hidden}
+.demo{position:fixed;inset:0;z-index:40;background:var(--scrim);display:grid;place-items:center;padding:max(12px,env(safe-area-inset-top,0px)) 12px max(12px,env(safe-area-inset-bottom,0px))}
+.demo-card{background:var(--panel);color:var(--ink);border-radius:14px;border:1px solid var(--line);box-shadow:0 18px 50px var(--shadow);width:min(560px,100%);max-height:100%;overflow:auto;overscroll-behavior:contain;padding:14px 16px 16px;display:grid;gap:10px}
+.demo-head{display:flex;align-items:center;gap:10px}
+.demo-head .hicon{width:28px;height:28px}
+.demo-head h2{margin:0;font:700 1.25rem/1.15 var(--f-label);text-transform:uppercase;letter-spacing:.04em;flex:1;min-width:0}
+.demo-stage{display:flex;justify-content:center;background:var(--stage);border-radius:10px;overflow:hidden}
+#demoCv{display:block;max-width:100%}
+.demo-cap{margin:0;font-size:1.02rem;min-height:3em}
+.demo-ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.demo-types{display:flex;flex-wrap:wrap;gap:6px}
+.demo-types .chip{text-transform:none;padding:6px 10px 6px 7px;font-size:.86rem}
+
+/* Learn tab hold guide */
+.hguide{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:8px}
+.hg{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;background:var(--soft);border-radius:8px;padding:9px 10px}
+.hg .hicon{width:30px;height:30px}
+.hg b{display:block;font:700 1rem/1.2 var(--f-label);text-transform:uppercase;letter-spacing:.05em}
+.hg span{font-size:.9rem;color:var(--muted)}
+.lcard.wide{grid-column:1/-1}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
 </style>
 
@@ -181,6 +230,15 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
           <div class="busy" id="busy" hidden>Reading the wall…</div>
           <div class="toast" id="toast" role="status" hidden></div>
         </div>
+        <div class="typepick" id="typePick" role="dialog" aria-labelledby="tpTitle" hidden>
+          <div class="tp-head"><b id="tpTitle">What type of hold is it?</b><span class="tp-guess" id="tpGuess"></span><button type="button" class="tp-x" id="tpClose" aria-label="Close">×</button></div>
+          <div class="tp-grid" id="tpGrid" role="group" aria-label="Hold types"></div>
+          <p class="tp-line" id="tpLine"></p>
+          <div class="tp-row">
+            <button type="button" class="btn primary" id="tpShow"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg><span id="tpShowTxt">Show how</span></button>
+            <button type="button" class="btn" id="tpClear" hidden>Use the guess</button>
+          </div>
+        </div>
         <div class="vbar" id="vbar" hidden>
           <button class="btn icon" id="vPlay" aria-label="Pause video"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4.5h4v15H6zM14 4.5h4v15h-4z"/></svg></button>
           <input type="range" id="vSeek" min="0" max="1000" value="0" aria-label="Position in the clip">
@@ -198,6 +256,7 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
             <h3 id="capTitle">Pick a route colour</h3>
             <p class="sub" id="capSub">Tap one hold of your route on the photo.</p>
             <ul class="tips" id="capTips"></ul>
+            <div class="how-row" id="capHow" hidden></div>
           </div>
           <div class="legend" aria-label="Legend">
             <span><i class="dot" style="background:var(--lh)"></i>Left hand</span>
@@ -255,6 +314,7 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
             <div class="seg" id="tools" role="group" aria-labelledby="toolLbl">
               <button data-mode="add" aria-pressed="false" disabled>Add hold</button>
               <button data-mode="remove" aria-pressed="false" disabled>Remove hold</button>
+              <button data-mode="type" aria-pressed="false" disabled>Hold type</button>
               <button data-mode="start" aria-pressed="false" disabled>Set start</button>
               <button data-mode="top" aria-pressed="false" disabled>Set top</button>
             </div>
@@ -383,20 +443,14 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
             <li>Keep your hips close to the wall. Turn your knees out on vertical walls; on steep walls, twist one hip into the wall.</li>
             <li>The best handholds sit roughly above your feet.</li>
             <li><b>Barn door:</b> when your hand and foot are both on one side, your body swings open like a door. Fix it with a <b>flag</b>: hold the free leg out the other way as a counterweight.</li>
+            <li>Move like a climber: before a hand moves, shift your hips over your feet and drive up with your legs, then reach. On a foot move, place the foot first, then move your weight onto it.</li>
             <li>Moves to learn next: drop knee, back-step, stemming, mantle, heel hook, toe hook.</li>
           </ul>
         </article>
-        <article class="lcard">
-          <h2 class="tape">Hand holds</h2>
-          <dl class="holds">
-            <dt>Jug</dt><dd>Big and deep. Wrap your fingers over it. A place to rest.</dd>
-            <dt>Edge</dt><dd>A flat lip. Open hand or half crimp.</dd>
-            <dt>Crimp</dt><dd>A small edge for your fingertips. Use an open or half crimp. The full crimp (thumb over your index finger) is strongest but hardest on fingers.</dd>
-            <dt>Sloper</dt><dd>Round with no lip. Open hand, as much skin on it as you can, and keep your body below it.</dd>
-            <dt>Pinch</dt><dd>Squeeze between thumb and fingers. Grab the width that fits your hand.</dd>
-            <dt>Pocket</dt><dd>A hole. Put in your strongest fingers, usually middle and ring.</dd>
-            <dt>Sidepull</dt><dd>Faces sideways. Pull across and lean away from it. Underclings face down (palm up); gastons push outward like opening a sliding door.</dd>
-          </dl>
+        <article class="lcard wide">
+          <h2 class="tape">Hold types, and how to use them</h2>
+          <p>Each type asks for a different grip and body position. Tap <b>Show me</b> to watch the climber use it. On your wall, choose <b>Hold type</b> and tap a hold to tell Rocksane what it is.</p>
+          <div class="hguide" id="holdGuide"></div>
         </article>
         <article class="lcard">
           <h2 class="tape">Fall safely</h2>
@@ -435,10 +489,31 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
           <li><a href="https://warwick.ac.uk/services/sport/blog/feed/bouldering-for-beginners/" target="_blank" rel="noopener">Warwick Sport: Bouldering for beginners</a></li>
           <li><a href="https://boulderbox.in/blog/a-beginners-guide-to-climbing-at-boulderbox" target="_blank" rel="noopener">BoulderBox: A beginner's guide</a></li>
           <li><a href="https://blog.movementgyms.com/how-to-use-common-climbing-holds" target="_blank" rel="noopener">Movement: How to use common climbing holds</a></li>
+          <li><a href="https://atomikclimbingholds.com/how-to-use-the-nine-basic-types-of-climbing-handholds" target="_blank" rel="noopener">Atomik: How to use the basic types of climbing handholds</a></li>
+          <li><a href="https://www.climbing.com/skills/how-to-climb-practice-slopers/" target="_blank" rel="noopener">Climbing: How to climb slopers</a></li>
+          <li><a href="https://www.climbing.com/skills/climbing-techniques-how-to-undercling/" target="_blank" rel="noopener">Climbing: How to undercling</a></li>
+          <li><a href="https://earthtreksclimbing.com/what-is-a-gaston-in-climbing/" target="_blank" rel="noopener">Earth Treks: What is a gaston</a></li>
+          <li><a href="https://pubmed.ncbi.nlm.nih.gov/21917019/" target="_blank" rel="noopener">Zampagni et al.: Control of the centre of mass in expert climbers</a></li>
+          <li><a href="https://www.jneurosci.org/content/5/7/1688" target="_blank" rel="noopener">Flash and Hogan: The coordination of arm movements (minimum-jerk model)</a></li>
           <li><a href="https://www.vdiffclimbing.com/boulder-basics/" target="_blank" rel="noopener">VDiff Climbing: Bouldering basics and safety</a></li>
         </ol>
       </div>
     </section>
   </main>
+  <div class="demo" id="demo" hidden>
+    <div class="demo-card" role="dialog" aria-modal="true" aria-labelledby="demoTitle">
+      <div class="demo-head"><span id="demoIcon"></span><h2 id="demoTitle">Technique</h2><button type="button" class="btn icon" id="demoClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="demo-stage" id="demoStage"><canvas id="demoCv" role="img" aria-label="The climber shows the technique on a small wall"></canvas></div>
+      <p class="demo-cap" id="demoCap" aria-live="polite"></p>
+      <div class="demo-ctl">
+        <button type="button" class="btn icon" id="demoPrev" aria-label="Previous step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button type="button" class="btn primary" id="demoPlay"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4.5h4v15H6zM14 4.5h4v15h-4z"/></svg><span>Pause</span></button>
+        <button type="button" class="btn icon" id="demoNext" aria-label="Next step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+        <span class="step-count" id="demoStep"></span>
+      </div>
+      <ul class="tips" id="demoTips"></ul>
+      <div class="demo-types" id="demoTypes" role="group" aria-label="Other hold types"></div>
+    </div>
+  </div>
 </div>
 <!--SCRIPTS-->
