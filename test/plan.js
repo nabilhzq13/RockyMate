@@ -49,8 +49,16 @@ const AUTO=process.env.SCALE==='auto',TYPES=process.env.TYPES||'',ANGLE=+(proces
       const holds=res.blobs.filter(b=>b.status==='hold'); if(holds.length<2) continue;
       /* the photo shows the wall's height; distances along an angled wall are longer */
       let F=img.h,Tp=0;
-      if(AUTO){ const fr=V.wallFrame(I,{W:pk.model.wall,holds:holds.map(b=>({x:b.x,y:b.y,r:b.r,ring:b.ring}))}),xm=holds.reduce((a,b)=>a+b.x,0)/holds.length;
-        if(fr.floor) F=fr.floor.c+fr.floor.m*xm; if(fr.top) Tp=fr.top.c+fr.top.m*xm; T.auto[fr.floor&&fr.top?'edges':fr.floor?'floor':fr.top?'top':'none']++; }
+      if(AUTO){
+        /* the app's rules (autoCal in src/app.js): a top line with route holds above it is ignored; a
+           missing top is the photo's top edge; a missing floor goes 30 cm below the lowest hold unless
+           that leaves under 30% of the photo for the wall */
+        const fr=V.wallFrame(I,{W:pk.model.wall,holds:holds.map(b=>({x:b.x,y:b.y,r:b.r,ring:b.ring}))}),xm=holds.reduce((a,b)=>a+b.x,0)/holds.length;
+        let top=fr.top; if(top&&holds.filter(b=>b.y+0.5*b.r<top.c+top.m*b.x-0.005*img.h).length>Math.max(1,Math.floor(holds.length*0.1))) top=null;
+        if(top) Tp=top.c+top.m*xm;
+        if(fr.floor) F=fr.floor.c+fr.floor.m*xm;
+        else{ const g=30/WALL,low=Math.max(...holds.map(b=>b.y)); F=Math.min(img.h,(low-g*Tp)/(1-g)); if(F-Tp<0.3*img.h) F=img.h; }
+        T.auto[fr.floor&&top?'edges':fr.floor?'floor':top?'top':'none']++; }
       const k=(F-Tp)/WALL,hs=holds.filter(b=>!AUTO||b.y<=F+0.005*img.h).map((b,i)=>({id:i,X:b.x/k,Y:(F-b.y)/k/COS,r:b.r/k,elong:b.elong,angle:b.angle}));
       if(hs.length<2) continue;
       for(const h of hs) h.type=TYPES==='guess'?NEW.guessType({rCm:h.r,elong:h.elong,angle:h.angle}):TYPES||null;

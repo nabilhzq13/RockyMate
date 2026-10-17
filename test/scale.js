@@ -33,10 +33,19 @@ const at=(ln,u)=>ln?ln[0]+ln[1]*u:null;
       const ts=Date.now(),fr=V.wallFrame(I,{W:pk.model.wall,holds:holds.map(b=>({x:b.x,y:b.y,r:b.r,ring:b.ring}))}); tf+=Date.now()-ts; nf++;
       const u=holds.reduce((a,b)=>a+b.x,0)/holds.length/img.w;
       const ln=q=>q?[q.c/img.h,q.m*img.w/img.h]:null;
-      const fl=at(ln(fr.floor),u),tp=at(ln(fr.top),u);
+      const fl=at(ln(fr.floor),u);
+      /* the app ignores a top line with route holds above it (autoCal) */
+      let tp=at(ln(fr.top),u);
+      if(tp!=null){ const L=ln(fr.top); if(holds.filter(b=>(b.y+0.5*b.r)/img.h<at(L,b.x/img.w)-0.005).length>Math.max(1,Math.floor(holds.length*0.1))) tp=null; }
       /* the app's rule (autoCal): both edges = exact; one edge = the other is
          at the picture's border; none = the whole picture is the wall */
-      const F=fl!=null?fl:1,T=tp!=null?tp:0,src=fl!=null&&tp!=null?'edges':fl!=null?'floor':tp!=null?'top':'none';
+      /* a missing top is the picture's top edge; a missing floor is put just
+         below the lowest hold (30 cm), since the bottom of a photo is often
+         mats in front of the wall */
+      const T=tp!=null?tp:0,low=Math.max(...holds.map(b=>b.y))/img.h,g=30/WALL;
+      let F=fl!=null?fl:(process.env.OLDFLOOR?1:Math.min(1,(low-g*T)/(1-g)));
+      if(F-T<0.3) F=1;   // a wall that thin is a wrong top line: fall back to the picture's bottom
+      const src=fl!=null&&tp!=null?'edges':fl!=null?'floor':tp!=null?'top':'none';
       const est=(F-T)*img.h/WALL;
       const tr=TRUTH[name];
       const tF=tr?at(tr.floor,u):null,tT=tr?at(tr.top,u):null,both=tr&&tr.floor&&tr.top;

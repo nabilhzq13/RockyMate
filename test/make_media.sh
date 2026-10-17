@@ -28,5 +28,5 @@ ffmpeg -hide_banner -loglevel error -y -loop 1 -i "$(pick 11)" \
 # img17: a vertical pan
 ffmpeg -hide_banner -loglevel error -y -loop 1 -i "$(pick 17)" \
   -vf "scale=640:1200,crop=640:1136:0:'32+28*sin(2*PI*t/5)',fps=30" -t 8 -c:v libvpx -b:v 2M -pix_fmt yuv420p media/clip17.webm
-for n in 1 5 11 17; do cp "$(pick $n)" media/wall$n.jpg; done
+for n in 1 5 11 16 17; do cp "$(pick $n)" media/wall$n.jpg; done
 echo "Test media ready in test/media"

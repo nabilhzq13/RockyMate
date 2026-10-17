@@ -23,16 +23,20 @@
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-label:"Barlow Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;
   --radius:10px;
+  --material:rgba(246,247,249,.78); --hairline:rgba(20,24,28,.14); --backdrop:rgba(10,12,14,.38); --grab:rgba(60,64,72,.32);
+  --spring:cubic-bezier(.2,1.15,.35,1); --spring-ms:420ms;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
     --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; --ok:#5cc97c; --scrim:rgba(0,0,0,.72); --shadow:rgba(0,0,0,.55); --icon-mark:#5a2604; --icon:#f08a3c; color-scheme:dark;
+    --material:rgba(30,34,38,.78); --hairline:rgba(230,233,236,.14); --backdrop:rgba(0,0,0,.5); --grab:rgba(220,224,230,.3);
   }
 }
 :root[data-theme="dark"]{
   --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
   --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; --ok:#5cc97c; --scrim:rgba(0,0,0,.72); --shadow:rgba(0,0,0,.55); --icon-mark:#5a2604; --icon:#f08a3c; color-scheme:dark;
+  --material:rgba(30,34,38,.78); --hairline:rgba(230,233,236,.14); --backdrop:rgba(0,0,0,.5); --grab:rgba(220,224,230,.3);
 }
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -40,7 +44,7 @@ body{background:var(--wall);color:var(--ink);font-family:var(--f-body);font-size
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 a{color:var(--accent)}
-.app{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 48px}
+.app{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:max(14px,env(safe-area-inset-top,0px));padding-bottom:max(48px,env(safe-area-inset-bottom,0px))}
 
 .top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding-block:4px 18px}
 .brand{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -189,20 +193,127 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
 .tp-row{display:flex;flex-wrap:wrap;gap:8px}
 .tp-row .btn{min-height:38px;padding:8px 12px;font-size:.9rem}
 
-/* Technique example: a dialog over the page */
-body.modal-open{overflow:hidden}
-.demo{position:fixed;inset:0;z-index:40;background:var(--scrim);display:grid;place-items:center;padding:max(12px,env(safe-area-inset-top,0px)) 12px max(12px,env(safe-area-inset-bottom,0px))}
-.demo-card{background:var(--panel);color:var(--ink);border-radius:14px;border:1px solid var(--line);box-shadow:0 18px 50px var(--shadow);width:min(560px,100%);max-height:100%;overflow:auto;overscroll-behavior:contain;padding:14px 16px 16px;display:grid;gap:10px}
-.demo-head{display:flex;align-items:center;gap:10px}
-.demo-head .hicon{width:28px;height:28px}
-.demo-head h2{margin:0;font:700 1.25rem/1.15 var(--f-label);text-transform:uppercase;letter-spacing:.04em;flex:1;min-width:0}
-.demo-stage{display:flex;justify-content:center;background:var(--stage);border-radius:10px;overflow:hidden}
+/* Technique example (inside a sheet) */
+.demo-stage{display:flex;justify-content:center;background:var(--stage);border-radius:10px;overflow:hidden;position:relative}
 #demoCv{display:block;max-width:100%}
 .demo-cap{margin:0;font-size:1.02rem;min-height:3em}
 .demo-ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .demo-types{display:flex;flex-wrap:wrap;gap:6px}
 .demo-types .chip{text-transform:none;padding:6px 10px 6px 7px;font-size:.86rem}
+.demo-types .chip .pro-tag{margin-left:2px}
+.demo-lock{display:grid;gap:8px;justify-items:start;background:var(--soft);border-radius:10px;padding:12px 14px}
+.demo-lock p{margin:0}
+#demoIcon .hicon{width:28px;height:28px}
 
+/* Modal sheets: a card that rises from the bottom on phones (drag it down
+   to close) and a centred card on wide screens. Motion is driven by springs
+   in app.js; the CSS only sets where things sit. */
+body.modal-open{overflow:hidden}
+.msheet{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) 16px max(16px,env(safe-area-inset-bottom,0px))}
+.ms-back{position:absolute;inset:0;background:var(--backdrop);opacity:0}
+.ms-card{position:relative;background:var(--panel);color:var(--ink);border-radius:16px;border:1px solid var(--line);box-shadow:0 22px 60px var(--shadow);width:min(560px,100%);max-height:100%;display:flex;flex-direction:column;overflow:hidden;opacity:0;will-change:transform,opacity}
+.msheet.wide .ms-card{width:min(1100px,100%)}
+.ms-head{display:flex;align-items:center;gap:10px;padding:14px 12px 10px 18px;border-bottom:1px solid var(--line);touch-action:none;position:relative}
+.ms-head h2{margin:0;flex:1;min-width:0;font:700 1.2rem/1.15 var(--f-label);text-transform:uppercase;letter-spacing:.04em}
+.ms-grab{display:none}
+.ms-x{border:0;background:transparent;color:var(--accent);font:600 1rem/1 var(--f-body);padding:10px 8px;border-radius:8px;cursor:pointer;min-height:44px}
+.ms-body{overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:14px 18px 18px;display:grid;gap:12px;align-content:start}
+.ms-body>.blk{border:0;padding:0;background:transparent}
+.ms-body>.blk h2{display:none}
+.ms-body>.learn{gap:16px}
+@media (max-width:760px){
+  .msheet{place-items:end stretch;padding:0}
+  .ms-card{width:100%;max-height:calc(100% - max(44px,env(safe-area-inset-top,0px) + 12px));border-radius:14px 14px 0 0;border:0;box-shadow:0 -8px 40px var(--shadow);padding-bottom:env(safe-area-inset-bottom,0px)}
+  .msheet.wide .ms-card{width:100%}
+  .ms-head{padding-top:20px}
+  .ms-grab{display:block;position:absolute;left:50%;top:6px;width:38px;height:5px;margin-left:-19px;border-radius:3px;background:var(--grab)}
+}
+
+/* Rocksane Pro */
+.pro-tag{font:700 .64rem/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase;color:var(--tape-ink);background:var(--tape);padding:3px 5px 2px;border-radius:4px;margin-left:6px;vertical-align:middle}
+.pro-list{margin:0;padding-left:1.1em;display:grid;gap:4px;font-size:.93rem}
+.btn.big{min-height:52px;font-size:1.05rem;width:100%;border-radius:12px}
+.btn.link{border:0;background:transparent;color:var(--accent);min-height:40px;padding:8px 4px}
+.links{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0;font-size:.9rem}
+.pay{gap:14px}
+.pay-lead{margin:0;font-size:1.05rem}
+.pay-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.pay-list li{display:grid;gap:2px;padding:10px 12px 10px 40px;border-radius:10px;background:var(--soft);position:relative}
+.pay-list li::before{content:"";position:absolute;left:13px;top:13px;width:16px;height:16px;border-radius:50%;background:var(--tape);box-shadow:inset 0 0 0 4px var(--tape-ink)}
+.pay-list li b{font:700 1rem/1.2 var(--f-label);text-transform:uppercase;letter-spacing:.05em}
+.pay-list li span{font-size:.92rem;color:var(--muted)}
+.pay-list li.hl{box-shadow:inset 0 0 0 2px var(--ink)}
+.pay-free{margin:0;font-size:.9rem;color:var(--muted)}
+.pay-app,.pay-web{display:grid;gap:8px;justify-items:center;text-align:center}
+.pay-fine{margin:0;font-size:.84rem;color:var(--muted)}
+.pay-msg{margin:0;font-size:.92rem}
+
+/* Tools: icons and short labels show in the phone toolbar */
+.seg .ti,.seg .ts{display:none}
+.cap-tool{display:grid;gap:2px}
+.cap-tool b{font:700 1.15rem/1.15 var(--f-label);text-transform:uppercase;letter-spacing:.04em}
+.cap-tool span{color:var(--muted);font-size:.95rem}
+.ptools{display:none}
+
+/* Press feedback: a quick squeeze, released on the spring */
+@media (prefers-reduced-motion: no-preference){
+  .btn,.chip,.ibtn,.tp-b,.ms-x,.seg button,.moves button{transition:transform var(--spring-ms) var(--spring)}
+  .btn:active,.chip:active,.ibtn:active,.tp-b:active,.ms-x:active{transform:scale(.95);transition-duration:60ms}
+  .seg button:active,.moves button:active{transform:scale(.97);transition-duration:60ms}
+}
+
+/* ===== Phone app layout (html.app-mode: the app, or a narrow screen) =====
+   The wall fills the screen under a translucent bar; a bottom sheet with
+   three heights (peek, half, full) holds the player, the tools and the
+   route panels; New picture, Settings, Learn and Pro open as sheets. */
+html.app-mode,html.app-mode body{height:100%;overflow:hidden;overscroll-behavior:none}
+html.app-mode body{position:fixed;inset:0;background:var(--stage)}
+html.app-mode .app{max-width:none;padding:0;height:100%;transform-origin:50% 0;will-change:transform}
+html.app-mode .top,html.app-mode .rail{display:none}
+html.app-mode .appbar{display:flex}
+.appbar{position:fixed;left:0;right:0;top:0;z-index:20;height:calc(52px + env(safe-area-inset-top,0px));padding:env(safe-area-inset-top,0px) max(6px,env(safe-area-inset-right,0px)) 0 max(6px,env(safe-area-inset-left,0px));align-items:center;gap:2px;background:var(--material);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--hairline)}
+.ab-title{flex:1;min-width:0;display:flex;justify-content:center}
+.ab-logo{font-size:1.15rem;margin:0}
+.ibtn{width:44px;height:44px;border:0;border-radius:12px;background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer}
+.ibtn svg{width:24px;height:24px}
+html.app-mode .wall-view{display:block}
+html.app-mode .stage{position:static;display:block}
+html.app-mode .canvas-wrap{position:fixed;left:0;right:0;top:calc(52px + env(safe-area-inset-top,0px));height:var(--wall-h,60vh);border-radius:0;align-items:flex-start;min-height:0;z-index:1;background:var(--stage)}
+html.app-mode #cv{transform-origin:50% 0;will-change:transform}
+html.app-mode .toast{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));z-index:60}
+html.app-mode .busy{position:fixed;top:calc(62px + env(safe-area-inset-top,0px));z-index:30}
+html.app-mode .badge{bottom:auto;top:10px}
+.bsheet{position:fixed;left:0;right:0;bottom:0;z-index:10;height:var(--sheet-full,80vh);will-change:transform;pointer-events:none}
+.bs-card{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--panel);border-radius:14px 14px 0 0;box-shadow:0 -6px 28px rgba(0,0,0,.22);pointer-events:auto;overflow:hidden}
+.bs-float{position:absolute;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:calc(100% + 10px);pointer-events:auto}
+.bs-float .vbar{border-radius:14px;background:var(--material);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border:.5px solid var(--hairline);padding:8px 10px}
+.bs-grab{display:block;width:100%;height:20px;border:0;background:transparent;padding:0;cursor:grab;touch-action:none;flex:none}
+.bs-grab span{display:block;width:38px;height:5px;border-radius:3px;background:var(--grab);margin:7px auto 0}
+.bs-head{flex:none;touch-action:none}
+.bs-body{flex:1;min-height:0;overflow:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:0 14px max(24px,env(safe-area-inset-bottom,0px));display:grid;gap:12px;align-content:start}
+.bsheet[data-detent="full"] .bs-body{overflow:auto}
+.bs-body>.blk{border:0;border-top:1px solid var(--line);border-radius:0;padding:14px 2px 4px;background:transparent}
+.bs-body>.blk h2 .n{display:none}
+.bs-head .player{border:0;border-radius:0;background:transparent;padding:0 14px 10px;gap:8px}
+.bs-head .legend,.bsheet[data-detent="peek"] #capTips,.bsheet[data-detent="peek"] #capHow{display:none}
+.bs-head .caption h3{font-size:1.12rem}
+.bs-head .caption .sub{font-size:.92rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bsheet[data-detent="peek"] .caption .sub{-webkit-line-clamp:1}
+.bs-head .step-count{white-space:nowrap}
+.bs-head .player-row{flex-wrap:nowrap}
+.bs-head .ptools{display:flex;gap:2px;margin:0 -8px;overflow-x:auto;scrollbar-width:none}
+.bs-head .ptools::-webkit-scrollbar{display:none}
+.bs-head .ptools .seg{display:contents}
+.bs-head .ptools .seg button{flex:1 0 46px;min-width:46px;min-height:50px;border:0;border-radius:10px;background:transparent;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px 2px;font:600 .7rem/1 var(--f-label);letter-spacing:.04em;position:relative}
+.bs-head .ptools .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.bs-head .ptools .seg button[disabled]{opacity:.38}
+.bs-head .ptools .ti{display:block;width:22px;height:22px}
+.bs-head .ptools .ts{display:block}
+.bs-head .ptools .tl{display:none}
+.bs-head .ptools .pro-tag{position:absolute;top:2px;right:2px;margin:0;font-size:.5rem;padding:2px 3px 1px}
+.player.tooling .caption{display:none}
+.player:not(.tooling) .cap-tool{display:none!important}
+html.app-mode .typepick{position:fixed;left:8px;right:8px;width:auto;bottom:calc(8px + env(safe-area-inset-bottom,0px));top:auto!important;z-index:40;box-shadow:0 -6px 30px var(--shadow)}
 /* Learn tab hold guide */
 .hguide{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:8px}
 .hg{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;background:var(--soft);border-radius:8px;padding:9px 10px}
@@ -213,7 +324,13 @@ body.modal-open{overflow:hidden}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
 </style>
 
-<div class="app">
+<div class="app" id="app">
+  <div class="appbar" id="appbar" hidden>
+    <button type="button" class="ibtn" id="abNew" aria-label="New picture"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg></button>
+    <span class="ab-title"><span class="tape ab-logo">Rocksane</span></span>
+    <button type="button" class="ibtn" id="abLearn" aria-label="Learn to climb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 5.5C6.5 4 9.5 4 12 6c2.5-2 5.5-2 8-.5V19c-2.5-1.5-5.5-1.5-8 .5-2.5-2-5.5-2-8-.5z"/><path d="M12 6v13.5"/></svg></button>
+    <button type="button" class="ibtn" id="abSet" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg></button>
+  </div>
   <header class="top">
     <div class="brand">
       <h1 class="tape logo">Rocksane</h1>
@@ -257,12 +374,14 @@ body.modal-open{overflow:hidden}
             <button class="btn icon" id="next" aria-label="Next move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
             <span class="step-count" id="count">—</span>
           </div>
+          <div class="cap-tool" id="capTool" hidden><b id="capToolT"></b><span id="capToolS"></span></div>
           <div class="caption" aria-live="polite">
             <h3 id="capTitle">Pick a route colour</h3>
             <p class="sub" id="capSub">Tap one hold of your route on the photo.</p>
             <ul class="tips" id="capTips"></ul>
             <div class="how-row" id="capHow" hidden></div>
           </div>
+          <div class="ptools" id="pTools" role="toolbar" aria-label="Tools"></div>
           <div class="legend" aria-label="Legend">
             <span><i class="dot" style="background:var(--lh)"></i>Left hand</span>
             <span><i class="dot" style="background:var(--rh)"></i>Right hand</span>
@@ -273,12 +392,12 @@ body.modal-open{overflow:hidden}
       </div>
 
       <aside class="rail">
-        <div class="blk">
+        <div class="blk" id="blkWall">
           <h2><span class="n">1</span>Wall</h2>
           <div class="btn-row">
-            <button class="btn live" id="goLive" data-only="standalone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Live camera</button>
+            <button class="btn live" id="goLive" data-only="standalone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Live camera<span class="pro-tag" data-pro hidden>Pro</span></button>
             <label class="btn primary" for="fileCam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take photo</label>
-            <label class="btn" for="fileVid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Record video</label>
+            <label class="btn" for="fileVid" id="vidLabel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Record video<span class="pro-tag" data-pro hidden>Pro</span></label>
             <label class="btn" for="fileUp">Upload</label>
             <button class="btn" id="useSample">Sample wall</button>
           </div>
@@ -290,7 +409,7 @@ body.modal-open{overflow:hidden}
           <p class="hint" data-only="standalone"><b>Live camera</b> reads the wall as you point the phone. Hold steady for a second and the moves appear. <b>Freeze frame</b> keeps the current view so you can edit holds or mark the wall.</p>
         </div>
 
-        <div class="blk">
+        <div class="blk" id="blkRoute">
           <h2><span class="n">2</span>Route colour</h2>
           <p class="hint">Tap one hold of your route. Rocksane learns that hold's exact colour, then only keeps blobs of that colour that stand out from the wall around them.</p>
           <div class="chips" id="chips" role="group" aria-label="Hold colours found"></div>
@@ -311,24 +430,24 @@ body.modal-open{overflow:hidden}
           <div class="field">
             <span class="lbl" id="modeLbl">First, pick the colour</span>
             <div class="seg one" role="group" aria-labelledby="modeLbl">
-              <button data-mode="pick" aria-pressed="true">Pick colour</button>
+              <button data-mode="pick" aria-pressed="true"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4.5l5 5M9 10l5 5M4 20l1-4 9.5-9.5 3 3L8 19z"/></svg><span class="tl">Pick colour</span><span class="ts">Colour</span></button>
             </div>
           </div>
           <div class="field">
             <span class="lbl" id="toolLbl">Then choose, and tap a hold</span>
             <div class="seg" id="tools" role="group" aria-labelledby="toolLbl">
-              <button data-mode="add" aria-pressed="false" disabled>Add hold</button>
-              <button data-mode="remove" aria-pressed="false" disabled>Remove hold</button>
-              <button data-mode="type" aria-pressed="false" disabled>Hold type</button>
-              <button data-mode="start" aria-pressed="false" disabled>Set start</button>
-              <button data-mode="top" aria-pressed="false" disabled>Set top</button>
-              <button data-mode="size" aria-pressed="false">Check size</button>
+              <button data-mode="add" aria-pressed="false" disabled><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8.5v7M8.5 12h7"/></svg><span class="tl">Add hold</span><span class="ts">Add</span></button>
+              <button data-mode="remove" aria-pressed="false" disabled><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M8.5 12h7"/></svg><span class="tl">Remove hold</span><span class="ts">Remove</span></button>
+              <button data-mode="type" aria-pressed="false" disabled><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 15c0-5 4-9 9-9 3 0 5 1.6 5 4 0 4.5-6 9-11 9-1.8 0-3-1.6-3-4z"/><path d="M9 15c1.5-.4 4-2 5-4"/></svg><span class="tl">Hold type</span><span class="ts">Type</span><span class="pro-tag" data-pro hidden>Pro</span></button>
+              <button data-mode="start" aria-pressed="false" disabled><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21V4M6 4h11l-2.5 4L17 12H6"/></svg><span class="tl">Set start</span><span class="ts">Start</span></button>
+              <button data-mode="top" aria-pressed="false" disabled><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V8M7 12l5-5 5 5M5 4h14"/></svg><span class="tl">Set top</span><span class="ts">Top</span></button>
+              <button data-mode="size" aria-pressed="false"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M8.5 6.5L12 3l3.5 3.5M8.5 17.5L12 21l3.5-3.5M4 3h3M4 21h3"/></svg><span class="tl">Check size</span><span class="ts">Size</span></button>
             </div>
           </div>
           <p class="hint" id="modeHint">Tap one hold of your route to pick its colour.</p>
         </div>
 
-        <div class="blk">
+        <div class="blk" id="blkAbout">
           <h2><span class="n">3</span>About you</h2>
           <div class="two">
             <div class="field">
@@ -387,7 +506,7 @@ body.modal-open{overflow:hidden}
           <p class="hint">Wall height is from the mats to the top edge; most bouldering walls are 4 to 4.5 m, and gyms often post it. Rocksane finds the floor and the top of the wall in the picture and uses this height to draw the climber at your real size. Wall angle is how far the wall leans: a slab leans back, an overhang leans out over you. On an angled wall the holds are further apart than they look from the floor, and the coaching changes with the angle.</p>
         </div>
 
-        <div class="blk">
+        <div class="blk" id="blkBeta">
           <h2><span class="n">4</span>Your beta</h2>
           <p class="beta-sum" id="betaSum">—</p>
           <p class="note" id="betaWarn" hidden></p>
@@ -396,6 +515,23 @@ body.modal-open{overflow:hidden}
             <summary>How the wall is read</summary>
             <p>Rocksane converts the picture to a colour space that matches how eyes see colour, then estimates the wall's own colour in every small patch. A blob only counts as a hold when it matches the colour of the hold you tapped, clearly differs from the wall right around it, has a real edge, and sits on the same wall. Everything else is shown in red or pink in "Show what matched". The moves come from a search for the fewest, least stretched sequence that starts on the lowest holds and ends with both hands matched on the top hold. It can't see the wall's angle or feel how good a hold is, so treat it as a first plan.</p>
           </details>
+        </div>
+
+        <div class="blk" id="proBlk" hidden>
+          <h2><span class="n">★</span>Rocksane Pro</h2>
+          <p class="stat" id="proState">Free version</p>
+          <ul class="pro-list" id="proWhat">
+            <li>Live camera: read the wall as you point your phone</li>
+            <li>Record a video and read it frame by frame</li>
+            <li>Hold type: mark jugs, crimps and slopers so the plan and tips fit</li>
+            <li>All nine technique examples (three are free)</li>
+          </ul>
+          <div class="btn-row">
+            <button class="btn primary" id="proOpen">Get Rocksane Pro</button>
+            <button class="btn" id="proRestore" data-edition="app">Restore purchase</button>
+          </div>
+          <p class="links"><a href="https://nabilhzq13.github.io/RockyMate/privacy.html" target="_blank" rel="noopener">Privacy</a><a href="https://nabilhzq13.github.io/RockyMate/terms.html" target="_blank" rel="noopener">Terms</a><a href="https://nabilhzq13.github.io/RockyMate/support.html" target="_blank" rel="noopener">Support</a></p>
+          <p class="hint">Rocksane <span id="appVer"></span></p>
         </div>
 
         <div class="blk" id="coach" hidden>
@@ -509,9 +645,20 @@ body.modal-open{overflow:hidden}
       </div>
     </section>
   </main>
-  <div class="demo" id="demo" hidden>
-    <div class="demo-card" role="dialog" aria-modal="true" aria-labelledby="demoTitle">
-      <div class="demo-head"><span id="demoIcon"></span><h2 id="demoTitle">Technique</h2><button type="button" class="btn icon" id="demoClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="bsheet" id="bsheet" hidden>
+    <div class="bs-float" id="bsFloat"></div>
+    <div class="bs-card">
+      <button type="button" class="bs-grab" id="bsGrab" aria-label="Show more"><span></span></button>
+      <div class="bs-head" id="bsHead"></div>
+      <div class="bs-body" id="bsBody"></div>
+    </div>
+  </div>
+</div>
+<div class="msheet" id="demo" hidden>
+  <div class="ms-back" data-close></div>
+  <div class="ms-card demo-card" role="dialog" aria-modal="true" aria-labelledby="demoTitle">
+    <div class="ms-head"><span class="ms-grab" aria-hidden="true"></span><span id="demoIcon"></span><h2 id="demoTitle">Technique</h2><button type="button" class="ms-x" id="demoClose" data-close>Done</button></div>
+    <div class="ms-body">
       <div class="demo-stage" id="demoStage"><canvas id="demoCv" role="img" aria-label="The climber shows the technique on a small wall"></canvas></div>
       <p class="demo-cap" id="demoCap" aria-live="polite"></p>
       <div class="demo-ctl">
@@ -520,8 +667,58 @@ body.modal-open{overflow:hidden}
         <button type="button" class="btn icon" id="demoNext" aria-label="Next step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
         <span class="step-count" id="demoStep"></span>
       </div>
+      <div class="demo-lock" id="demoLock" hidden><p>This example is part of Rocksane Pro.</p><button type="button" class="btn primary" id="demoUnlock">See Rocksane Pro</button></div>
       <ul class="tips" id="demoTips"></ul>
       <div class="demo-types" id="demoTypes" role="group" aria-label="Other hold types"></div>
+    </div>
+  </div>
+</div>
+<div class="msheet" id="msNew" hidden>
+  <div class="ms-back" data-close></div>
+  <div class="ms-card" role="dialog" aria-modal="true" aria-labelledby="msNewT">
+    <div class="ms-head"><span class="ms-grab" aria-hidden="true"></span><h2 id="msNewT">New picture</h2><button type="button" class="ms-x" data-close>Done</button></div>
+    <div class="ms-body" id="msNewBody"></div>
+  </div>
+</div>
+<div class="msheet" id="msSettings" hidden>
+  <div class="ms-back" data-close></div>
+  <div class="ms-card" role="dialog" aria-modal="true" aria-labelledby="msSetT">
+    <div class="ms-head"><span class="ms-grab" aria-hidden="true"></span><h2 id="msSetT">Settings</h2><button type="button" class="ms-x" data-close>Done</button></div>
+    <div class="ms-body" id="msSetBody"></div>
+  </div>
+</div>
+<div class="msheet wide" id="msLearn" hidden>
+  <div class="ms-back" data-close></div>
+  <div class="ms-card" role="dialog" aria-modal="true" aria-labelledby="msLearnT">
+    <div class="ms-head"><span class="ms-grab" aria-hidden="true"></span><h2 id="msLearnT">Learn to climb</h2><button type="button" class="ms-x" data-close>Done</button></div>
+    <div class="ms-body" id="msLearnBody"></div>
+  </div>
+</div>
+<div class="msheet" id="msPro" hidden>
+  <div class="ms-back" data-close></div>
+  <div class="ms-card" role="dialog" aria-modal="true" aria-labelledby="payT">
+    <div class="ms-head"><span class="ms-grab" aria-hidden="true"></span><h2 id="payT">Rocksane Pro</h2><button type="button" class="ms-x" data-close>Close</button></div>
+    <div class="ms-body pay">
+      <p class="pay-lead">One payment unlocks everything, for good. No subscription, no account.</p>
+      <ul class="pay-list" id="payList">
+        <li data-feat="live"><b>Live camera</b><span>Point your phone at the wall and watch the moves appear.</span></li>
+        <li data-feat="video"><b>Video</b><span>Record a clip and read the wall frame by frame.</span></li>
+        <li data-feat="type"><b>Hold type</b><span>Mark jugs, crimps and slopers; the plan and the tips use them.</span></li>
+        <li data-feat="demos"><b>Every technique example</b><span>All nine hold types, animated step by step.</span></li>
+      </ul>
+      <p class="pay-free">Free forever: photos, the colour reader, real-size planning, the moves and the Learn guide.</p>
+      <div class="pay-app" data-edition="app">
+        <button type="button" class="btn primary big" id="payBuy">Unlock Pro</button>
+        <p class="pay-fine" id="payFine">One-time purchase. It stays with your Apple ID or Google account, so Restore brings it back on a new phone.</p>
+        <button type="button" class="btn link" id="payRestore">Restore purchase</button>
+        <p class="pay-msg" id="payMsg" role="status" hidden></p>
+      </div>
+      <div class="pay-web" data-edition="web artifact dev">
+        <p>Rocksane Pro is part of the Rocksane app for iPhone and Android.</p>
+        <div class="btn-row" id="payStores"></div>
+        <p class="hint" id="paySoon">The app is coming to the App Store and Google Play. Everything else on this page stays free.</p>
+      </div>
+      <p class="links"><a href="https://nabilhzq13.github.io/RockyMate/privacy.html" target="_blank" rel="noopener">Privacy</a><a href="https://nabilhzq13.github.io/RockyMate/terms.html" target="_blank" rel="noopener">Terms</a><a href="https://nabilhzq13.github.io/RockyMate/support.html" target="_blank" rel="noopener">Support</a></p>
     </div>
   </div>
 </div>
@@ -1595,6 +1792,17 @@ const DEMOS={
 (function(){
 'use strict';
 const STANDALONE=false;
+/* Editions (build.py): artifact = inside Claude, dev = local live build,
+   both with everything unlocked; web = the free demo on GitHub Pages, whose
+   Pro features point to the app; app = the iPhone and Android app, where
+   Rocksane Pro is a one-time in-app purchase through the native bridge. */
+const EDITION='artifact';
+const FULL=EDITION==='artifact'||EDITION==='dev';
+const NATIVE=window.RocksaneNative||null;
+const APP_VERSION='1.0.0';
+const PRO_ID='rocksane_pro';
+const APP_LINKS={ios:'',android:''};
+const FREE_DEMOS=['jug','crimp','sloper'];
 const $=s=>document.querySelector(s);
 const MARKER='"Permanent Marker","Marker Felt",cursive';
 const LIMBCOL={lh:'#18a7e0',rh:'#ec3b74',lf:'#58b52b',rf:'#f59f00'};
@@ -1602,6 +1810,170 @@ const LIMBS=['lh','rh','lf','rf'];
 const reduceMotion=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
 const store={get(k,d){try{const v=localStorage.getItem('betalens:'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem('betalens:'+k,JSON.stringify(v));}catch(e){}}};
 document.querySelectorAll('[data-only]').forEach(el=>{ el.hidden=(el.dataset.only==='standalone')!==STANDALONE; });
+/* [data-edition] elements are hidden unless their list includes EDITION */
+document.querySelectorAll('[data-edition]').forEach(el=>{ if(!el.dataset.edition.split(' ').includes(EDITION)) el.hidden=true; });
+
+/* ---------- motion: springs, as iOS animates ---------- */
+/* Closed-form damped spring (Apple, WWDC23 "Animate with springs"): mass 1,
+   stiffness (2 pi / duration)^2, damping ratio 1 - bounce. Position and
+   velocity at time t from any start, so a moving spring can be retargeted
+   and keeps its speed (a flick carries into the settle). */
+function springAt(x0,v0,target,d,bounce,t){
+  const w0=2*Math.PI/d,z=Math.min(1,Math.max(0.05,1-bounce)),e0=x0-target;
+  if(z>0.9999){ const c=v0+w0*e0,ex=Math.exp(-w0*t); return {x:target+(e0+c*t)*ex,v:(c-w0*(e0+c*t))*ex}; }
+  const wd=w0*Math.sqrt(1-z*z),B=(v0+z*w0*e0)/wd,ex=Math.exp(-z*w0*t),cs=Math.cos(wd*t),sn=Math.sin(wd*t);
+  return {x:target+ex*(e0*cs+B*sn),v:ex*((B*wd-z*w0*e0)*cs-(e0*wd+z*w0*B)*sn)};
+}
+/* A value driven by a spring on requestAnimationFrame. on(x) draws it.
+   to(target,{d,bounce,v}) starts or retargets; v is a starting speed (units
+   per second), e.g. a finger's release speed. Reduced motion jumps. */
+function Spring(x,on,eps){
+  const sp={x,v:0,target:x,done:true};
+  let t0=0,x0=x,v0=0,d=0.4,bounce=0,raf=0;
+  eps=eps||0.5;
+  function frame(now){
+    const r=springAt(x0,v0,sp.target,d,bounce,(now-t0)/1000);
+    sp.x=r.x; sp.v=r.v;
+    if(Math.abs(r.x-sp.target)<eps&&Math.abs(r.v)<eps*8){ sp.x=sp.target; sp.v=0; sp.done=true; raf=0; on(sp.x,true); return; }
+    on(sp.x,false); raf=requestAnimationFrame(frame);
+  }
+  sp.to=(target,o)=>{
+    o=o||{};
+    sp.sync();
+    sp.target=target; d=o.d||0.4; bounce=o.bounce||0; x0=sp.x; v0=o.v!=null?o.v:sp.v; t0=performance.now();
+    if(reduceMotion){ sp.stop(); sp.x=target; sp.v=0; sp.done=true; on(target,true); return sp; }
+    sp.done=false; if(!raf) raf=requestAnimationFrame(frame);
+    return sp;
+  };
+  /* where the spring is right now (between frames) */
+  sp.sync=()=>{ if(sp.done) return; const r=springAt(x0,v0,sp.target,d,bounce,(performance.now()-t0)/1000); sp.x=r.x; sp.v=r.v; };
+  sp.stop=()=>{ sp.sync(); if(raf) cancelAnimationFrame(raf); raf=0; sp.done=true; };
+  sp.set=v=>{ sp.stop(); sp.x=v; sp.v=0; sp.target=v; on(v,true); };
+  return sp;
+}
+/* The same spring as a CSS easing curve (linear() samples it), for
+   transitions and Web Animations: --spring and --spring-ms. */
+const SPRING_CSS=(()=>{
+  const d=0.42,b=0.15; let end=0.3;
+  for(let t=0.3;t<2;t+=0.01){ const r=springAt(0,0,1,d,b,t); if(Math.abs(r.x-1)<0.002&&Math.abs(r.v)<0.05){ end=t; break; } }
+  const pts=[]; for(let i=0;i<=40;i++){ const t=end*i/40; pts.push(+springAt(0,0,1,d,b,t).x.toFixed(4)+' '+(i*2.5).toFixed(1)+'%'); }
+  pts[pts.length-1]='1 100%';
+  let easing='linear('+pts.join(',')+')';
+  try{ if(!(window.CSS&&CSS.supports('transition-timing-function','linear(0, 1)'))) easing='cubic-bezier(.2,1.15,.35,1)'; }catch(e){ easing='cubic-bezier(.2,1.15,.35,1)'; }
+  const ms=Math.round(end*1000);
+  document.documentElement.style.setProperty('--spring',easing);
+  document.documentElement.style.setProperty('--spring-ms',ms+'ms');
+  return {easing,ms};
+})();
+/* Scale and fade an element in on the spring (toasts, the picker). */
+function popIn(el,from,to){ if(reduceMotion||!el.animate) return; try{ el.animate([Object.assign({offset:0},from),{offset:1,transform:to||'none',opacity:1}],{duration:SPRING_CSS.ms,easing:SPRING_CSS.easing}); }catch(e){} }
+/* Haptics: the Taptic Engine in the app (selection, impact, notification),
+   a short vibration on Android browsers; nothing on iPhone Safari. */
+const vib=p=>{ try{ if(!NATIVE&&navigator.vibrate&&!/iP(hone|ad|od)/.test(navigator.userAgent)) navigator.vibrate(p); }catch(e){} };
+const haptic={
+  sel(){ if(NATIVE&&NATIVE.haptics) NATIVE.haptics.selection(); else vib(6); },
+  tap(){ if(NATIVE&&NATIVE.haptics) NATIVE.haptics.impact('light'); else vib(10); },
+  thud(){ if(NATIVE&&NATIVE.haptics) NATIVE.haptics.impact('medium'); else vib(18); },
+  ok(){ if(NATIVE&&NATIVE.haptics) NATIVE.haptics.notify('success'); else vib([10,50,14]); },
+  warn(){ if(NATIVE&&NATIVE.haptics) NATIVE.haptics.notify('warning'); else vib([22,60,22]); }
+};
+/* Where a released drag would coast to (iOS scroll deceleration 0.998 per
+   ms is "normal"; sheets use a quicker 0.996, as UIKit does for detents),
+   and the rubber band past an edge: the further you pull, the less it moves. */
+const project=(v,rate)=>v/1000*(rate||0.996)/(1-(rate||0.996));
+const rubber=(over,dim)=>over*dim*0.55/(dim+0.55*Math.abs(over));
+/* Velocity of a pointer over the last 100 ms (px per second). */
+function Tracker(){ const pts=[]; return {add(t,y){ pts.push([t,y]); while(pts.length>2&&t-pts[0][0]>100) pts.shift(); },vel(){ if(pts.length<2) return 0; const a=pts[0],b=pts[pts.length-1],dt=b[0]-a[0]; return dt>0?(b[1]-a[1])/dt*1000:0; },reset(){ pts.length=0; }}; }
+
+/* ---------- sheets ---------- */
+/* A modal sheet: rises from the bottom on phones (drag its top down to
+   close: it follows the finger, rubber-bands upward, and a flick or a pull
+   past 42% closes it) and fades in as a centred card on wide screens.
+   Escape closes the top sheet, Tab stays inside it, and focus goes back to
+   the button that opened it. In the app the page behind shrinks a little. */
+const openSheets=[],allSheets=[];
+const phoneMQ=matchMedia('(max-width: 760px)');
+function Modal(el,o){
+  o=o||{};
+  const card=el.querySelector('.ms-card'),back=el.querySelector('.ms-back'),head=el.querySelector('.ms-head');
+  const M={el,open:false,opener:null,p:0};
+  allSheets.push(M);
+  let H=1;
+  const draw=p=>{
+    M.p=p;
+    back.style.opacity=String(Math.max(0,Math.min(1,p)));
+    if(phoneMQ.matches){ card.style.opacity='1'; card.style.transform=`translate3d(0,${((1-p)*H).toFixed(1)}px,0)`; }
+    else{ card.style.opacity=String(Math.max(0,Math.min(1,p))); card.style.transform=`scale(${(0.95+0.05*Math.min(1,p)).toFixed(4)})`; }
+    backdropFx();
+  };
+  M.sp=Spring(0,(x,done)=>{ draw(x); if(done&&x<=0.001&&!M.open){ el.hidden=true; card.style.transform=''; } },0.002);
+  M.show=opener=>{
+    if(M.open) return;
+    M.open=true; M.opener=opener||document.activeElement;
+    el.style.zIndex=String(50+openSheets.length);
+    el.hidden=false; H=Math.max(1,card.offsetHeight);
+    if(M.sp.done&&M.p<=0.001) draw(0);
+    openSheets.push(M); document.body.classList.add('modal-open');
+    if(o.onOpen) o.onOpen();
+    M.sp.to(1,phoneMQ.matches?{d:0.44,bounce:0.06}:{d:0.34,bounce:0.1});
+    const f=card.querySelector('[data-focus]')||card.querySelector('.ms-x');
+    setTimeout(()=>{ try{ (f||card).focus({preventScroll:true}); }catch(e){} },0);
+  };
+  M.hide=v=>{
+    if(!M.open) return;
+    M.open=false;
+    const i=openSheets.indexOf(M); if(i>=0) openSheets.splice(i,1);
+    if(!openSheets.length) document.body.classList.remove('modal-open');
+    if(o.onClose) o.onClose();
+    M.sp.to(0,{d:0.34,bounce:0,v:v||0});
+    const op=M.opener; M.opener=null;
+    if(op&&op.focus&&document.contains(op)&&!op.closest('[hidden]')) try{ op.focus({preventScroll:true}); }catch(e){}
+  };
+  M.hideNow=()=>{ if(M.open){ M.open=false; const i=openSheets.indexOf(M); if(i>=0) openSheets.splice(i,1); if(!openSheets.length) document.body.classList.remove('modal-open'); if(o.onClose) o.onClose(); } M.sp.set(0); };
+  el.addEventListener('click',e=>{ if(e.target.closest('[data-close]')) M.hide(); });
+  /* drag down to close (phones) */
+  const tr=Tracker(); let drag=null;
+  head.addEventListener('pointerdown',e=>{
+    if(!phoneMQ.matches||!M.open||e.button>0||e.target.closest('button,a,input,select')) return;
+    drag={id:e.pointerId,y0:e.clientY}; tr.reset(); tr.add(e.timeStamp,e.clientY); H=Math.max(1,card.offsetHeight); M.sp.stop();
+    try{ head.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  head.addEventListener('pointermove',e=>{
+    if(!drag||e.pointerId!==drag.id) return;
+    tr.add(e.timeStamp,e.clientY);
+    let off=e.clientY-drag.y0; if(off<0) off=-rubber(-off,H)*0.35;
+    M.sp.set(1-off/H);
+  });
+  const end=e=>{
+    if(!drag||e.pointerId!==drag.id) return;
+    drag=null;
+    const vy=tr.vel(),off=(1-M.p)*H;
+    if(off+project(Math.max(0,vy))>H*0.42||vy>1100) M.hide(-vy/H);
+    else M.sp.to(1,{d:0.4,bounce:0.12,v:-vy/H});
+  };
+  head.addEventListener('pointerup',end); head.addEventListener('pointercancel',end);
+  return M;
+}
+/* iOS-style presentation: with a sheet open in the app, the screen behind
+   shrinks to 94% with rounded corners. */
+function backdropFx(){
+  const app=$('#app'); if(!app) return;
+  let p=0; for(const m of allSheets) p=Math.max(p,m.p);
+  if(!AP.on||p<=0.001){ if(app.style.transform){ app.style.transform=''; app.style.borderRadius=''; app.style.overflow=''; } return; }
+  const q=Math.min(1,p);
+  app.style.transform=`translate3d(0,${(q*(AP.sat*0.5+8)).toFixed(1)}px,0) scale(${(1-0.06*q).toFixed(4)})`;
+  app.style.borderRadius=(12*q).toFixed(1)+'px'; app.style.overflow='hidden';
+}
+document.addEventListener('keydown',e=>{
+  const top=openSheets[openSheets.length-1]; if(!top) return;
+  if(e.key==='Escape'){ e.preventDefault(); top.hide(); return; }
+  if(e.key!=='Tab') return;
+  const f=[...top.el.querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])')].filter(b=>b.offsetParent);
+  if(!f.length) return;
+  const i=f.indexOf(document.activeElement);
+  if(e.shiftKey&&i<=0){ e.preventDefault(); f[f.length-1].focus(); }
+  else if(!e.shiftKey&&(i===f.length-1||i<0)){ e.preventDefault(); f[0].focus(); }
+});
 
 /* ---------- workers (vision + move solver), with in-page fallback ---------- */
 function visionHandler(V,C,m){
@@ -1723,6 +2095,7 @@ function setSource(src,opt){
   if(!opt.keepVideo) stopMedia();
   S.src=src; S.token++;
   if(src.kind==='photo'||src.kind==='sample') S.lastStill=src;
+  if(AP.on&&S.token>0) goDetent('peek');
   S.holds=[]; S.tracks=[]; S.lost=[]; S.shift=[0,0]; S.mask=false; S.beta=null; S.betaSnap=null; S.step=0; S.anim=null;
   S.edits=opt.edits||newEdits();
   if(!opt.keepModel) S.model=null;
@@ -1773,7 +2146,7 @@ function waitVideo(){
 }
 function loadFile(file){
   if(!file) return;
-  if(/^video\//.test(file.type)) return loadVideo(file);
+  if(/^video\//.test(file.type)){ if(!requirePro('video',$('#vidLabel'))) return; return loadVideo(file); }
   if(!/^image\//.test(file.type)){ toast('That file is not a photo or video. Choose a JPEG, PNG or MP4.'); return; }
   const fr=new FileReader();
   fr.onload=()=>{ const im=new Image(); im.onload=()=>setSource({kind:'photo',el:im,w:im.naturalWidth,h:im.naturalHeight},{keepModel:false}); im.onerror=()=>toast('This photo could not be opened. Try a JPEG or PNG.'); im.src=fr.result; };
@@ -1832,7 +2205,10 @@ $('#fileCam').addEventListener('change',e=>{ loadFile(e.target.files[0]); e.targ
 $('#fileVid').addEventListener('change',e=>{ loadFile(e.target.files[0]); e.target.value=''; });
 $('#fileUp').addEventListener('change',e=>{ loadFile(e.target.files[0]); e.target.value=''; });
 $('#useSample').addEventListener('click',()=>setSource({kind:'sample',el:makeSampleWall(),w:600,h:900}));
-$('#goLive').addEventListener('click',startCamera);
+$('#goLive').addEventListener('click',e=>{ if(requirePro('live',e.currentTarget,startCamera)){ mNew.hide(); startCamera(); } });
+$('#vidLabel').addEventListener('click',e=>{ if(!S.pro){ e.preventDefault(); requirePro('video',e.currentTarget,()=>$('#fileVid').click()); } });
+for(const id of ['#fileCam','#fileVid','#fileUp']) $(id).addEventListener('change',()=>mNew.hide());
+$('#useSample').addEventListener('click',()=>mNew.hide());
 $('#vFreeze').addEventListener('click',freeze);
 $('#vStop').addEventListener('click',()=>{ stopMedia(); keepAwake(false); const st=S.lastStill||{kind:'sample',el:makeSampleWall(),w:600,h:900}; setSource(st,{keepModel:st.kind!=='sample'}); });
 function setVPlayIcon(){
@@ -1871,12 +2247,29 @@ function calFromLines(fl,tp,src,marked){
   S.cal={fl,tp,floor:lineAt(fl,u),top:lineAt(tp,u),src,marked:!!marked,found};
 }
 /* The edges found in the picture (vision wallFrame), unless the user set the
-   lines. With one edge missing, the picture's border stands in for it. */
+   lines. A missing top is the picture's top edge. A missing floor goes 30 cm
+   below the lowest hold (the bottom of a photo is often mats in front of the
+   wall), unless that leaves less than 30% of the picture for the wall, which
+   means the top line is wrong: then the picture's bottom edge is the floor.
+   A top line with route holds above it is not the top of the wall (an edge
+   between two faces of a boulder, say) and is ignored. On the benchmark
+   this draws the climber within 5% of real size on 22 of 23 routes
+   (test/scale.js). */
 function autoCal(){
   if(S.cal.marked){ calFromLines(S.cal.fl,S.cal.tp,'marks',true); return; }
   if(S.src&&S.src.kind==='sample'){ calFromLines({a:1,m:0},{a:0,m:0},'sample'); return; }
-  const f=S.frame||{},fl=f.floor||null,tp=f.top||null;
-  calFromLines(fl||{a:1,m:0},tp||{a:0,m:0},fl&&tp?'edges':fl?'floor':tp?'top':'picture');
+  const f=S.frame||{},fl=f.floor||null,hs=currentHolds().filter(h=>isActive(h)&&!h.manual);
+  let tp=f.top||null;
+  if(tp&&hs.filter(h=>h.v+0.5*h.rho<lineAt(tp,h.u)-0.005).length>Math.max(1,Math.floor(hs.length*0.1))) tp=null;
+  const T=tp?lineAt(tp,routeU()):0;
+  let floor=fl;
+  if(!fl){
+    const g=30/(S.wallM*100);
+    let F=hs.length?Math.min(1,(Math.max(...hs.map(h=>h.v))-g*T)/(1-g)):1;
+    if(F-T<0.3) F=1;
+    floor={a:F,m:0};
+  }
+  calFromLines(floor,tp||{a:0,m:0},fl&&tp?'edges':fl?'floor':tp?'top':'picture');
   S.cal.found={floor:!!fl,top:!!tp};
 }
 /* cm on the wall (x from the picture's left edge, y up from the floor) to
@@ -1930,6 +2323,7 @@ async function pickAt(u,v,quiet,retry){
   }
   if(!r.model){ if(!quiet) toast('That spot looks like bare wall. Tap the middle of a coloured hold.'); return; }
   r.model.tapped=true;
+  if(!quiet){ haptic.tap(); S.planHaptic=true; }
   setModel(r.model,quiet);
 }
 /* Same route colour? A re-tap of another hold of the same route gives a
@@ -2111,7 +2505,7 @@ function hitHold(x,y,withRemoved){
 /* Size and shape of a hold in cm, and its type if the user set one. */
 function holdMeta(h){ return {rCm:h.rho/kU(),elong:h.elong||1,angle:h.angle||0,type:h.type||null}; }
 /* ---------- solving ---------- */
-let solveT=0;
+let solveT=0,betaSeq=0;
 function solveSoon(){ if(isMoving()){ S.live.solvedSig=''; S.live.sigT=0; return; } clearTimeout(solveT); solveT=setTimeout(()=>solveNow(false),60); }
 async function solveNow(live){
   stopPlay();
@@ -2144,11 +2538,12 @@ async function solveNow(live){
   if(tok!==S.token) return;
   if(!res||!res.steps){
     S.beta=null; renderBeta(res); render();
-    setCaption('No starting position found','None of the low holds can be reached from the floor at your height. Use Set start to tap your start holds, or check Wall in view.',[]);
+    setCaption('No starting position found','None of the low holds can be reached from the floor at your height. Tap Set start and choose your start holds, or tap Check size and put the Floor line where the wall meets the mats.',[]);
     return;
   }
   const meta=new Map(act.map(h=>[h.id,holdMeta(h)]));
-  S.beta=buildBeta(res,meta); S.beta.cal=cal; S.betaSnap=snap; S.step=0; S.anim=null;
+  S.beta=buildBeta(res,meta); S.beta.cal=cal; S.beta._id=++betaSeq; S.betaSnap=snap; S.step=0; S.anim=null;
+  if(S.planHaptic){ S.planHaptic=false; if(S.beta.ok) haptic.ok(); else haptic.warn(); }
   renderBeta(); showStep(0,false);
 }
 
@@ -2164,7 +2559,7 @@ function renderBeta(failRes){
     const last=b.res.steps[b.res.steps.length-1],y=Math.max(b.res.pts[last.lh].Y,b.res.pts[last.rh].Y);
     sum.textContent=`${b.hands} hand moves and ${b.feet} foot moves before getting stuck.`;
     warn.hidden=false;
-    warn.textContent=`Stuck at about ${(y*cosA()/100).toFixed(1)} m: the next hold is out of reach for ${S.heightCm} cm${S.spanCm?` with a ${S.spanCm} cm arm span`:''}, or a hold wasn't found. ${smear?'':'Try Open feet, '}${smear?'Try':'or'} a looser colour match, add the missing hold with Add hold, or check the wall marks and angle.`;
+    warn.textContent=`Stuck at about ${(y*cosA()/100).toFixed(1)} m: the next hold is out of reach for ${S.heightCm} cm${S.spanCm?` with a ${S.spanCm} cm arm span`:''}, or a hold wasn't found. ${smear?'':'Try Open feet, '}${smear?'Try':'or'} a looser colour match, add the missing hold with Add hold, or check the size and the wall angle.`;
   }else if(smear){
     warn.hidden=false;
     warn.textContent='Not enough footholds of this colour were found, so some steps put a foot flat on the wall (a smear). If you can see footholds of your colour there, add them with Add hold.';
@@ -2286,9 +2681,9 @@ function currentPos(){
   if(t>=1&&isMoving()) S.anim=null;
   return blendPose(from,to,t,opt);
 }
-$('#prev').addEventListener('click',()=>{ S.navT=performance.now(); stopPlay(); showStep(S.step-1,true); });
-$('#next').addEventListener('click',()=>{ S.navT=performance.now(); stopPlay(); showStep(S.step+1,true); });
-$('#play').addEventListener('click',()=>{ if(S.playing){ stopPlay(); return; } startPlay(); });
+$('#prev').addEventListener('click',()=>{ haptic.sel(); S.navT=performance.now(); stopPlay(); showStep(S.step-1,true); });
+$('#next').addEventListener('click',()=>{ haptic.sel(); S.navT=performance.now(); stopPlay(); showStep(S.step+1,true); });
+$('#play').addEventListener('click',()=>{ haptic.tap(); if(S.playing){ stopPlay(); return; } startPlay(); });
 function startPlay(){
   const b=S.beta; if(!b) return;
   if(S.step>=b.steps.length-1) showStep(0,false);
@@ -2345,7 +2740,7 @@ function setMask(arr,w,h){
     else if(c===4){ d[j]=255; d[j+1]=190; d[j+2]=11; d[j+3]=170; }
     else { d[j]=8; d[j+1]=10; d[j+2]=12; d[j+3]=150; }
   }
-  mc.putImageData(img,0,0); S.mask=true;
+  mc.putImageData(img,0,0); S.mask=true; maskStamp++;
 }
 function updateStats(){
   const st=$('#holdStat'),wn=$('#holdWarn');
@@ -2402,21 +2797,24 @@ function setMode(m){
   if(m==='pick'&&S.model) hint='Tap a hold to pick a new colour. Picking the same colour again keeps your start, top and hold changes.';
   if(m==='add'&&isMoving()) hint='Tap a dashed amber hold to keep it, or a crossed-out hold to put it back. To add a hold by hand, tap Freeze frame first.';
   $('#modeHint').textContent=hint;
-  updateSizeUi();
+  updateSizeUi(); toolCaption();
+  if(AP.on&&(TOOLS.includes(m)||m==='size')&&AP.detent==='full') goDetent('half');
   if(S.src&&!isMoving()) render();
 }
 document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{
   const m=b.dataset.mode;
   /* tapping the tool that is on turns it off */
+  haptic.sel();
   if(m==='size'){ setMode(S.mode==='size'?(S.model?'none':'pick'):'size'); return; }
+  if(m==='type'&&S.mode!=='type'&&!requirePro('type',b,()=>setMode('type'))) return;
   setMode(S.mode===m&&S.model?'none':m);
 }));
 /* The size panel: where the scale came from, in plain words. */
 const SIZENOTE={
   edges:'Found the floor and the top of the wall, so the climber is drawn at real size for a {m} m wall.',
   floor:'Found the floor but not the top of the wall, so the top of the picture counts as the top. If the wall goes higher, the climber looks too small: tap Check size and drag the Top line.',
-  top:'Found the top of the wall but not the floor, so the bottom of the picture counts as the floor. Tap Check size and drag the Floor line to the mats if they are in view.',
-  picture:'Couldn\'t find the floor or the top of the wall, so the whole picture counts as {m} m of wall. Tap Check size and drag the two lines, or stand back so the mats and the top of the wall are in view.',
+  top:'Found the top of the wall but not the floor, so the floor is put just below the lowest hold. Tap Check size and drag the Floor line to where the wall meets the mats.',
+  picture:'Couldn\'t find the floor or the top of the wall, so the top of the picture counts as the top and the floor is put just below the lowest hold. Tap Check size and drag the two lines, or stand back so the mats and the top of the wall are in view.',
   marks:'Using your lines: {m} m of wall between the Floor and Top lines.',
   sample:'Sample wall: the picture shows the whole {m} m wall.'};
 function updateSizeUi(){
@@ -2472,12 +2870,12 @@ let nudgeT=0;
 function nudgeTools(){ const t=$('#tools'); t.classList.remove('nudge'); void t.offsetWidth; t.classList.add('nudge'); clearTimeout(nudgeT); nudgeT=setTimeout(()=>t.classList.remove('nudge'),1000); }
 cv.addEventListener('click',e=>{
   if(!S.src) return;
-  const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,u=x/S.view.dw,v=y/S.view.dh;
+  const r=cv.getBoundingClientRect(),u=(e.clientX-r.left)/r.width,v=(e.clientY-r.top)/r.height,x=u*S.view.dw,y=v*S.view.dh;
   if(S.mode==='size') return;
   if(S.mode==='pick'||!S.model){ pickAt(u,v); return; }
   if(S.mode==='none'){ nudgeTools(); toast('First choose Add hold, Remove hold, Hold type, Set start or Set top.'); return; }
   const mv=isMoving(),E=S.edits;
-  const changed=()=>{ if(!mv) applyEdits(); updateStats(); render(); solveSoon(); };
+  const changed=()=>{ if(!mv) applyEdits(); haptic.tap(); S.planHaptic=true; updateStats(); render(); solveSoon(); };
   if(S.mode==='add'){
     const h=hitHold(x,y,true);
     if(h&&h.removed){
@@ -2518,20 +2916,21 @@ cv.addEventListener('click',e=>{
   changed();
 });
 let toastT=0;
-function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>{ t.hidden=true; },2400); }
+function toast(msg){ const t=$('#toast'),was=!t.hidden; t.textContent=msg; t.hidden=false; if(!was) popIn(t,{transform:'translate(-50%,-10px) scale(.94)',opacity:0},'translateX(-50%)'); clearTimeout(toastT); toastT=setTimeout(()=>{ t.hidden=true; },2400); }
 function busy(text){ const b=$('#busy'); if(text){ b.textContent=text; b.hidden=false; } else b.hidden=true; }
 
 /* ---------- drawing ---------- */
 function fit(){
   if(!S.src) return;
-  const a=aspect(),maxW=wrap.clientWidth||600,maxH=Math.max(300,Math.min(window.innerHeight-210,1000));
+  const a=aspect(),maxW=AP.on?window.innerWidth:(wrap.clientWidth||600),maxH=AP.on?AP.wallH:Math.max(300,Math.min(window.innerHeight-210,1000));
   let dw=maxW,dh=dw/a; if(dh>maxH){ dh=maxH; dw=dh*a; }
   dw=Math.max(1,Math.floor(dw)); dh=Math.max(1,Math.floor(dh));
   const dpr=Math.min(window.devicePixelRatio||1,isMoving()?2:2.5);
   cv.style.width=dw+'px'; cv.style.height=dh+'px';
   cv.width=Math.round(dw*dpr); cv.height=Math.round(dh*dpr);
   veil.width=cv.width; veil.height=cv.height;
-  S.view={dw,dh,dpr};
+  S.view={dw,dh,dpr}; R.sig='';
+  if(AP.on) layoutWall();
 }
 const P=(u,v)=>[u*S.view.dw,v*S.view.dh];
 function drift(){
@@ -2552,26 +2951,35 @@ function tagAt(x,y,text,fill,ink,size,g){
   g.restore();
   return w;
 }
-function render(){
-  if(!S.src) return;
-  const {dw,dh,dpr}=S.view;
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,dw,dh);
-  try{ ctx.drawImage(S.src.el,0,0,dw,dh); }catch(e){}
-  const hs=currentHolds(),act=hs.filter(h=>isActive(h)&&onWall(h)),b=S.beta;
-  if(S.showMask&&S.mask){ ctx.imageSmoothingEnabled=false; ctx.drawImage(maskCv,0,0,dw,dh); ctx.imageSmoothingEnabled=true; }
+/* Drawing in three layers so a playing move only redraws the climber: the
+   picture with the veil and hold rings (R.ov), the climber, then the labels
+   (R.lab). The two cached layers are rebuilt only when what they show
+   changes (overlaySig); a clip or the camera draws its frame fresh each time.
+   On a throttled phone this took playback from about 25 to 60 frames a second. */
+const R={ov:document.createElement('canvas'),lab:document.createElement('canvas'),sig:''};
+let maskStamp=0;
+function overlaySig(){
+  const b=S.beta,c=S.cal,E=S.edits,v=S.view,f=n=>Math.round(n*2000);
+  let sig=[S.token,v.dw,v.dh,v.dpr,S.mode,S.showMask&&S.mask?maskStamp:0,S.model?1:0,b?b._id:0,typeRef?typeRef.id+':'+f(typeRef.u):'',E.start.length,E.startT.join('.'),E.topT,f(c.fl.a),f(c.fl.m),f(c.tp.a),f(c.tp.m),isMoving()?1:0].join('|');
+  for(const h of currentHolds()) sig+='|'+h.id+','+f(h.u)+','+f(h.v)+','+f(h.rho)+','+(h.status||'')[0]+(h.removed?'r':'')+(h.userOk?'k':'')+(h.manual?'m':'')+(h.type||'');
+  return sig;
+}
+function drawRings(g){
+  const {dw,dh,dpr}=S.view,hs=currentHolds(),act=hs.filter(h=>isActive(h)&&onWall(h)),b=S.beta;
+  if(S.showMask&&S.mask){ g.imageSmoothingEnabled=false; g.drawImage(maskCv,0,0,dw,dh); g.imageSmoothingEnabled=true; }
   else if(S.model&&act.length){
     const v=veil.getContext('2d');
+    sizeCanvas(veil,cv.width,cv.height);
     v.setTransform(1,0,0,1,0,0); v.clearRect(0,0,veil.width,veil.height);
     v.fillStyle='rgba(8,10,12,0.55)'; v.fillRect(0,0,veil.width,veil.height);
     v.setTransform(dpr,0,0,dpr,0,0); v.globalCompositeOperation='destination-out';
     for(const h of act){
-      const [x,y]=P(h.u,h.v),r=h.rho*dh,R=r*1.55+6,g=v.createRadialGradient(x,y,r*1.05,x,y,R);
-      g.addColorStop(0,'rgba(0,0,0,1)'); g.addColorStop(1,'rgba(0,0,0,0)');
-      v.fillStyle=g; v.beginPath(); v.arc(x,y,R,0,6.283); v.fill();
+      const [x,y]=P(h.u,h.v),r=h.rho*dh,Rr=r*1.55+6,gr=v.createRadialGradient(x,y,r*1.05,x,y,Rr);
+      gr.addColorStop(0,'rgba(0,0,0,1)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+      v.fillStyle=gr; v.beginPath(); v.arc(x,y,Rr,0,6.283); v.fill();
     }
     v.globalCompositeOperation='source-over';
-    ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(veil,0,0); ctx.setTransform(dpr,0,0,dpr,0,0);
+    g.save(); g.setTransform(1,0,0,1,0,0); g.drawImage(veil,0,0); g.restore();
   }
   const used=b?b.num:new Map();
   for(const h of hs){
@@ -2579,37 +2987,59 @@ function render(){
       /* While adding, removed holds show crossed out so they can be put back. */
       if(S.mode!=='add') continue;
       const [x,y]=P(h.u,h.v),r=h.rho*dh+3,k=Math.min(r*0.5,7);
-      ctx.beginPath(); ctx.arc(x,y,r,0,6.283); ctx.moveTo(x-k,y-k); ctx.lineTo(x+k,y+k); ctx.moveTo(x+k,y-k); ctx.lineTo(x-k,y+k);
-      ctx.setLineDash([4,3]); ctx.lineWidth=3.4; ctx.strokeStyle='rgba(0,0,0,.7)'; ctx.stroke();
-      ctx.lineWidth=1.8; ctx.strokeStyle='#ff6b6b'; ctx.stroke(); ctx.setLineDash([]);
+      g.beginPath(); g.arc(x,y,r,0,6.283); g.moveTo(x-k,y-k); g.lineTo(x+k,y+k); g.moveTo(x+k,y-k); g.lineTo(x-k,y+k);
+      g.setLineDash([4,3]); g.lineWidth=3.4; g.strokeStyle='rgba(0,0,0,.7)'; g.stroke();
+      g.lineWidth=1.8; g.strokeStyle='#ff6b6b'; g.stroke(); g.setLineDash([]);
       continue;
     }
     const active=isActive(h)&&onWall(h);
     if(!active&&h.status!=='unsure'&&!S.showMask) continue;
     const [x,y]=P(h.u,h.v),r=h.rho*dh+3;
-    ctx.beginPath(); ctx.arc(x,y,r,0,6.283);
-    if(active){ ctx.setLineDash(!b||used.has(h.id)?[]:[4,4]); ctx.lineWidth=3.6; ctx.strokeStyle='rgba(0,0,0,.75)'; ctx.stroke(); ctx.lineWidth=1.8; ctx.strokeStyle='#ffffff'; ctx.stroke(); }
-    else if(h.status==='unsure'){ ctx.setLineDash([5,4]); ctx.lineWidth=3.4; ctx.strokeStyle='rgba(0,0,0,.7)'; ctx.stroke(); ctx.lineWidth=2; ctx.strokeStyle='#ffbe0b'; ctx.stroke(); }
-    else { ctx.setLineDash([3,4]); ctx.lineWidth=1.5; ctx.strokeStyle='#ff2bd0'; ctx.stroke(); }
-    ctx.setLineDash([]);
+    g.beginPath(); g.arc(x,y,r,0,6.283);
+    if(active){ g.setLineDash(!b||used.has(h.id)?[]:[4,4]); g.lineWidth=3.6; g.strokeStyle='rgba(0,0,0,.75)'; g.stroke(); g.lineWidth=1.8; g.strokeStyle='#ffffff'; g.stroke(); }
+    else if(h.status==='unsure'){ g.setLineDash([5,4]); g.lineWidth=3.4; g.strokeStyle='rgba(0,0,0,.7)'; g.stroke(); g.lineWidth=2; g.strokeStyle='#ffbe0b'; g.stroke(); }
+    else { g.setLineDash([3,4]); g.lineWidth=1.5; g.strokeStyle='#ff2bd0'; g.stroke(); }
+    g.setLineDash([]);
   }
-  if(b&&b.steps.length) drawClimber();
-  if(S.mode==='size') drawSizeGuide();
+}
+function drawLabels(g){
+  const dh=S.view.dh,act=currentHolds().filter(h=>isActive(h)&&onWall(h)),b=S.beta,used=b?b.num:new Map();
   const topId=b?b.res.pts[b.res.top].id:null;
   for(const h of act){
     const [x,y]=P(h.u,h.v),r=h.rho*dh;
-    if(h.id===topId){ const ty=y-r-14; tagAt(x,ty<12?y+r+14:ty,'TOP','#ffd43b','#211c0a'); }
-    const n=used.get(h.id); if(n!=null) tagAt(x+r*0.85+7,y-r*0.85-6,String(n),'#ffd43b','#211c0a');
-    if(isStart(h)) tagAt(x-r-10,y,'S','#ffffff','#14181c');
+    if(h.id===topId){ const ty=y-r-14; tagAt(x,ty<12?y+r+14:ty,'TOP','#ffd43b','#211c0a',13,g); }
+    const n=used.get(h.id); if(n!=null) tagAt(x+r*0.85+7,y-r*0.85-6,String(n),'#ffd43b','#211c0a',13,g);
+    if(isStart(h)) tagAt(x-r-10,y,'S','#ffffff','#14181c',13,g);
     /* the hold type: set ones always, guesses while the Hold type tool is on */
-    if(h.type) tagAt(x,y+r+12,HOLD_TYPES[h.type].name,'#ffffff','#14181c',11);
-    else if(S.mode==='type'){ const g=guessType(holdMeta(h)); if(g){ ctx.save(); ctx.globalAlpha=0.72; tagAt(x,y+r+12,HOLD_TYPES[g].name+'?','#dfe3e7','#14181c',11); ctx.restore(); } }
+    if(h.type) tagAt(x,y+r+12,HOLD_TYPES[h.type].name,'#ffffff','#14181c',11,g);
+    else if(S.mode==='type'){ const gt=guessType(holdMeta(h)); if(gt){ g.save(); g.globalAlpha=0.72; tagAt(x,y+r+12,HOLD_TYPES[gt].name+'?','#dfe3e7','#14181c',11,g); g.restore(); } }
   }
   const ph=S.mode==='type'?typePickHold():null;
   if(ph){
     const [x,y]=P(ph.u,ph.v),r=ph.rho*dh+7;
-    ctx.beginPath(); ctx.arc(x,y,r,0,6.283); ctx.lineWidth=6; ctx.strokeStyle='rgba(0,0,0,.6)'; ctx.stroke(); ctx.lineWidth=3; ctx.strokeStyle='#ffd43b'; ctx.stroke();
+    g.beginPath(); g.arc(x,y,r,0,6.283); g.lineWidth=6; g.strokeStyle='rgba(0,0,0,.6)'; g.stroke(); g.lineWidth=3; g.strokeStyle='#ffd43b'; g.stroke();
   }
+}
+function render(){
+  if(!S.src) return;
+  const {dw,dh,dpr}=S.view,mv=isMoving(),t0=S.perf?performance.now():0;
+  const sig=overlaySig();
+  if(sig!==R.sig){
+    R.sig=sig;
+    for(const L of [R.ov,R.lab]){ sizeCanvas(L,cv.width,cv.height); const g=L.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,L.width,L.height); g.setTransform(dpr,0,0,dpr,0,0); }
+    const g=R.ov.getContext('2d');
+    if(!mv) try{ g.drawImage(S.src.el,0,0,dw,dh); }catch(e){}
+    drawRings(g);
+    drawLabels(R.lab.getContext('2d'));
+  }
+  ctx.setTransform(1,0,0,1,0,0);
+  if(mv){ ctx.clearRect(0,0,cv.width,cv.height); ctx.setTransform(dpr,0,0,dpr,0,0); try{ ctx.drawImage(S.src.el,0,0,dw,dh); }catch(e){} ctx.setTransform(1,0,0,1,0,0); }
+  ctx.drawImage(R.ov,0,0);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(S.beta&&S.beta.steps.length) drawClimber();
+  if(S.mode==='size') drawSizeGuide();
+  ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(R.lab,0,0); ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(S.perf) S.perf.push(performance.now()-t0);
 }
 function ik(Pt,T,L1,L2,pick){
   const dx=T[0]-Pt[0],dy=T[1]-Pt[1]; let d=Math.hypot(dx,dy);
@@ -2656,8 +3086,29 @@ function torsoPath(g,L,U){
 }
 /* Fill the parts, darken the edges with an inner shadow cast by everything
    outside the outline (stronger on the lower right, light from the upper
-   left), then draw surface details clipped to the shape. */
-function shadeLayer(cv,M,box,dpr,parts,soft,details){
+   left), then draw surface details clipped to the shape. The blurred
+   shadows are worked out at half resolution (LOWRES) and scaled up under the
+   full-resolution outline, which keeps the edges crisp: a blur costs by the
+   pixel, and on a phone the blurs were most of the drawing time. */
+const LOWRES=0.5;
+/* src scaled down into Ly.lo */
+function lowCopy(Ly,src){
+  const W=Math.max(1,Math.ceil(src.width*LOWRES)),Hh=Math.max(1,Math.ceil(src.height*LOWRES));
+  sizeCanvas(Ly.lo,W,Hh);
+  const g=Ly.lo.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation='copy'; g.drawImage(src,0,0,W,Hh); g.globalCompositeOperation='source-over';
+  return Ly.lo;
+}
+/* Only the shadow of src (offset, blurred) into dst: src is drawn far off
+   the canvas and its shadow offset back on. */
+function shadowOnly(dst,src,color,blur,ox,oy){
+  sizeCanvas(dst,src.width,src.height);
+  const g=dst.getContext('2d'),far=src.width+src.height+64;
+  g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation='source-over'; g.clearRect(0,0,dst.width,dst.height);
+  g.shadowColor=color; g.shadowBlur=blur; g.shadowOffsetX=ox+far; g.shadowOffsetY=oy; g.drawImage(src,-far,0);
+  g.shadowColor='transparent'; g.shadowOffsetX=0; g.shadowOffsetY=0;
+  return dst;
+}
+function shadeLayer(cv,Ly,box,dpr,parts,soft,details){
   const W=Math.max(1,Math.ceil(box.w*dpr)),Hh=Math.max(1,Math.ceil(box.h*dpr));
   sizeCanvas(cv,W,Hh);
   const g=cv.getContext('2d');
@@ -2665,16 +3116,16 @@ function shadeLayer(cv,M,box,dpr,parts,soft,details){
   const base=()=>g.setTransform(dpr,0,0,dpr,-box.x*dpr,-box.y*dpr);
   base();
   for(const pt of parts){ g.save(); g.fillStyle=pt.color||SKIN; g.beginPath(); pt.draw(g); g.fill(); g.restore(); base(); }
-  sizeCanvas(M,W,Hh);
+  /* everything outside the outline, at half resolution */
+  const lo=lowCopy(Ly,cv),M=Ly.lm;
+  sizeCanvas(M,lo.width,lo.height);
   const m=M.getContext('2d');
-  m.setTransform(1,0,0,1,0,0); m.globalCompositeOperation='source-over'; m.clearRect(0,0,W,Hh);
-  m.fillStyle='#000'; m.fillRect(0,0,W,Hh);
-  m.globalCompositeOperation='destination-out'; m.drawImage(cv,0,0);
+  m.setTransform(1,0,0,1,0,0); m.globalCompositeOperation='source-over'; m.fillStyle='#000'; m.fillRect(0,0,M.width,M.height);
+  m.globalCompositeOperation='destination-out'; m.drawImage(lo,0,0); m.globalCompositeOperation='source-over';
+  const bl=Math.max(2,soft*dpr)*LOWRES;
   g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation='source-atop';
-  const bl=Math.max(2,soft*dpr);
-  g.shadowColor='rgba(52,56,64,0.78)'; g.shadowBlur=bl; g.shadowOffsetX=-0.28*bl; g.shadowOffsetY=-0.42*bl; g.drawImage(M,0,0);
-  g.shadowColor='rgba(70,74,82,0.55)'; g.shadowBlur=bl*0.5; g.shadowOffsetX=0; g.shadowOffsetY=0; g.drawImage(M,0,0);
-  g.shadowColor='transparent';
+  g.drawImage(shadowOnly(Ly.ls,M,'rgba(52,56,64,0.78)',bl,-0.28*bl,-0.42*bl),0,0,W,Hh);
+  g.drawImage(shadowOnly(Ly.ls,M,'rgba(70,74,82,0.55)',bl*0.5,0,0),0,0,W,Hh);
   if(details){ base(); g.globalCompositeOperation='source-atop'; details(g); }
   g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation='source-over';
 }
@@ -2861,15 +3312,19 @@ function paintFigure(Ly,G,scale,dpr){
       stroke(g,U(0.012),'rgba(62,66,74,0.2)',()=>{ g.moveTo(-U(0.045),U(0.06)); g.quadraticCurveTo(0,U(0.085),U(0.045),U(0.06)); });
       g.restore();
     };
-    shadeLayer(Ly.body,Ly.mask,box,dpr,bodyParts,U(0.065),bodyDetails);
-    shadeLayer(Ly.arms,Ly.mask,box,dpr,armParts,U(0.048),armDetails);
-    shadeLayer(Ly.head,Ly.mask,box,dpr,headParts,U(0.06),headDetails);
+    shadeLayer(Ly.body,Ly,box,dpr,bodyParts,U(0.065),bodyDetails);
+    shadeLayer(Ly.arms,Ly,box,dpr,armParts,U(0.048),armDetails);
+    shadeLayer(Ly.head,Ly,box,dpr,headParts,U(0.06),headDetails);
     sizeCanvas(SP,SW,SHh);
     const g=SP.getContext('2d');
     g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation='source-over'; g.clearRect(0,0,SW,SHh);
+    /* each layer's soft drop shadow and a tight contact shadow, blurred at
+       half resolution, then the layer itself */
     const drop=(cv,blur,ox,oy,a)=>{
-      g.shadowColor=`rgba(0,0,0,${a})`; g.shadowBlur=blur*dpr; g.shadowOffsetX=ox*dpr; g.shadowOffsetY=oy*dpr; g.drawImage(cv,0,0);
-      g.shadowColor='rgba(0,0,0,0.5)'; g.shadowBlur=2.2*dpr; g.shadowOffsetX=0; g.shadowOffsetY=0; g.drawImage(cv,0,0);
+      const lo=lowCopy(Ly,cv),k=dpr*LOWRES;
+      g.drawImage(shadowOnly(Ly.ld,lo,`rgba(0,0,0,${a})`,blur*k,ox*k,oy*k),0,0,SW,SHh);
+      g.drawImage(shadowOnly(Ly.ld,lo,'rgba(0,0,0,0.5)',Math.max(1,2.2*k),0,0),0,0,SW,SHh);
+      g.drawImage(cv,0,0);
     };
     /* Seen from behind, the arms reach past the body toward the wall, so the
        back and the head cover them where they overlap. */
@@ -2894,17 +3349,21 @@ function drawLimbBadges(g,G,Q,activeLimb,only){
     g.fillText(kk[0]==='l'?'L':'R',q[0],q[1]+0.5);
   }
 }
-const newLayers=()=>({body:document.createElement('canvas'),arms:document.createElement('canvas'),head:document.createElement('canvas'),mask:document.createElement('canvas'),sprite:document.createElement('canvas'),key:''});
+const newLayers=()=>{ const c=()=>document.createElement('canvas'); return {body:c(),arms:c(),head:c(),lo:c(),lm:c(),ls:c(),ld:c(),sprite:c(),key:''}; };
 const figLayers=newLayers();
 function drawClimber(){
   const b=S.beta,H=b.res.H,TORSO=b.res.TORSO,step=b.steps[S.step],p=currentPos(),dr=drift();
   const editing=TOOLS.includes(S.mode)||S.mode==='size',dpr=S.view.dpr,c0=b.cal||calNow(),k=(c0.floor-c0.top)/(c0.wallM*100)*S.view.dh;
-  const Q=q=>cmPx(q,dr);
+  const Q=q=>cmPx(q,dr),Q0=q=>cmPx(q,[0,0]),ox=dr[0]*S.view.dw,oy=dr[1]*S.view.dh;
   /* drawn arm a touch shorter than the planner's reach; the shoulder lift covers the rest */
-  const arm=0.96*(b.res.ARM||0.5*H);
-  const G=figureGeom(p,H,TORSO,arm,Q,bodyFor(p,H,TORSO,arm)),F=paintFigure(figLayers,G,H*k,dpr);
+  const arm=0.96*(b.res.ARM||0.5*H),bd=bodyFor(p,H,TORSO,arm);
+  /* The sprite is drawn without the camera's drift and moved by it, so a
+     shaking phone doesn't redraw it; while a move plays it is drawn at up to
+     1.5x (a moving figure doesn't show the difference) and sharp at rest. */
+  const fd=S.anim?Math.min(dpr,1.5):dpr;
+  const G0=figureGeom(p,H,TORSO,arm,Q0,bd),F=paintFigure(figLayers,G0,H*k,fd),G=ox||oy?figureGeom(p,H,TORSO,arm,Q,bd):G0;
   ctx.save(); ctx.globalAlpha=editing?0.35:0.96;
-  ctx.drawImage(F.sp,0,0,F.SW,F.SHh,F.box.x,F.box.y,F.SW/dpr,F.SHh/dpr);
+  ctx.drawImage(F.sp,0,0,F.SW,F.SHh,F.box.x+ox,F.box.y+oy,F.SW/fd,F.SHh/fd);
   ctx.globalAlpha=editing?0.35:1;
   if(step.limb&&S.step>0&&!editing){
     const prev=b.steps[S.step-1].pos,a=prev[step.limb]||flagPos(step.limb,prev.C,H),z=step.pos[step.limb]||flagPos(step.limb,step.pos.C,H);
@@ -2996,19 +3455,22 @@ function fillTypePick(h){
   tpEl.dataset.show=shown;
 }
 function openTypePick(h){
+  const was=!tpEl.hidden;
   typeRef={id:h.id,u:h.u,v:h.v};
   fillTypePick(h);
   tpEl.hidden=false;
   placeTypePick(h);
+  if(!was) popIn(tpEl,AP.on?{transform:'translateY(60px)',opacity:0}:{transform:'scale(.94)',opacity:0});
   render();
 }
 /* Next to the hold, never on it: below it inside the picture, else above
    it, else below it hanging over the player under the picture. */
 function placeTypePick(h){
+  if(AP.on){ tpEl.style.left=''; tpEl.style.top=''; AP.occ=tpEl.offsetHeight+16; layoutWall(); return; }
   const st=tpEl.parentElement,sr=st.getBoundingClientRect(),cr=cv.getBoundingClientRect(),ox=cr.left-sr.left,oy=cr.top-sr.top;
-  const [x,y]=P(h.u,h.v),r=h.rho*S.view.dh,w=tpEl.offsetWidth,hh=tpEl.offsetHeight,W=st.clientWidth,SH=st.clientHeight;
+  const sc=cr.width/Math.max(1,S.view.dw),[x0,y0]=P(h.u,h.v),x=x0*sc,y=y0*sc,r=h.rho*S.view.dh*sc,w=tpEl.offsetWidth,hh=tpEl.offsetHeight,W=st.clientWidth,SH=st.clientHeight;
   const left=Math.max(8,Math.min(W-w-8,ox+x-w/2)),below=oy+y+r+16,above=oy+y-r-16-hh;
-  let top=below+hh<=oy+S.view.dh-8?below:above>=8?above:below;
+  let top=below+hh<=oy+cr.height-8?below:above>=8?above:below;
   top=Math.max(8,Math.min(Math.max(8,SH-hh-8),top));
   tpEl.style.left=left+'px'; tpEl.style.top=top+'px';
   const rr=tpEl.getBoundingClientRect(); if(rr.top<0||rr.bottom>window.innerHeight) tpEl.scrollIntoView({block:'nearest',behavior:reduceMotion?'auto':'smooth'});
@@ -3016,6 +3478,7 @@ function placeTypePick(h){
 function closeTypePick(quiet){
   if(!typeRef&&tpEl.hidden) return;
   typeRef=null; tpEl.hidden=true;
+  if(AP.occ){ AP.occ=0; layoutWall(); }
   if(!quiet&&S.src&&!isMoving()) render();
 }
 function setHoldType(h,ty){
@@ -3025,6 +3488,7 @@ function setHoldType(h,ty){
   if(ty) keepChosen(h);
   if(!isMoving()) applyEdits();
   const h2=typePickHold(); if(h2) fillTypePick(h2);
+  haptic.tap(); S.planHaptic=true;
   toast(ty?`Hold set as ${artName(ty)}`:'Type cleared. The guess is used again.');
   updateStats(); render(); solveSoon();
 }
@@ -3036,6 +3500,7 @@ $('#tpShow').addEventListener('click',e=>openDemo(tpEl.dataset.show||'jug',e.cur
 /* A small wall with stylised holds and the same climber, looping one
    technique per hold type. Moves use blendPose(), like the route player. */
 const demoEl=$('#demo'),demoCv=$('#demoCv'),dctx=demoCv.getContext('2d'),demoLayers=newLayers();
+const demoLocked=ty=>!FULL&&!S.pro&&!FREE_DEMOS.includes(ty);
 const DEMO_H=170,DEMO_T=0.3*DEMO_H,DEMO_ARM=0.96*0.5*DEMO_H,DEMO_X0=-108,DEMO_W=216,DEMO_TOP=288;
 const DEMO_HOLD='#f07b22',DEMO_HOLD_DARK='#9c4209';
 for(const ty in DEMOS) for(const k of DEMOS[ty].keys) k.fixHip=true;
@@ -3045,19 +3510,20 @@ const demoTypes=$('#demoTypes');
 for(const ty of HOLD_ORDER){
   const b=document.createElement('button'); b.type='button'; b.className='chip'; b.dataset.type=ty;
   b.innerHTML=holdIconSvg(ty); b.append(document.createTextNode(HOLD_TYPES[ty].name));
+  const pt=document.createElement('span'); pt.className='pro-tag'; pt.textContent='Pro'; pt.hidden=true; b.append(pt);
   b.addEventListener('click',()=>setDemo(ty));
   demoTypes.append(b);
 }
 function openDemo(ty,opener){
   if(!DEMOS[ty]) return;
   stopPlay();
-  D.opener=opener||document.activeElement;
-  demoEl.hidden=false; document.body.classList.add('modal-open');
+  mDemo.show(opener||document.activeElement);
   setDemo(ty);
-  $('#demoClose').focus();
 }
 function setDemo(ty){
-  D.type=ty; D.i=0; D.phase='hold'; D.t0=performance.now(); D.dur=DEMOS[ty].keys[0].hold||1500; D.playing=!reduceMotion; D.dirty=true;
+  const locked=demoLocked(ty);
+  D.type=ty; D.i=0; D.phase='hold'; D.t0=performance.now(); D.dur=DEMOS[ty].keys[0].hold||1500; D.playing=!reduceMotion&&!locked; D.dirty=true;
+  $('#demoLock').hidden=!locked; demoEl.querySelector('.demo-ctl').hidden=locked;
   const T=HOLD_TYPES[ty];
   $('#demoTitle').textContent=DEMOS[ty].title;
   $('#demoIcon').innerHTML=holdIconSvg(ty);
@@ -3068,13 +3534,8 @@ function setDemo(ty){
   fitDemo(); demoCaption(); setDemoPlayBtn();
   cancelAnimationFrame(D.raf); D.raf=requestAnimationFrame(demoTick);
 }
-function closeDemo(){
-  if(demoEl.hidden) return;
-  demoEl.hidden=true; document.body.classList.remove('modal-open');
-  cancelAnimationFrame(D.raf); D.raf=0;
-  const o=D.opener; D.opener=null;
-  if(o&&o.focus&&document.contains(o)&&!o.closest('[hidden]')) o.focus();
-}
+function closeDemo(){ mDemo.hide(); }
+const mDemo=Modal(demoEl,{onClose:()=>{ cancelAnimationFrame(D.raf); D.raf=0; }});
 function fitDemo(){
   const box=$('#demoStage'),maxW=Math.max(200,box.clientWidth||320),maxH=Math.max(240,Math.min(window.innerHeight*0.52,620));
   let w=maxW,h=w*DEMO_TOP/DEMO_W; if(h>maxH){ h=maxH; w=h*DEMO_W/DEMO_TOP; }
@@ -3196,8 +3657,7 @@ function drawDemo(now){
   drawLimbBadges(g,G,Q,active,{lh:!free.lh,rh:!free.rh,lf:true,rf:true});
   g.restore();
 }
-$('#demoClose').addEventListener('click',closeDemo);
-demoEl.addEventListener('click',e=>{ if(e.target===demoEl) closeDemo(); });
+
 $('#demoPlay').addEventListener('click',()=>{
   D.playing=!D.playing; setDemoPlayBtn();
   const now=performance.now(),last=DEMOS[D.type].keys.length-1;
@@ -3218,17 +3678,7 @@ $('#demoPrev').addEventListener('click',()=>{
   if(D.phase==='fadeout'||D.phase==='fadein') D.i=DEMOS[D.type].keys.length-1;
   D.i=Math.max(0,D.i-1); D.phase='hold'; D.t0=now; D.dur=1500; D.dirty=true; demoCaption();
 });
-/* keep keyboard focus inside the open example */
-demoEl.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ e.preventDefault(); closeDemo(); return; }
-  if(e.key!=='Tab') return;
-  const f=[...demoEl.querySelectorAll('button:not([disabled])')].filter(b=>b.offsetParent);
-  if(!f.length) return;
-  const i=f.indexOf(document.activeElement);
-  if(e.shiftKey&&(i<=0)){ e.preventDefault(); f[f.length-1].focus(); }
-  else if(!e.shiftKey&&i===f.length-1){ e.preventDefault(); f[0].focus(); }
-});
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!tpEl.hidden&&demoEl.hidden) closeTypePick(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!tpEl.hidden&&!openSheets.length) closeTypePick(); });
 window.addEventListener('resize',()=>{ if(!demoEl.hidden){ fitDemo(); } });
 /* Learn tab: one row per hold type with a button to watch it */
 (function(){
@@ -3245,6 +3695,8 @@ window.addEventListener('resize',()=>{ if(!demoEl.hidden){ fitDemo(); } });
 
 /* ---------- tabs ---------- */
 function showTab(name){
+  if(AP.on){ if(name==='learn') mLearn.show(); return; }
+  curTab=name;
   const learn=name==='learn';
   $('#view-wall').hidden=learn; $('#view-learn').hidden=!learn;
   $('#tab-wall').setAttribute('aria-selected',String(!learn)); $('#tab-learn').setAttribute('aria-selected',String(learn));
@@ -3252,6 +3704,197 @@ function showTab(name){
 }
 $('#tab-wall').addEventListener('click',()=>showTab('wall'));
 $('#tab-learn').addEventListener('click',()=>showTab('learn'));
+
+/* ---------- phone app layout ---------- */
+/* The app (and any screen up to 760 px wide) shows the wall full width under
+   a translucent bar, with a bottom sheet at three heights: peek (the player
+   and the tools), half and full (the route panels). The panels are moved,
+   not copied, so every listener keeps working; each remembers its home. */
+const appMQ=phoneMQ;
+const AP={on:false,sat:0,sab:0,bar:52,peek:222,half:420,full:640,vis:222,detent:'peek',occ:0,wallH:400,drag:null,dragEnd:0};
+const bsheet=$('#bsheet'),bsCard=bsheet.querySelector('.bs-card'),bsBody=$('#bsBody');
+const insetProbe=document.createElement('div');
+insetProbe.style.cssText='position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)';
+document.body.append(insetProbe);
+function readInsets(){ const cs=getComputedStyle(insetProbe); AP.sat=parseFloat(cs.paddingTop)||0; AP.sab=parseFloat(cs.paddingBottom)||0; }
+AP.sp=Spring(AP.peek,v=>sheetVis(v),0.3);
+function place(el,target){ if(!el) return; if(!el.__home){ const c=document.createComment(' home: '+(el.id||el.className)+' '); el.parentNode.insertBefore(c,el); el.__home=c; } target.append(el); }
+function goHome(el){ const c=el&&el.__home; if(c&&c.parentNode) c.parentNode.insertBefore(el,c.nextSibling); }
+let curTab='wall';
+function setAppMode(on){
+  on=!!on;
+  if(AP.on===on){ if(on){ appLayout(); fit(); render(); } return; }
+  AP.on=on;
+  document.documentElement.classList.toggle('app-mode',on);
+  $('#appbar').hidden=!on; bsheet.hidden=!on;
+  const moves=[[$('#vbar'),$('#bsFloat')],[$('#player'),$('#bsHead')],[document.querySelector('.seg.one'),$('#pTools')],[$('#tools'),$('#pTools')],
+    [$('#blkRoute'),bsBody],[$('#blkBeta'),bsBody],[$('#coach'),bsBody],[$('#blkWall'),$('#msNewBody')],[$('#blkAbout'),$('#msSetBody')],[$('#proBlk'),$('#msSetBody')],[$('#view-learn'),$('#msLearnBody')]];
+  if(on){ for(const [el,t] of moves) place(el,t); $('#view-learn').hidden=false; }
+  else{
+    for(const m of openSheets.slice()) if(m!==mDemo&&m!==mPro) m.hideNow();
+    for(const [el] of moves.slice().reverse()) goHome(el);
+    $('#app').style.transform=''; $('#cv').style.transform=''; AP.occ=0;
+    $('#view-learn').hidden=curTab!=='learn'; $('#view-wall').hidden=curTab==='learn';
+  }
+  toolCaption();
+  if(on) appLayout();
+  lastW=0; fit(); render();
+  if(!tpEl.hidden&&typeRef){ const h=typePickHold(); if(h) placeTypePick(h); }
+}
+function appLayout(){
+  if(!AP.on) return;
+  readInsets();
+  const H=window.innerHeight;
+  AP.full=Math.max(260,Math.round(H-AP.sat-AP.bar-6));
+  AP.peek=Math.min(AP.full-40,Math.round(222+AP.sab));
+  AP.half=Math.min(AP.full,Math.max(AP.peek+150,Math.round(H*0.56)));
+  AP.wallH=Math.max(120,Math.round(H-AP.sat-AP.bar-AP.peek+14));
+  bsheet.style.setProperty('--sheet-full',AP.full+'px');
+  document.documentElement.style.setProperty('--wall-h',AP.wallH+'px');
+  AP.sp.set(AP[AP.detent]);
+}
+/* The sheet at v px tall; the picture shrinks (from its top) so the whole
+   wall stays visible above the sheet or the hold-type picker. */
+function sheetVis(v){
+  AP.vis=v;
+  bsheet.style.transform=`translate3d(0,${(AP.full-v).toFixed(1)}px,0)`;
+  const near=['peek','half','full'].reduce((a,k)=>Math.abs(AP[k]-v)<Math.abs(AP[a]-v)?k:a,'peek');
+  if(bsheet.dataset.detent!==near) bsheet.dataset.detent=near;
+  layoutWall();
+}
+function layoutWall(){
+  if(!AP.on||!S.src) return;
+  const top=AP.sat+AP.bar,avail=Math.max(90,window.innerHeight-top-Math.max(AP.vis,AP.occ)-8);
+  const sc=Math.min(1,avail/Math.max(1,S.view.dh));
+  cv.style.transform=sc<0.999?`scale(${sc.toFixed(4)})`:'';
+}
+function goDetent(name,vel){
+  if(!AP.on) return;
+  if(AP.detent!==name) haptic.sel();
+  AP.detent=name;
+  AP.sp.to(AP[name],{d:0.5,bounce:vel?0.1:0,v:vel||0});
+  if(name!=='full') bsBody.scrollTop=0;
+}
+/* Drag the sheet: 1:1 with the finger after 8 px, rubber band past the ends,
+   and on release it goes to the detent nearest to where it would coast. */
+const bsTr=Tracker();
+bsCard.addEventListener('pointerdown',e=>{
+  if(!AP.on||e.button>0) return;
+  const inBody=!!e.target.closest('#bsBody');
+  if(inBody&&AP.detent==='full') return;
+  if(e.target.closest('input[type=range],select,input[type=number]')) return;
+  AP.drag={id:e.pointerId,x0:e.clientX,y0:e.clientY,v0:AP.vis,active:false};
+  bsTr.reset(); bsTr.add(e.timeStamp,e.clientY);
+});
+window.addEventListener('pointermove',e=>{
+  const d=AP.drag; if(!d||e.pointerId!==d.id) return;
+  const dy=e.clientY-d.y0,dx=e.clientX-d.x0;
+  if(!d.active){
+    if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)){ AP.drag=null; return; }
+    if(Math.abs(dy)<8) return;
+    d.active=true; AP.sp.stop(); d.v0=AP.vis; d.y0=e.clientY;
+    try{ bsCard.setPointerCapture(e.pointerId); }catch(_){}
+  }
+  bsTr.add(e.timeStamp,e.clientY);
+  let v=d.v0-(e.clientY-d.y0);
+  if(v>AP.full) v=AP.full+rubber(v-AP.full,AP.full);
+  if(v<AP.peek) v=AP.peek-rubber(AP.peek-v,AP.peek);
+  AP.sp.set(v);
+},{passive:true});
+function endSheetDrag(e){
+  const d=AP.drag; if(!d||e.pointerId!==d.id) return;
+  AP.drag=null; if(!d.active) return;
+  AP.dragEnd=performance.now();
+  const vel=-bsTr.vel(),aim=AP.vis+project(vel);
+  const name=['peek','half','full'].reduce((a,k)=>Math.abs(AP[k]-aim)<Math.abs(AP[a]-aim)?k:a,'peek');
+  goDetent(name,Math.abs(vel)>300?vel:0);
+}
+window.addEventListener('pointerup',endSheetDrag); window.addEventListener('pointercancel',endSheetDrag);
+/* a drag that started on a button is not a tap */
+bsCard.addEventListener('click',e=>{ if(performance.now()-AP.dragEnd<300){ e.stopPropagation(); e.preventDefault(); } },true);
+$('#bsGrab').addEventListener('click',()=>goDetent(AP.detent==='peek'?'half':AP.detent==='half'?'full':'peek'));
+$('#abNew').addEventListener('click',e=>mNew.show(e.currentTarget));
+$('#abSet').addEventListener('click',e=>mSet.show(e.currentTarget));
+$('#abLearn').addEventListener('click',e=>mLearn.show(e.currentTarget));
+/* While a tool is on, the caption says what a tap does. */
+const TOOLCAP={pick:['Pick colour','Tap one hold of your route. The same colour again keeps your changes.'],add:['Add hold','Tap a missed hold, a dashed one to keep it, or a crossed-out one to put it back.'],
+  remove:['Remove hold','Tap a ringed hold to take it out of the route.'],type:['Hold type','Tap a ringed hold, then choose jug, crimp, sloper and so on.'],
+  start:['Set start','Tap one or two holds to start on. Tap one again to unset it.'],top:['Set top','Tap the finishing hold. Tap it again to unset it.'],size:['Check size','']};
+function toolCaption(){
+  const m=S.mode,on=AP.on&&!!S.src&&(TOOLS.includes(m)||m==='size'||(m==='pick'&&!!S.model));
+  $('#player').classList.toggle('tooling',on);
+  $('#capTool').hidden=!on;
+  if(on){ const c=TOOLCAP[m]||['','']; $('#capToolT').textContent=c[0]; $('#capToolS').textContent=m==='size'?($('#sizeNote').textContent+' Drag the lines if they are off.'):c[1]; }
+}
+appMQ.addEventListener('change',()=>setAppMode(!!NATIVE||appMQ.matches));
+window.addEventListener('resize',()=>{ if(AP.on){ appLayout(); fit(); render(); } });
+
+/* ---------- Rocksane Pro ---------- */
+/* Free: photos, the colour reader, real-size planning, the moves, Learn and
+   three technique examples. Pro (one purchase, no subscription): the live
+   camera, video, the Hold type tool and all nine examples. In the app the
+   purchase goes through StoreKit / Google Play Billing via the native bridge
+   and is remembered here; the web demo points to the app instead. */
+S.pro=FULL||(EDITION==='app'&&store.get('pro',false)===true);
+let proAfter=null;
+function requirePro(feature,opener,after){ if(S.pro) return true; proAfter=after||null; openPaywall(feature,opener); return false; }
+function openPaywall(feature,opener){
+  document.querySelectorAll('#payList li').forEach(li=>li.classList.toggle('hl',li.dataset.feat===feature));
+  $('#payMsg').hidden=true;
+  if(EDITION==='app') refreshPrice();
+  else{
+    const box=$('#payStores'); box.textContent='';
+    for(const [k,label] of [['ios','Get it on the App Store'],['android','Get it on Google Play']]) if(APP_LINKS[k]){ const a=document.createElement('a'); a.className='btn primary'; a.href=APP_LINKS[k]; a.target='_blank'; a.rel='noopener'; a.textContent=label; box.append(a); }
+    box.hidden=!box.children.length; $('#paySoon').hidden=!box.hidden;
+  }
+  mPro.show(opener);
+}
+function setPro(on,bought){
+  S.pro=FULL||!!on;
+  if(EDITION==='app') store.set('pro',!!on);
+  refreshProUi();
+  if(on&&bought){ haptic.ok(); toast('Rocksane Pro is unlocked. Thank you!'); mPro.hide(); const f=proAfter; proAfter=null; if(f) setTimeout(f,380); }
+}
+function refreshProUi(){
+  const lock=!FULL&&!S.pro;
+  document.querySelectorAll('[data-pro]').forEach(el=>{ el.hidden=!lock; });
+  $('#proBlk').hidden=FULL;
+  $('#proState').textContent=S.pro?'Rocksane Pro is unlocked on this device.':'Free version: photos, the colour reader, real-size planning and the moves are free.';
+  $('#proOpen').hidden=S.pro; $('#proWhat').hidden=S.pro;
+  $('#appVer').textContent=APP_VERSION;
+  for(const b of demoTypes.querySelectorAll('button')){ const t=b.querySelector('.pro-tag'); if(t) t.hidden=!demoLocked(b.dataset.type); }
+  if(D.type&&!demoEl.hidden) setDemo(D.type);
+}
+async function buyPro(){
+  if(!NATIVE||!NATIVE.purchases) return;
+  const b=$('#payBuy'),msg=$('#payMsg');
+  b.disabled=true; msg.hidden=true;
+  try{
+    const r=await NATIVE.purchases.buy(PRO_ID);
+    if(r&&r.ok) setPro(true,true);
+    else if(!(r&&r.cancelled)){ msg.textContent=(r&&r.message)||'The purchase didn\'t go through, and nothing was charged. Try again in a moment.'; msg.hidden=false; haptic.warn(); }
+  }catch(e){ msg.textContent='The store couldn\'t be reached. Check your connection, then try again.'; msg.hidden=false; haptic.warn(); }
+  finally{ b.disabled=false; }
+}
+async function restorePro(){
+  if(!NATIVE||!NATIVE.purchases) return;
+  const msg=$('#payMsg');
+  try{
+    const r=await NATIVE.purchases.restore(PRO_ID);
+    if(r&&r.owned){ setPro(true,true); return; }
+    msg.textContent='No earlier Rocksane Pro purchase was found for this account.';
+  }catch(e){ msg.textContent='The store couldn\'t be reached. Check your connection, then try again.'; }
+  msg.hidden=false;
+  if(!mPro.open){ toast(msg.textContent); }
+}
+async function checkOwned(){ if(EDITION!=='app'||!NATIVE||!NATIVE.purchases) return; try{ const owned=await NATIVE.purchases.owned(PRO_ID); if(typeof owned==='boolean'&&owned!==S.pro) setPro(owned,false); }catch(e){} }
+async function refreshPrice(){ if(!NATIVE||!NATIVE.purchases) return; try{ const p=await NATIVE.purchases.product(PRO_ID); if(p&&p.price) $('#payBuy').textContent=`Unlock Pro · ${p.price}`; }catch(e){} }
+$('#payBuy').addEventListener('click',buyPro);
+$('#payRestore').addEventListener('click',restorePro);
+$('#proRestore').addEventListener('click',()=>{ openPaywall(null,$('#proRestore')); restorePro(); });
+$('#proOpen').addEventListener('click',e=>openPaywall(null,e.currentTarget));
+$('#demoUnlock').addEventListener('click',e=>openPaywall('demos',e.currentTarget));
+const mNew=Modal($('#msNew')),mSet=Modal($('#msSettings'),{onOpen:updateSizeUi}),mLearn=Modal($('#msLearn')),mPro=Modal($('#msPro'));
 
 /* ---------- Ask Claude (only inside Claude, when the viewer allows it) ---------- */
 let sampleFn=null,coachCtl=null;
@@ -3301,9 +3944,37 @@ $('#coachAsk').addEventListener('click',async()=>{
 });
 $('#coachStop').addEventListener('click',()=>{ if(coachCtl) coachCtl.abort(); });
 
+/* ---------- native app glue ---------- */
+/* The bridge (app/build/bridge.js, wrapping Capacitor plugins) offers:
+   platform, haptics.{selection,impact,notify}, purchases.{product,buy,
+   restore,owned}, statusBar(dark), onBack(cb), onResume(cb), open(url),
+   ready(). Android's back button closes the top sheet, then the picker,
+   then lowers the sheet; otherwise the app goes to the background. */
+if(NATIVE){
+  document.documentElement.classList.add('native',NATIVE.platform||'');
+  const dark=matchMedia('(prefers-color-scheme: dark)');
+  const bar=()=>{ try{ NATIVE.statusBar(dark.matches); }catch(e){} };
+  bar(); dark.addEventListener('change',bar);
+  if(NATIVE.onBack) NATIVE.onBack(()=>{
+    const top=openSheets[openSheets.length-1];
+    if(top){ top.hide(); return true; }
+    if(!tpEl.hidden){ closeTypePick(); return true; }
+    if(S.mode!=='none'&&S.mode!=='pick'&&S.model){ setMode('none'); return true; }
+    if(AP.on&&AP.detent!=='peek'){ goDetent('peek'); return true; }
+    return false;
+  });
+  if(NATIVE.onResume) NATIVE.onResume(()=>{ checkOwned(); });
+  /* links open in the in-app browser, not inside the app's web view */
+  document.addEventListener('click',e=>{ const a=e.target.closest('a[href]'); if(a&&a.target==='_blank'&&NATIVE.open){ e.preventDefault(); NATIVE.open(a.href); } });
+}
+
 /* ---------- boot ---------- */
+refreshProUi();
+setAppMode(!!NATIVE||appMQ.matches);
 if(location.hash==='#learn') showTab('learn');
 setSource({kind:'sample',el:makeSampleWall(),w:600,h:900});
+checkOwned();
+if(NATIVE&&NATIVE.ready) setTimeout(()=>{ try{ NATIVE.ready(); }catch(e){} },60);
 })();
 
 </script>

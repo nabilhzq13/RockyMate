@@ -23,16 +23,20 @@
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-label:"Barlow Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;
   --radius:10px;
+  --material:rgba(246,247,249,.78); --hairline:rgba(20,24,28,.14); --backdrop:rgba(10,12,14,.38); --grab:rgba(60,64,72,.32);
+  --spring:cubic-bezier(.2,1.15,.35,1); --spring-ms:420ms;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
     --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; --ok:#5cc97c; --scrim:rgba(0,0,0,.72); --shadow:rgba(0,0,0,.55); --icon-mark:#5a2604; --icon:#f08a3c; color-scheme:dark;
+    --material:rgba(30,34,38,.78); --hairline:rgba(230,233,236,.14); --backdrop:rgba(0,0,0,.5); --grab:rgba(220,224,230,.3);
   }
 }
 :root[data-theme="dark"]{
   --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
   --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; --ok:#5cc97c; --scrim:rgba(0,0,0,.72); --shadow:rgba(0,0,0,.55); --icon-mark:#5a2604; --icon:#f08a3c; color-scheme:dark;
+  --material:rgba(30,34,38,.78); --hairline:rgba(230,233,236,.14); --backdrop:rgba(0,0,0,.5); --grab:rgba(220,224,230,.3);
 }
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -40,7 +44,7 @@ body{background:var(--wall);color:var(--ink);font-family:var(--f-body);font-size
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 a{color:var(--accent)}
-.app{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 48px}
+.app{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:max(14px,env(safe-area-inset-top,0px));padding-bottom:max(48px,env(safe-area-inset-bottom,0px))}
 
 .top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding-block:4px 18px}
 .brand{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -189,20 +193,127 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
 .tp-row{display:flex;flex-wrap:wrap;gap:8px}
 .tp-row .btn{min-height:38px;padding:8px 12px;font-size:.9rem}
 
-/* Technique example: a dialog over the page */
-body.modal-open{overflow:hidden}
-.demo{position:fixed;inset:0;z-index:40;background:var(--scrim);display:grid;place-items:center;padding:max(12px,env(safe-area-inset-top,0px)) 12px max(12px,env(safe-area-inset-bottom,0px))}
-.demo-card{background:var(--panel);color:var(--ink);border-radius:14px;border:1px solid var(--line);box-shadow:0 18px 50px var(--shadow);width:min(560px,100%);max-height:100%;overflow:auto;overscroll-behavior:contain;padding:14px 16px 16px;display:grid;gap:10px}
-.demo-head{display:flex;align-items:center;gap:10px}
-.demo-head .hicon{width:28px;height:28px}
-.demo-head h2{margin:0;font:700 1.25rem/1.15 var(--f-label);text-transform:uppercase;letter-spacing:.04em;flex:1;min-width:0}
-.demo-stage{display:flex;justify-content:center;background:var(--stage);border-radius:10px;overflow:hidden}
+/* Technique example (inside a sheet) */
+.demo-stage{display:flex;justify-content:center;background:var(--stage);border-radius:10px;overflow:hidden;position:relative}
 #demoCv{display:block;max-width:100%}
 .demo-cap{margin:0;font-size:1.02rem;min-height:3em}
 .demo-ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .demo-types{display:flex;flex-wrap:wrap;gap:6px}
 .demo-types .chip{text-transform:none;padding:6px 10px 6px 7px;font-size:.86rem}
+.demo-types .chip .pro-tag{margin-left:2px}
+.demo-lock{display:grid;gap:8px;justify-items:start;background:var(--soft);border-radius:10px;padding:12px 14px}
+.demo-lock p{margin:0}
+#demoIcon .hicon{width:28px;height:28px}
 
+/* Modal sheets: a card that rises from the bottom on phones (drag it down
+   to close) and a centred card on wide screens. Motion is driven by springs
+   in app.js; the CSS only sets where things sit. */
+body.modal-open{overflow:hidden}
+.msheet{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) 16px max(16px,env(safe-area-inset-bottom,0px))}
+.ms-back{position:absolute;inset:0;background:var(--backdrop);opacity:0}
+.ms-card{position:relative;background:var(--panel);color:var(--ink);border-radius:16px;border:1px solid var(--line);box-shadow:0 22px 60px var(--shadow);width:min(560px,100%);max-height:100%;display:flex;flex-direction:column;overflow:hidden;opacity:0;will-change:transform,opacity}
+.msheet.wide .ms-card{width:min(1100px,100%)}
+.ms-head{display:flex;align-items:center;gap:10px;padding:14px 12px 10px 18px;border-bottom:1px solid var(--line);touch-action:none;position:relative}
+.ms-head h2{margin:0;flex:1;min-width:0;font:700 1.2rem/1.15 var(--f-label);text-transform:uppercase;letter-spacing:.04em}
+.ms-grab{display:none}
+.ms-x{border:0;background:transparent;color:var(--accent);font:600 1rem/1 var(--f-body);padding:10px 8px;border-radius:8px;cursor:pointer;min-height:44px}
+.ms-body{overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:14px 18px 18px;display:grid;gap:12px;align-content:start}
+.ms-body>.blk{border:0;padding:0;background:transparent}
+.ms-body>.blk h2{display:none}
+.ms-body>.learn{gap:16px}
+@media (max-width:760px){
+  .msheet{place-items:end stretch;padding:0}
+  .ms-card{width:100%;max-height:calc(100% - max(44px,env(safe-area-inset-top,0px) + 12px));border-radius:14px 14px 0 0;border:0;box-shadow:0 -8px 40px var(--shadow);padding-bottom:env(safe-area-inset-bottom,0px)}
+  .msheet.wide .ms-card{width:100%}
+  .ms-head{padding-top:20px}
+  .ms-grab{display:block;position:absolute;left:50%;top:6px;width:38px;height:5px;margin-left:-19px;border-radius:3px;background:var(--grab)}
+}
+
+/* Rocksane Pro */
+.pro-tag{font:700 .64rem/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase;color:var(--tape-ink);background:var(--tape);padding:3px 5px 2px;border-radius:4px;margin-left:6px;vertical-align:middle}
+.pro-list{margin:0;padding-left:1.1em;display:grid;gap:4px;font-size:.93rem}
+.btn.big{min-height:52px;font-size:1.05rem;width:100%;border-radius:12px}
+.btn.link{border:0;background:transparent;color:var(--accent);min-height:40px;padding:8px 4px}
+.links{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0;font-size:.9rem}
+.pay{gap:14px}
+.pay-lead{margin:0;font-size:1.05rem}
+.pay-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.pay-list li{display:grid;gap:2px;padding:10px 12px 10px 40px;border-radius:10px;background:var(--soft);position:relative}
+.pay-list li::before{content:"";position:absolute;left:13px;top:13px;width:16px;height:16px;border-radius:50%;background:var(--tape);box-shadow:inset 0 0 0 4px var(--tape-ink)}
+.pay-list li b{font:700 1rem/1.2 var(--f-label);text-transform:uppercase;letter-spacing:.05em}
+.pay-list li span{font-size:.92rem;color:var(--muted)}
+.pay-list li.hl{box-shadow:inset 0 0 0 2px var(--ink)}
+.pay-free{margin:0;font-size:.9rem;color:var(--muted)}
+.pay-app,.pay-web{display:grid;gap:8px;justify-items:center;text-align:center}
+.pay-fine{margin:0;font-size:.84rem;color:var(--muted)}
+.pay-msg{margin:0;font-size:.92rem}
+
+/* Tools: icons and short labels show in the phone toolbar */
+.seg .ti,.seg .ts{display:none}
+.cap-tool{display:grid;gap:2px}
+.cap-tool b{font:700 1.15rem/1.15 var(--f-label);text-transform:uppercase;letter-spacing:.04em}
+.cap-tool span{color:var(--muted);font-size:.95rem}
+.ptools{display:none}
+
+/* Press feedback: a quick squeeze, released on the spring */
+@media (prefers-reduced-motion: no-preference){
+  .btn,.chip,.ibtn,.tp-b,.ms-x,.seg button,.moves button{transition:transform var(--spring-ms) var(--spring)}
+  .btn:active,.chip:active,.ibtn:active,.tp-b:active,.ms-x:active{transform:scale(.95);transition-duration:60ms}
+  .seg button:active,.moves button:active{transform:scale(.97);transition-duration:60ms}
+}
+
+/* ===== Phone app layout (html.app-mode: the app, or a narrow screen) =====
+   The wall fills the screen under a translucent bar; a bottom sheet with
+   three heights (peek, half, full) holds the player, the tools and the
+   route panels; New picture, Settings, Learn and Pro open as sheets. */
+html.app-mode,html.app-mode body{height:100%;overflow:hidden;overscroll-behavior:none}
+html.app-mode body{position:fixed;inset:0;background:var(--stage)}
+html.app-mode .app{max-width:none;padding:0;height:100%;transform-origin:50% 0;will-change:transform}
+html.app-mode .top,html.app-mode .rail{display:none}
+html.app-mode .appbar{display:flex}
+.appbar{position:fixed;left:0;right:0;top:0;z-index:20;height:calc(52px + env(safe-area-inset-top,0px));padding:env(safe-area-inset-top,0px) max(6px,env(safe-area-inset-right,0px)) 0 max(6px,env(safe-area-inset-left,0px));align-items:center;gap:2px;background:var(--material);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--hairline)}
+.ab-title{flex:1;min-width:0;display:flex;justify-content:center}
+.ab-logo{font-size:1.15rem;margin:0}
+.ibtn{width:44px;height:44px;border:0;border-radius:12px;background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer}
+.ibtn svg{width:24px;height:24px}
+html.app-mode .wall-view{display:block}
+html.app-mode .stage{position:static;display:block}
+html.app-mode .canvas-wrap{position:fixed;left:0;right:0;top:calc(52px + env(safe-area-inset-top,0px));height:var(--wall-h,60vh);border-radius:0;align-items:flex-start;min-height:0;z-index:1;background:var(--stage)}
+html.app-mode #cv{transform-origin:50% 0;will-change:transform}
+html.app-mode .toast{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));z-index:60}
+html.app-mode .busy{position:fixed;top:calc(62px + env(safe-area-inset-top,0px));z-index:30}
+html.app-mode .badge{bottom:auto;top:10px}
+.bsheet{position:fixed;left:0;right:0;bottom:0;z-index:10;height:var(--sheet-full,80vh);will-change:transform;pointer-events:none}
+.bs-card{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--panel);border-radius:14px 14px 0 0;box-shadow:0 -6px 28px rgba(0,0,0,.22);pointer-events:auto;overflow:hidden}
+.bs-float{position:absolute;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:calc(100% + 10px);pointer-events:auto}
+.bs-float .vbar{border-radius:14px;background:var(--material);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border:.5px solid var(--hairline);padding:8px 10px}
+.bs-grab{display:block;width:100%;height:20px;border:0;background:transparent;padding:0;cursor:grab;touch-action:none;flex:none}
+.bs-grab span{display:block;width:38px;height:5px;border-radius:3px;background:var(--grab);margin:7px auto 0}
+.bs-head{flex:none;touch-action:none}
+.bs-body{flex:1;min-height:0;overflow:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:0 14px max(24px,env(safe-area-inset-bottom,0px));display:grid;gap:12px;align-content:start}
+.bsheet[data-detent="full"] .bs-body{overflow:auto}
+.bs-body>.blk{border:0;border-top:1px solid var(--line);border-radius:0;padding:14px 2px 4px;background:transparent}
+.bs-body>.blk h2 .n{display:none}
+.bs-head .player{border:0;border-radius:0;background:transparent;padding:0 14px 10px;gap:8px}
+.bs-head .legend,.bsheet[data-detent="peek"] #capTips,.bsheet[data-detent="peek"] #capHow{display:none}
+.bs-head .caption h3{font-size:1.12rem}
+.bs-head .caption .sub{font-size:.92rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bsheet[data-detent="peek"] .caption .sub{-webkit-line-clamp:1}
+.bs-head .step-count{white-space:nowrap}
+.bs-head .player-row{flex-wrap:nowrap}
+.bs-head .ptools{display:flex;gap:2px;margin:0 -8px;overflow-x:auto;scrollbar-width:none}
+.bs-head .ptools::-webkit-scrollbar{display:none}
+.bs-head .ptools .seg{display:contents}
+.bs-head .ptools .seg button{flex:1 0 46px;min-width:46px;min-height:50px;border:0;border-radius:10px;background:transparent;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px 2px;font:600 .7rem/1 var(--f-label);letter-spacing:.04em;position:relative}
+.bs-head .ptools .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.bs-head .ptools .seg button[disabled]{opacity:.38}
+.bs-head .ptools .ti{display:block;width:22px;height:22px}
+.bs-head .ptools .ts{display:block}
+.bs-head .ptools .tl{display:none}
+.bs-head .ptools .pro-tag{position:absolute;top:2px;right:2px;margin:0;font-size:.5rem;padding:2px 3px 1px}
+.player.tooling .caption{display:none}
+.player:not(.tooling) .cap-tool{display:none!important}
+html.app-mode .typepick{position:fixed;left:8px;right:8px;width:auto;bottom:calc(8px + env(safe-area-inset-bottom,0px));top:auto!important;z-index:40;box-shadow:0 -6px 30px var(--shadow)}
 /* Learn tab hold guide */
 .hguide{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:8px}
 .hg{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;background:var(--soft);border-radius:8px;padding:9px 10px}
@@ -213,7 +324,13 @@ body.modal-open{overflow:hidden}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
 </style>
 
-<div class="app">
+<div class="app" id="app">
+  <div class="appbar" id="appbar" hidden>
+    <button type="button" class="ibtn" id="abNew" aria-label="New picture"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg></button>
+    <span class="ab-title"><span class="tape ab-logo">Rocksane</span></span>
+    <button type="button" class="ibtn" id="abLearn" aria-label="Learn to climb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 5.5C6.5 4 9.5 4 12 6c2.5-2 5.5-2 8-.5V19c-2.5-1.5-5.5-1.5-8 .5-2.5-2-5.5-2-8-.5z"/><path d="M12 6v13.5"/></svg></button>
+    <button type="button" class="ibtn" id="abSet" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg></button>
+  </div>
   <header class="top">
     <div class="brand">
       <h1 class="tape logo">Rocksane</h1>
@@ -257,12 +374,14 @@ body.modal-open{overflow:hidden}
             <button class="btn icon" id="next" aria-label="Next move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
             <span class="step-count" id="count">—</span>
           </div>
+          <div class="cap-tool" id="capTool" hidden><b id="capToolT"></b><span id="capToolS"></span></div>
           <div class="caption" aria-live="polite">
             <h3 id="capTitle">Pick a route colour</h3>
             <p class="sub" id="capSub">Tap one hold of your route on the photo.</p>
             <ul class="tips" id="capTips"></ul>
             <div class="how-row" id="capHow" hidden></div>
           </div>
+          <div class="ptools" id="pTools" role="toolbar" aria-label="Tools"></div>
           <div class="legend" aria-label="Legend">
             <span><i class="dot" style="background:var(--lh)"></i>Left hand</span>
             <span><i class="dot" style="background:var(--rh)"></i>Right hand</span>
@@ -273,12 +392,12 @@ body.modal-open{overflow:hidden}
       </div>
 
       <aside class="rail">
-        <div class="blk">
+        <div class="blk" id="blkWall">
           <h2><span class="n">1</span>Wall</h2>
           <div class="btn-row">
-            <button class="btn live" id="goLive" data-only="standalone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Live camera</button>
+            <button class="btn live" id="goLive" data-only="standalone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Live camera<span class="pro-tag" data-pro hidden>Pro</span></button>
             <label class="btn primary" for="fileCam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take photo</label>
-            <label class="btn" for="fileVid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Record video</label>
+            <label class="btn" for="fileVid" id="vidLabel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Record video<span class="pro-tag" data-pro hidden>Pro</span></label>
             <label class="btn" for="fileUp">Upload</label>
             <button class="btn" id="useSample">Sample wall</button>
           </div>
@@ -290,7 +409,7 @@ body.modal-open{overflow:hidden}
           <p class="hint" data-only="standalone"><b>Live camera</b> reads the wall as you point the phone. Hold steady for a second and the moves appear. <b>Freeze frame</b> keeps the current view so you can edit holds or mark the wall.</p>
         </div>
 
-        <div class="blk">
+        <div class="blk" id="blkRoute">
           <h2><span class="n">2</span>Route colour</h2>
           <p class="hint">Tap one hold of your route. Rocksane learns that hold's exact colour, then only keeps blobs of that colour that stand out from the wall around them.</p>
           <div class="chips" id="chips" role="group" aria-label="Hold colours found"></div>
@@ -311,24 +430,24 @@ body.modal-open{overflow:hidden}
           <div class="field">
             <span class="lbl" id="modeLbl">First, pick the colour</span>
             <div class="seg one" role="group" aria-labelledby="modeLbl">
-              <button data-mode="pick" aria-pressed="true">Pick colour</button>
+              <button data-mode="pick" aria-pressed="true"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4.5l5 5M9 10l5 5M4 20l1-4 9.5-9.5 3 3L8 19z"/></svg><span class="tl">Pick colour</span><span class="ts">Colour</span></button>
             </div>
           </div>
           <div class="field">
             <span class="lbl" id="toolLbl">Then choose, and tap a hold</span>
             <div class="seg" id="tools" role="group" aria-labelledby="toolLbl">
-              <button data-mode="add" aria-pressed="false" disabled>Add hold</button>
-              <button data-mode="remove" aria-pressed="false" disabled>Remove hold</button>
-              <button data-mode="type" aria-pressed="false" disabled>Hold type</button>
-              <button data-mode="start" aria-pressed="false" disabled>Set start</button>
-              <button data-mode="top" aria-pressed="false" disabled>Set top</button>
-              <button data-mode="size" aria-pressed="false">Check size</button>
+              <button data-mode="add" aria-pressed="false" disabled><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8.5v7M8.5 12h7"/></svg><span class="tl">Add hold</span><span class="ts">Add</span></button>
+              <button data-mode="remove" aria-pressed="false" disabled><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M8.5 12h7"/></svg><span class="tl">Remove hold</span><span class="ts">Remove</span></button>
+              <button data-mode="type" aria-pressed="false" disabled><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 15c0-5 4-9 9-9 3 0 5 1.6 5 4 0 4.5-6 9-11 9-1.8 0-3-1.6-3-4z"/><path d="M9 15c1.5-.4 4-2 5-4"/></svg><span class="tl">Hold type</span><span class="ts">Type</span><span class="pro-tag" data-pro hidden>Pro</span></button>
+              <button data-mode="start" aria-pressed="false" disabled><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21V4M6 4h11l-2.5 4L17 12H6"/></svg><span class="tl">Set start</span><span class="ts">Start</span></button>
+              <button data-mode="top" aria-pressed="false" disabled><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V8M7 12l5-5 5 5M5 4h14"/></svg><span class="tl">Set top</span><span class="ts">Top</span></button>
+              <button data-mode="size" aria-pressed="false"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M8.5 6.5L12 3l3.5 3.5M8.5 17.5L12 21l3.5-3.5M4 3h3M4 21h3"/></svg><span class="tl">Check size</span><span class="ts">Size</span></button>
             </div>
           </div>
           <p class="hint" id="modeHint">Tap one hold of your route to pick its colour.</p>
         </div>
 
-        <div class="blk">
+        <div class="blk" id="blkAbout">
           <h2><span class="n">3</span>About you</h2>
           <div class="two">
             <div class="field">
@@ -387,7 +506,7 @@ body.modal-open{overflow:hidden}
           <p class="hint">Wall height is from the mats to the top edge; most bouldering walls are 4 to 4.5 m, and gyms often post it. Rocksane finds the floor and the top of the wall in the picture and uses this height to draw the climber at your real size. Wall angle is how far the wall leans: a slab leans back, an overhang leans out over you. On an angled wall the holds are further apart than they look from the floor, and the coaching changes with the angle.</p>
         </div>
 
-        <div class="blk">
+        <div class="blk" id="blkBeta">
           <h2><span class="n">4</span>Your beta</h2>
           <p class="beta-sum" id="betaSum">—</p>
           <p class="note" id="betaWarn" hidden></p>
@@ -396,6 +515,23 @@ body.modal-open{overflow:hidden}
             <summary>How the wall is read</summary>
             <p>Rocksane converts the picture to a colour space that matches how eyes see colour, then estimates the wall's own colour in every small patch. A blob only counts as a hold when it matches the colour of the hold you tapped, clearly differs from the wall right around it, has a real edge, and sits on the same wall. Everything else is shown in red or pink in "Show what matched". The moves come from a search for the fewest, least stretched sequence that starts on the lowest holds and ends with both hands matched on the top hold. It can't see the wall's angle or feel how good a hold is, so treat it as a first plan.</p>
           </details>
+        </div>
+
+        <div class="blk" id="proBlk" hidden>
+          <h2><span class="n">★</span>Rocksane Pro</h2>
+          <p class="stat" id="proState">Free version</p>
+          <ul class="pro-list" id="proWhat">
+            <li>Live camera: read the wall as you point your phone</li>
+            <li>Record a video and read it frame by frame</li>
+            <li>Hold type: mark jugs, crimps and slopers so the plan and tips fit</li>
+            <li>All nine technique examples (three are free)</li>
+          </ul>
+          <div class="btn-row">
+            <button class="btn primary" id="proOpen">Get Rocksane Pro</button>
+            <button class="btn" id="proRestore" data-edition="app">Restore purchase</button>
+          </div>
+          <p class="links"><a href="https://nabilhzq13.github.io/RockyMate/privacy.html" target="_blank" rel="noopener">Privacy</a><a href="https://nabilhzq13.github.io/RockyMate/terms.html" target="_blank" rel="noopener">Terms</a><a href="https://nabilhzq13.github.io/RockyMate/support.html" target="_blank" rel="noopener">Support</a></p>
+          <p class="hint">Rocksane <span id="appVer"></span></p>
         </div>
 
         <div class="blk" id="coach" hidden>
@@ -509,9 +645,20 @@ body.modal-open{overflow:hidden}
       </div>
     </section>
   </main>
-  <div class="demo" id="demo" hidden>
-    <div class="demo-card" role="dialog" aria-modal="true" aria-labelledby="demoTitle">
-      <div class="demo-head"><span id="demoIcon"></span><h2 id="demoTitle">Technique</h2><button type="button" class="btn icon" id="demoClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="bsheet" id="bsheet" hidden>
+    <div class="bs-float" id="bsFloat"></div>
+    <div class="bs-card">
+      <button type="button" class="bs-grab" id="bsGrab" aria-label="Show more"><span></span></button>
+      <div class="bs-head" id="bsHead"></div>
+      <div class="bs-body" id="bsBody"></div>
+    </div>
+  </div>
+</div>
+<div class="msheet" id="demo" hidden>
+  <div class="ms-back" data-close></div>
+  <div class="ms-card demo-card" role="dialog" aria-modal="true" aria-labelledby="demoTitle">
+    <div class="ms-head"><span class="ms-grab" aria-hidden="true"></span><span id="demoIcon"></span><h2 id="demoTitle">Technique</h2><button type="button" class="ms-x" id="demoClose" data-close>Done</button></div>
+    <div class="ms-body">
       <div class="demo-stage" id="demoStage"><canvas id="demoCv" role="img" aria-label="The climber shows the technique on a small wall"></canvas></div>
       <p class="demo-cap" id="demoCap" aria-live="polite"></p>
       <div class="demo-ctl">
@@ -520,8 +667,58 @@ body.modal-open{overflow:hidden}
         <button type="button" class="btn icon" id="demoNext" aria-label="Next step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
         <span class="step-count" id="demoStep"></span>
       </div>
+      <div class="demo-lock" id="demoLock" hidden><p>This example is part of Rocksane Pro.</p><button type="button" class="btn primary" id="demoUnlock">See Rocksane Pro</button></div>
       <ul class="tips" id="demoTips"></ul>
       <div class="demo-types" id="demoTypes" role="group" aria-label="Other hold types"></div>
+    </div>
+  </div>
+</div>
+<div class="msheet" id="msNew" hidden>
+  <div class="ms-back" data-close></div>
+  <div class="ms-card" role="dialog" aria-modal="true" aria-labelledby="msNewT">
+    <div class="ms-head"><span class="ms-grab" aria-hidden="true"></span><h2 id="msNewT">New picture</h2><button type="button" class="ms-x" data-close>Done</button></div>
+    <div class="ms-body" id="msNewBody"></div>
+  </div>
+</div>
+<div class="msheet" id="msSettings" hidden>
+  <div class="ms-back" data-close></div>
+  <div class="ms-card" role="dialog" aria-modal="true" aria-labelledby="msSetT">
+    <div class="ms-head"><span class="ms-grab" aria-hidden="true"></span><h2 id="msSetT">Settings</h2><button type="button" class="ms-x" data-close>Done</button></div>
+    <div class="ms-body" id="msSetBody"></div>
+  </div>
+</div>
+<div class="msheet wide" id="msLearn" hidden>
+  <div class="ms-back" data-close></div>
+  <div class="ms-card" role="dialog" aria-modal="true" aria-labelledby="msLearnT">
+    <div class="ms-head"><span class="ms-grab" aria-hidden="true"></span><h2 id="msLearnT">Learn to climb</h2><button type="button" class="ms-x" data-close>Done</button></div>
+    <div class="ms-body" id="msLearnBody"></div>
+  </div>
+</div>
+<div class="msheet" id="msPro" hidden>
+  <div class="ms-back" data-close></div>
+  <div class="ms-card" role="dialog" aria-modal="true" aria-labelledby="payT">
+    <div class="ms-head"><span class="ms-grab" aria-hidden="true"></span><h2 id="payT">Rocksane Pro</h2><button type="button" class="ms-x" data-close>Close</button></div>
+    <div class="ms-body pay">
+      <p class="pay-lead">One payment unlocks everything, for good. No subscription, no account.</p>
+      <ul class="pay-list" id="payList">
+        <li data-feat="live"><b>Live camera</b><span>Point your phone at the wall and watch the moves appear.</span></li>
+        <li data-feat="video"><b>Video</b><span>Record a clip and read the wall frame by frame.</span></li>
+        <li data-feat="type"><b>Hold type</b><span>Mark jugs, crimps and slopers; the plan and the tips use them.</span></li>
+        <li data-feat="demos"><b>Every technique example</b><span>All nine hold types, animated step by step.</span></li>
+      </ul>
+      <p class="pay-free">Free forever: photos, the colour reader, real-size planning, the moves and the Learn guide.</p>
+      <div class="pay-app" data-edition="app">
+        <button type="button" class="btn primary big" id="payBuy">Unlock Pro</button>
+        <p class="pay-fine" id="payFine">One-time purchase. It stays with your Apple ID or Google account, so Restore brings it back on a new phone.</p>
+        <button type="button" class="btn link" id="payRestore">Restore purchase</button>
+        <p class="pay-msg" id="payMsg" role="status" hidden></p>
+      </div>
+      <div class="pay-web" data-edition="web artifact dev">
+        <p>Rocksane Pro is part of the Rocksane app for iPhone and Android.</p>
+        <div class="btn-row" id="payStores"></div>
+        <p class="hint" id="paySoon">The app is coming to the App Store and Google Play. Everything else on this page stays free.</p>
+      </div>
+      <p class="links"><a href="https://nabilhzq13.github.io/RockyMate/privacy.html" target="_blank" rel="noopener">Privacy</a><a href="https://nabilhzq13.github.io/RockyMate/terms.html" target="_blank" rel="noopener">Terms</a><a href="https://nabilhzq13.github.io/RockyMate/support.html" target="_blank" rel="noopener">Support</a></p>
     </div>
   </div>
 </div>
