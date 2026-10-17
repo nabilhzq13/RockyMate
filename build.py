@@ -13,7 +13,7 @@ data-edition="web app" are shown only in those editions.
 web/ holds the home-screen icons and the web app manifest; they are copied next to
 the standalone pages in dist/ and docs/.
 """
-import pathlib, shutil
+import json, pathlib, re, shutil
 
 root = pathlib.Path(__file__).parent
 src = root / "src"
@@ -22,6 +22,12 @@ vision = (src / "vision.js").read_text(encoding="utf-8").replace("if(typeof modu
 solver = (src / "solver.js").read_text(encoding="utf-8")
 holds = (src / "holds.js").read_text(encoding="utf-8")
 app = (src / "app.js").read_text(encoding="utf-8")
+# The version shown in Settings is app/package.json's "version" (the stores use it too).
+pkg = root / "app" / "package.json"
+if pkg.exists():
+    version = json.loads(pkg.read_text(encoding="utf-8"))["version"]
+    app, n = re.subn(r"const APP_VERSION='[^']*';", f"const APP_VERSION='{version}';", app, count=1)
+    assert n == 1, "src/app.js should define APP_VERSION"
 FONTS_LINK = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&family=Permanent+Marker&display=swap">'
 assert FONTS_LINK in page
 

@@ -3,3 +3,11 @@ test/data/
 test/media/
 test/out/
 __pycache__/
+# signing keys and store credentials never go in the repository
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+*private_key*
+*service-account*.json

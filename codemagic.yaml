@@ -1,0 +1,94 @@
+# Signed store builds of the Rocksane phone app, made on Codemagic's Macs, so
+# no Mac of your own is needed. A personal Codemagic account gets 500 free
+# macOS minutes a month; one build takes roughly 10 to 20 minutes.
+# Start a build by hand: Codemagic → the app → Start new build → pick a workflow.
+# PUBLISHING.md walks through the one-time setup.
+#
+#   ios-testflight  signs the iPhone app and uploads it to App Store Connect.
+#                   It shows up in TestFlight for you to install; you then
+#                   submit it for review on the App Store Connect website.
+#   android-play    signs the Android bundle and uploads it to Google Play's
+#                   internal testing track as a draft. The very first bundle
+#                   has to be uploaded by hand in Play Console (Google's rule);
+#                   GitHub Actions makes that one (.github/workflows/app.yml).
+#
+# Secrets, set in Codemagic (the app's Environment variables tab, marked Secret):
+#   group app_store    APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_IDENTIFIER,
+#                      APP_STORE_CONNECT_PRIVATE_KEY (the whole text of the .p8 file),
+#                      CERTIFICATE_PRIVATE_KEY (an RSA key; the first build makes
+#                      the Apple distribution certificate and profile with it)
+#   group google_play  GCLOUD_SERVICE_ACCOUNT_CREDENTIALS (the service account's JSON key)
+#   Android keystore   Team settings → codemagic.yaml settings → Code signing
+#                      identities → Android keystores, reference name rocksane_upload
+
+workflows:
+  ios-testflight:
+    name: iOS to TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      groups:
+        - app_store
+      vars:
+        BUNDLE_ID: io.github.nabilhzq13.rocksane
+      node: 22
+      xcode: latest
+    scripts:
+      - name: Install
+        script: cd app && npm ci
+      - name: Build the web app and copy it into the iOS project
+        script: cd app && npm run web && npx cap sync ios
+      - name: Signing certificate and provisioning profile
+        script: |
+          keychain initialize
+          # --create makes the distribution certificate and the App Store
+          # profile the first time; later builds reuse them
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles --project app/ios/App/App.xcodeproj
+      - name: Version and build number
+        script: |
+          VERSION=$(node -p "require('./app/package.json').version")
+          BUILD=$(( ($(date -u +%s) - 1767225600) / 60 ))
+          sed -i '' -E "s/MARKETING_VERSION = [^;]+;/MARKETING_VERSION = $VERSION;/g; s/CURRENT_PROJECT_VERSION = [^;]+;/CURRENT_PROJECT_VERSION = $BUILD;/g" app/ios/App/App.xcodeproj/project.pbxproj
+          echo "Rocksane $VERSION, build $BUILD"
+      - name: Build the signed app
+        script: xcode-project build-ipa --project app/ios/App/App.xcodeproj --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: false
+
+  android-play:
+    name: Android to Google Play (internal testing)
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    environment:
+      android_signing:
+        - rocksane_upload
+      groups:
+        - google_play
+      node: 22
+      java: 21
+    scripts:
+      - name: Install
+        script: cd app && npm ci
+      - name: Build the web app and copy it into the Android project
+        script: cd app && npm run web && npx cap sync android
+      - name: Signed bundle
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > app/android/local.properties
+          BUILD=$(( ($(date -u +%s) - 1767225600) / 60 ))
+          cd app/android && ./gradlew bundleRelease -PversionCode=$BUILD
+    artifacts:
+      - app/android/app/build/outputs/bundle/release/*.aab
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true

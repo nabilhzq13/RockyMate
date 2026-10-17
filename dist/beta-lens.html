@@ -44,7 +44,7 @@ body{background:var(--wall);color:var(--ink);font-family:var(--f-body);font-size
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 a{color:var(--accent)}
-.app{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:max(14px,env(safe-area-inset-top,0px));padding-bottom:max(48px,env(safe-area-inset-bottom,0px))}
+.app{max-width:1320px;margin:0 auto;padding-left:max(16px,var(--safe-area-inset-left,env(safe-area-inset-left,0px)));padding-right:max(16px,var(--safe-area-inset-right,env(safe-area-inset-right,0px)));padding-top:max(14px,var(--safe-area-inset-top,env(safe-area-inset-top,0px)));padding-bottom:max(48px,var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))}
 
 .top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding-block:4px 18px}
 .brand{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -56,7 +56,7 @@ a{color:var(--accent)}
 .tabs button[aria-selected="true"]{background:var(--ink);color:var(--wall)}
 
 .wall-view{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:20px;align-items:start}
-.stage{display:grid;gap:12px;min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 8px)}
+.stage{display:grid;gap:12px;min-width:0;position:sticky;top:calc(var(--safe-area-inset-top,env(safe-area-inset-top,0px)) + 8px)}
 @media (max-width:920px){.wall-view{grid-template-columns:minmax(0,1fr)}.stage{position:relative}}
 .canvas-wrap{position:relative;background:var(--stage);border-radius:var(--radius);display:flex;justify-content:center;align-items:center;overflow:hidden;min-height:280px}
 .canvas-wrap.drag{outline:3px dashed var(--accent);outline-offset:-6px}
@@ -209,7 +209,7 @@ details.how p{font-size:.92rem;color:var(--muted);margin:8px 0 0}
    to close) and a centred card on wide screens. Motion is driven by springs
    in app.js; the CSS only sets where things sit. */
 body.modal-open{overflow:hidden}
-.msheet{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) 16px max(16px,env(safe-area-inset-bottom,0px))}
+.msheet{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:max(16px,var(--safe-area-inset-top,env(safe-area-inset-top,0px))) 16px max(16px,var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))}
 .ms-back{position:absolute;inset:0;background:var(--backdrop);opacity:0}
 .ms-card{position:relative;background:var(--panel);color:var(--ink);border-radius:16px;border:1px solid var(--line);box-shadow:0 22px 60px var(--shadow);width:min(560px,100%);max-height:100%;display:flex;flex-direction:column;overflow:hidden;opacity:0;will-change:transform,opacity}
 .msheet.wide .ms-card{width:min(1100px,100%)}
@@ -223,7 +223,7 @@ body.modal-open{overflow:hidden}
 .ms-body>.learn{gap:16px}
 @media (max-width:760px){
   .msheet{place-items:end stretch;padding:0}
-  .ms-card{width:100%;max-height:calc(100% - max(44px,env(safe-area-inset-top,0px) + 12px));border-radius:14px 14px 0 0;border:0;box-shadow:0 -8px 40px var(--shadow);padding-bottom:env(safe-area-inset-bottom,0px)}
+  .ms-card{width:100%;max-height:calc(100% - max(44px,var(--safe-area-inset-top,env(safe-area-inset-top,0px)) + 12px));border-radius:14px 14px 0 0;border:0;box-shadow:0 -8px 40px var(--shadow);padding-bottom:var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px))}
   .msheet.wide .ms-card{width:100%}
   .ms-head{padding-top:20px}
   .ms-grab{display:block;position:absolute;left:50%;top:6px;width:38px;height:5px;margin-left:-19px;border-radius:3px;background:var(--grab)}
@@ -271,26 +271,26 @@ html.app-mode body{position:fixed;inset:0;background:var(--stage)}
 html.app-mode .app{max-width:none;padding:0;height:100%;transform-origin:50% 0;will-change:transform}
 html.app-mode .top,html.app-mode .rail{display:none}
 html.app-mode .appbar{display:flex}
-.appbar{position:fixed;left:0;right:0;top:0;z-index:20;height:calc(52px + env(safe-area-inset-top,0px));padding:env(safe-area-inset-top,0px) max(6px,env(safe-area-inset-right,0px)) 0 max(6px,env(safe-area-inset-left,0px));align-items:center;gap:2px;background:var(--material);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--hairline)}
+.appbar{position:fixed;left:0;right:0;top:0;z-index:20;height:calc(52px + var(--safe-area-inset-top,env(safe-area-inset-top,0px)));padding:var(--safe-area-inset-top,env(safe-area-inset-top,0px)) max(6px,var(--safe-area-inset-right,env(safe-area-inset-right,0px))) 0 max(6px,var(--safe-area-inset-left,env(safe-area-inset-left,0px)));align-items:center;gap:2px;background:var(--material);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--hairline)}
 .ab-title{flex:1;min-width:0;display:flex;justify-content:center}
 .ab-logo{font-size:1.15rem;margin:0}
 .ibtn{width:44px;height:44px;border:0;border-radius:12px;background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer}
 .ibtn svg{width:24px;height:24px}
 html.app-mode .wall-view{display:block}
 html.app-mode .stage{position:static;display:block}
-html.app-mode .canvas-wrap{position:fixed;left:0;right:0;top:calc(52px + env(safe-area-inset-top,0px));height:var(--wall-h,60vh);border-radius:0;align-items:flex-start;min-height:0;z-index:1;background:var(--stage)}
+html.app-mode .canvas-wrap{position:fixed;left:0;right:0;top:calc(52px + var(--safe-area-inset-top,env(safe-area-inset-top,0px)));height:var(--wall-h,60vh);border-radius:0;align-items:flex-start;min-height:0;z-index:1;background:var(--stage)}
 html.app-mode #cv{transform-origin:50% 0;will-change:transform}
-html.app-mode .toast{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));z-index:60}
-html.app-mode .busy{position:fixed;top:calc(62px + env(safe-area-inset-top,0px));z-index:30}
+html.app-mode .toast{position:fixed;top:calc(64px + var(--safe-area-inset-top,env(safe-area-inset-top,0px)));z-index:60}
+html.app-mode .busy{position:fixed;top:calc(62px + var(--safe-area-inset-top,env(safe-area-inset-top,0px)));z-index:30}
 html.app-mode .badge{bottom:auto;top:10px}
 .bsheet{position:fixed;left:0;right:0;bottom:0;z-index:10;height:var(--sheet-full,80vh);will-change:transform;pointer-events:none}
 .bs-card{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--panel);border-radius:14px 14px 0 0;box-shadow:0 -6px 28px rgba(0,0,0,.22);pointer-events:auto;overflow:hidden}
-.bs-float{position:absolute;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:calc(100% + 10px);pointer-events:auto}
+.bs-float{position:absolute;left:max(10px,var(--safe-area-inset-left,env(safe-area-inset-left,0px)));right:max(10px,var(--safe-area-inset-right,env(safe-area-inset-right,0px)));bottom:calc(100% + 10px);pointer-events:auto}
 .bs-float .vbar{border-radius:14px;background:var(--material);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border:.5px solid var(--hairline);padding:8px 10px}
 .bs-grab{display:block;width:100%;height:20px;border:0;background:transparent;padding:0;cursor:grab;touch-action:none;flex:none}
 .bs-grab span{display:block;width:38px;height:5px;border-radius:3px;background:var(--grab);margin:7px auto 0}
 .bs-head{flex:none;touch-action:none}
-.bs-body{flex:1;min-height:0;overflow:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:0 14px max(24px,env(safe-area-inset-bottom,0px));display:grid;gap:12px;align-content:start}
+.bs-body{flex:1;min-height:0;overflow:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:0 14px max(24px,var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)));display:grid;gap:12px;align-content:start}
 .bsheet[data-detent="full"] .bs-body{overflow:auto}
 .bs-body>.blk{border:0;border-top:1px solid var(--line);border-radius:0;padding:14px 2px 4px;background:transparent}
 .bs-body>.blk h2 .n{display:none}
@@ -313,7 +313,7 @@ html.app-mode .badge{bottom:auto;top:10px}
 .bs-head .ptools .pro-tag{position:absolute;top:2px;right:2px;margin:0;font-size:.5rem;padding:2px 3px 1px}
 .player.tooling .caption{display:none}
 .player:not(.tooling) .cap-tool{display:none!important}
-html.app-mode .typepick{position:fixed;left:8px;right:8px;width:auto;bottom:calc(8px + env(safe-area-inset-bottom,0px));top:auto!important;z-index:40;box-shadow:0 -6px 30px var(--shadow)}
+html.app-mode .typepick{position:fixed;left:8px;right:8px;width:auto;bottom:calc(8px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)));top:auto!important;z-index:40;box-shadow:0 -6px 30px var(--shadow)}
 /* Learn tab hold guide */
 .hguide{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:8px}
 .hg{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;background:var(--soft);border-radius:8px;padding:9px 10px}
@@ -3714,7 +3714,7 @@ const appMQ=phoneMQ;
 const AP={on:false,sat:0,sab:0,bar:52,peek:222,half:420,full:640,vis:222,detent:'peek',occ:0,wallH:400,drag:null,dragEnd:0};
 const bsheet=$('#bsheet'),bsCard=bsheet.querySelector('.bs-card'),bsBody=$('#bsBody');
 const insetProbe=document.createElement('div');
-insetProbe.style.cssText='position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)';
+insetProbe.style.cssText='position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-top:var(--safe-area-inset-top,env(safe-area-inset-top,0px));padding-bottom:var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px))';
 document.body.append(insetProbe);
 function readInsets(){ const cs=getComputedStyle(insetProbe); AP.sat=parseFloat(cs.paddingTop)||0; AP.sab=parseFloat(cs.paddingBottom)||0; }
 AP.sp=Spring(AP.peek,v=>sheetVis(v),0.3);

@@ -1,0 +1,79 @@
+apply plugin: 'com.android.application'
+
+// Release signing (the Google Play upload key) comes from the environment, so
+// the key never sits in the repository: ROCKSANE_KEYSTORE* (GitHub Actions,
+// see .github/workflows/app.yml) or CM_KEYSTORE_* (Codemagic). Without them a
+// release build is left unsigned. The version name is app/package.json's
+// "version"; the build number comes from -PversionCode (the cloud builds use
+// minutes since 2026, so every build is higher than the last).
+def env = { String a, String b -> System.getenv(a) ?: System.getenv(b) }
+def uploadKey = env('ROCKSANE_KEYSTORE', 'CM_KEYSTORE_PATH')
+def appPackage = new groovy.json.JsonSlurper().parse(file('../../package.json'))
+def appVersionCode = (findProperty('versionCode') ?: '1').toString().toInteger()
+def appVersionName = (findProperty('versionName') ?: appPackage.version).toString()
+
+android {
+    namespace = "io.github.nabilhzq13.rocksane"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "io.github.nabilhzq13.rocksane"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode appVersionCode
+        versionName appVersionName
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        if (uploadKey) {
+            release {
+                storeFile file(uploadKey)
+                storePassword env('ROCKSANE_KEYSTORE_PASSWORD', 'CM_KEYSTORE_PASSWORD')
+                keyAlias env('ROCKSANE_KEY_ALIAS', 'CM_KEY_ALIAS')
+                keyPassword env('ROCKSANE_KEY_PASSWORD', 'CM_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (uploadKey) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

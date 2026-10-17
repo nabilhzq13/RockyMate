@@ -1924,7 +1924,7 @@ const appMQ=phoneMQ;
 const AP={on:false,sat:0,sab:0,bar:52,peek:222,half:420,full:640,vis:222,detent:'peek',occ:0,wallH:400,drag:null,dragEnd:0};
 const bsheet=$('#bsheet'),bsCard=bsheet.querySelector('.bs-card'),bsBody=$('#bsBody');
 const insetProbe=document.createElement('div');
-insetProbe.style.cssText='position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)';
+insetProbe.style.cssText='position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-top:var(--safe-area-inset-top,env(safe-area-inset-top,0px));padding-bottom:var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px))';
 document.body.append(insetProbe);
 function readInsets(){ const cs=getComputedStyle(insetProbe); AP.sat=parseFloat(cs.paddingTop)||0; AP.sab=parseFloat(cs.paddingBottom)||0; }
 AP.sp=Spring(AP.peek,v=>sheetVis(v),0.3);
