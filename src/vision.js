@@ -349,7 +349,7 @@ function VisionCore(){
       }
       const status=conf>=0.5?'hold':conf>=0.33?'unsure':'rejected';
       out.push({x:cx,y:cy,area:k.c,r:req,elong,angle:0.5*Math.atan2(2*vxy,vxx-vyy),conf,status,reason:status==='hold'?'':reason,
-        contrast:Math.round(contrast*10)/10,edge:Math.round(edgeRatio*100)/100,fill:Math.round(fill*100)/100,id:k.id});
+        contrast:Math.round(contrast*10)/10,edge:Math.round(edgeRatio*100)/100,fill:Math.round(fill*100)/100,id:k.id,ring:[rl,ra,rb]});
     }
     if(opt.mask){
       const keep=new Map(out.map(b=>[b.id,b.status]));
@@ -426,6 +426,95 @@ function VisionCore(){
     for(const e of out){ if(seen[e.name]){ seen[e.name]++; e.name+=' '+seen[e.name]; } else seen[e.name]=1; }
     return out;
   }
+  /* Where the wall meets the floor (the mats) and where it ends at the top,
+     so the climber can be drawn at real size: with both edges in the picture
+     and the wall's height known, picture pixels become centimetres.
+     Per vertical strip: the median colour of each row (holds and bolt holes
+     drop out), the strip's wall colour (rows in the route's height span that
+     look like the wall around the tapped hold), and edge points where the
+     colour changes from wall to "clearly not wall" for at least 12% of the
+     picture height (the mats below, the ceiling or the gym above; a volume or
+     a shadow on the wall does not qualify). Lines through edge points of many
+     strips (RANSAC, at most ~11 degrees for the floor, 17 for the top) must
+     cover the route's width and keep the route's holds on the wall side (a
+     hold whose surroundings don't look like the wall, e.g. a blue window or a
+     shoe, doesn't count). Among strong lines the one nearest the route wins,
+     so a mat seam or the far edge of the mats can't beat the wall's base.
+     opt: {W: wall colour [L,a,b], holds: [{x,y,r,ring}] in pixels}. Returns
+     {floor, top}: {m, c, n, of} in pixels (y = c + m x) or null. */
+  function wallFrame(I,opt){
+    opt=opt||{};
+    const {w,h,L,A,B}=I,NS=20,sw=w/NS,k=Math.max(3,Math.round(h*0.012)),band=Math.max(4,Math.round(h*0.03)),far=Math.round(h*0.12);
+    const md=v=>{ v.sort((p,q)=>p-q); return v[v.length>>1]; };
+    const W=opt.W||[I.wall.L,I.wall.a,I.wall.b];
+    const d5=(c0,c1,c2,r,wl)=>{ const dl=wl*(c0-r[0]),da=c1-r[1],db=c2-r[2]; return Math.sqrt(dl*dl+da*da+db*db); };
+    const holds=(opt.holds||[]).filter(b=>!b.ring||!isFinite(b.ring[0])||d5(b.ring[0],b.ring[1],b.ring[2],W,0.8)<16);
+    const ys=holds.map(b=>b.y).sort((p,q)=>p-q),hx=holds.map(b=>b.x).sort((p,q)=>p-q);
+    const yLo=ys.length>=2?ys[0]:h*0.3,yHi=ys.length>=2?ys[ys.length-1]:h*0.7;
+    const rx0=hx.length?hx[Math.floor(hx.length*0.1)]:0,rx1=hx.length?hx[Math.ceil(hx.length*0.9)-1]:w,rxm=hx.length?hx[hx.length>>1]:w/2;
+    const xm=holds.length?holds.reduce((a,b)=>a+b.x,0)/holds.length:w/2;
+    const cL=new Float32Array(h),cA=new Float32Array(h),cB=new Float32Array(h),dr=new Float32Array(h);
+    const P0=new Float64Array(h+1),P1=new Float64Array(h+1),P2=new Float64Array(h+1),NW=new Int32Array(h+1),YW=new Int32Array(h+1);
+    const l=[],a=[],b=[],pts={floor:[],top:[]};
+    let nWall=0;
+    for(let s=0;s<NS;s++){
+      const x0=Math.round(s*sw),x1=Math.round((s+1)*sw),xc=(x0+x1)/2;
+      for(let y=0;y<h;y++){ l.length=a.length=b.length=0; for(let i=y*w+x0,e=y*w+x1;i<e;i++){ l.push(L[i]); a.push(A[i]); b.push(B[i]); } cL[y]=md(l); cA[y]=md(a); cB[y]=md(b); }
+      const span=[]; for(let y=Math.round(yLo);y<=Math.round(yHi);y++) if(d5(cL[y],cA[y],cB[y],W,0.5)<20) span.push(y);
+      if(span.length<Math.max(6,(yHi-yLo)*0.15)) continue;
+      nWall++;
+      const Ws=[md(span.map(y=>cL[y])),md(span.map(y=>cA[y])),md(span.map(y=>cB[y]))];
+      for(let y=0;y<h;y++){
+        P0[y+1]=P0[y]+cL[y]; P1[y+1]=P1[y]+cA[y]; P2[y+1]=P2[y]+cB[y];
+        dr[y]=d5(cL[y],cA[y],cB[y],Ws,0.6);
+        NW[y+1]=NW[y]+(dr[y]>9?1:0); YW[y+1]=YW[y]+(dr[y]<13?1:0);
+      }
+      const fr=(Q,p,q)=>{ p=Math.max(0,p); q=Math.min(h,q); return q>p?(Q[q]-Q[p])/(q-p):0; };
+      const ed=y=>{ const u0=(P0[y]-P0[y-k])/k,u1=(P1[y]-P1[y-k])/k,u2=(P2[y]-P2[y-k])/k; return d5((P0[y+k]-P0[y])/k,(P1[y+k]-P1[y])/k,(P2[y+k]-P2[y])/k,[u0,u1,u2],0.8); };
+      for(let y=k+1;y<h-k-1;y++){
+        const e=ed(y); if(e<6||e<ed(y-1)||e<ed(y+1)) continue;
+        if(fr(YW,y-band,y)>=0.6&&fr(NW,y,y+band)>=0.6&&fr(NW,y,y+far)>=0.65) pts.floor.push({s,x:xc,y,e});
+        if(y>=h*0.03&&fr(YW,y,y+band)>=0.6&&fr(NW,y-band,y)>=0.6&&fr(NW,y-far,y)>=0.65) pts.top.push({s,x:xc,y,e});
+      }
+    }
+    const fit=kind=>{
+      const pp=pts[kind],tol=Math.max(2,h*0.008),maxM=kind==='floor'?0.2:0.3,flo=kind==='floor',lines=[];
+      for(let i=0;i<pp.length;i++) for(let j=i+1;j<pp.length;j++){
+        const p=pp[i],q=pp[j]; if(Math.abs(p.s-q.s)<2) continue;
+        const m=(q.y-p.y)/(q.x-p.x); if(Math.abs(m)>maxM) continue;
+        const c=p.y-m*p.x,per=new Map();
+        for(const r of pp){ const d=Math.abs(r.y-(c+m*r.x)); if(d<tol){ const o=per.get(r.s); if(!o||d<o.d) per.set(r.s,{d,r}); } }
+        if(per.size<3) continue;
+        let xa=Infinity,xb=-Infinity; for(const o of per.values()){ if(o.r.x<xa) xa=o.r.x; if(o.r.x>xb) xb=o.r.x; }
+        if(xb-xa<w*0.2) continue;
+        xa-=sw*1.5; xb+=sw*1.5;
+        if(hx.length){ const ov=Math.max(0,Math.min(xb,rx1)-Math.max(xa,rx0)); if(rx1-rx0>sw*2?ov<(rx1-rx0)*0.5:(xa>rxm||xb<rxm)) continue; }
+        let bad=0,inSpan=0; for(const hd of holds){ if(hd.x<xa||hd.x>xb) continue; inSpan++; const yl=c+m*hd.x; if(flo?hd.y>yl:hd.y<yl) bad++; }
+        if(bad>Math.max(1,Math.round(inSpan*0.35))) continue;
+        if(ys.length){ const yl=c+m*xm,ym=ys[ys.length>>1]; if(flo?ym>yl:ym<yl) continue; }
+        let sc=-1.5*bad; for(const o of per.values()) sc+=Math.min(1,o.r.e/18);
+        lines.push({m,c,sc,n:per.size,inl:[...per.values()].map(o=>o.r)});
+      }
+      if(!lines.length) return null;
+      const need=Math.max(3,0.25*nWall),good=lines.filter(q=>q.n>=need&&q.sc>=need*0.6);
+      if(!good.length) return null;
+      const best=Math.max(...good.map(q=>q.sc)),near=good.filter(q=>q.sc>=best*0.6);
+      near.sort((p,q)=>flo?(p.c+p.m*xm)-(q.c+q.m*xm):(q.c+q.m*xm)-(p.c+p.m*xm));
+      const pick0=near[0],P=pick0.inl;
+      let sx=0,sy=0,sxx=0,sxy=0; for(const r of P){ sx+=r.x; sy+=r.y; sxx+=r.x*r.x; sxy+=r.x*r.y; }
+      const n=P.length,den=n*sxx-sx*sx; let m=Math.abs(den)>1e-6?(n*sxy-sx*sy)/den:0; if(Math.abs(m)>maxM) m=pick0.m;
+      return {m,c:(sy-m*sx)/n,n,of:nWall,sc:pick0.sc};
+    };
+    let floor=fit('floor'),top=fit('top');
+    if(top&&top.c+top.m*xm<h*0.03) top=null;
+    if(floor&&floor.c+floor.m*xm>h*0.97) floor=null;
+    /* most of the route's holds sit between the lines, and the wall is not a thin band */
+    const share=(fl,tp)=>{ if(!holds.length) return 1; let c=0; for(const q of holds){ const yf=fl?fl.c+fl.m*q.x:1e9,yt=tp?tp.c+tp.m*q.x:-1e9; if(q.y<yf+q.r*0.5&&q.y>yt-q.r*0.5) c++; } return c/holds.length; };
+    if(floor&&share(floor,null)<0.8) floor=null;
+    if(top&&share(null,top)<0.8) top=null;
+    if(floor&&top&&((floor.c+floor.m*xm)-(top.c+top.m*xm)<h*0.3||share(floor,top)<0.8)){ if(floor.sc>=top.sc) top=null; else floor=null; }
+    return {floor,top,strips:nWall};
+  }
   /* Colour chips: palette colours that actually form several hold-shaped
      blobs, most holds first. */
   function suggest(I,max){
@@ -451,6 +540,6 @@ function VisionCore(){
     for(const e of kept){ e.name=e.name.replace(/ \d+$/,''); if(seen[e.name]){ seen[e.name]++; e.name+=' '+seen[e.name]; } else seen[e.name]=1; }
     return kept.slice(0,max||8);
   }
-  return {prepare,pick,classify,refine,palette,suggest,modelFromStats,lab2rgb,nameOf};
+  return {prepare,pick,classify,refine,palette,suggest,wallFrame,modelFromStats,lab2rgb,nameOf};
 }
 if(typeof module!=='undefined') module.exports=VisionCore;

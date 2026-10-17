@@ -1,0 +1,146 @@
+{
+ "about": "Hand-checked wall edges for the benchmark photos (test/make_media.sh). Each line is v = a + m*u in picture fractions (u across, v down). floor = where the wall meets the mats, top = top edge of the wall, null = not in the picture. img13, img14 and img17 (freestanding overhang boulders) have no clear edges and are left out.",
+ "lines": {
+  "img1": {
+   "floor": [
+    0.7861,
+    0.0198
+   ],
+   "top": [
+    0.1659,
+    -0.039
+   ]
+  },
+  "img2": {
+   "floor": [
+    0.7507,
+    0.039
+   ],
+   "top": [
+    0.2651,
+    -0.0848
+   ]
+  },
+  "img3": {
+   "floor": [
+    0.8214,
+    -0.0025
+   ],
+   "top": [
+    0.1531,
+    0.0166
+   ]
+  },
+  "img4": {
+   "floor": [
+    0.7532,
+    0.0119
+   ],
+   "top": [
+    0.064,
+    -0.0209
+   ]
+  },
+  "img5": {
+   "floor": [
+    0.8097,
+    -0.0002
+   ],
+   "top": [
+    0.2076,
+    -0.0377
+   ]
+  },
+  "img6": {
+   "floor": [
+    0.7445,
+    0.0806
+   ],
+   "top": [
+    0.2572,
+    -0.111
+   ]
+  },
+  "img7": {
+   "floor": [
+    0.8029,
+    -0.0003
+   ],
+   "top": null
+  },
+  "img8": {
+   "floor": [
+    0.8024,
+    -0.0012
+   ],
+   "top": null
+  },
+  "img9": {
+   "floor": [
+    0.796,
+    0.0302
+   ],
+   "top": null
+  },
+  "img10": {
+   "floor": [
+    0.783,
+    0.0138
+   ],
+   "top": [
+    0.1811,
+    -0.1543
+   ]
+  },
+  "img11": {
+   "floor": [
+    0.8311,
+    0.0108
+   ],
+   "top": [
+    0.1304,
+    -0.0548
+   ]
+  },
+  "img12": {
+   "floor": [
+    0.82,
+    -0.03
+   ],
+   "top": [
+    0.1526,
+    0.0352
+   ]
+  },
+  "img15": {
+   "floor": [
+    0.7484,
+    0.0378
+   ],
+   "top": [
+    0.1932,
+    -0.0927
+   ]
+  },
+  "img16": {
+   "floor": [
+    0.7501,
+    0.0394
+   ],
+   "top": [
+    0.2634,
+    -0.0837
+   ]
+  },
+  "img18": {
+   "floor": [
+    0.8779,
+    -0.0496
+   ],
+   "top": [
+    0.092,
+    0.046
+   ]
+  }
+ }
+}

@@ -17,7 +17,7 @@
   --tape-ink:#211c0a;
   --lh:#18a7e0; --rh:#ec3b74; --lf:#58b52b; --rf:#f59f00;
   --live:#e5383b;
-  --warn:#a85600; --warn-bg:#fff2de;
+  --warn:#a85600; --warn-bg:#fff2de; --ok:#2f8a4a;
   --scrim:rgba(10,12,14,.62); --shadow:rgba(10,12,14,.28); --icon-mark:#7d3507; --icon:#e2701c;
   --f-display:"Permanent Marker","Marker Felt","Chalkboard SE",cursive;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -27,12 +27,12 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
-    --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; --scrim:rgba(0,0,0,.72); --shadow:rgba(0,0,0,.55); --icon-mark:#5a2604; --icon:#f08a3c; color-scheme:dark;
+    --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; --ok:#5cc97c; --scrim:rgba(0,0,0,.72); --shadow:rgba(0,0,0,.55); --icon-mark:#5a2604; --icon:#f08a3c; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --wall:#101316; --panel:#181c20; --stage:#0a0c0e; --ink:#e6e9ec; --muted:#98a2ac; --line:#2b3137; --soft:#20252a;
-  --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; --scrim:rgba(0,0,0,.72); --shadow:rgba(0,0,0,.55); --icon-mark:#5a2604; --icon:#f08a3c; color-scheme:dark;
+  --accent:#6aaef5; --warn:#ffb35c; --warn-bg:#2d2213; --ok:#5cc97c; --scrim:rgba(0,0,0,.72); --shadow:rgba(0,0,0,.55); --icon-mark:#5a2604; --icon:#f08a3c; color-scheme:dark;
 }
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -105,10 +105,15 @@ a{color:var(--accent)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
 .seg.one{grid-template-columns:minmax(0,1fr)}
 .seg button[disabled]{color:var(--muted);opacity:.55;cursor:default}
-#tools{grid-template-columns:repeat(6,minmax(0,1fr))}
-#tools button{grid-column:span 2;border-bottom:1px solid var(--line)}
-#tools button:nth-child(3){border-right:0}
-#tools button:nth-child(n+4){grid-column:span 3;border-bottom:0}
+#tools{grid-template-columns:repeat(3,minmax(0,1fr))}
+#tools button{border-bottom:1px solid var(--line)}
+#tools button:nth-child(3n){border-right:0}
+#tools button:nth-child(n+4){border-bottom:0}
+#cv.sizing{cursor:ns-resize}
+.size-box{display:grid;gap:8px;padding:10px 12px;border-radius:8px;background:var(--soft)}
+.size-note{margin:0;font-size:.92rem;padding-left:22px;position:relative}
+.size-note::before{content:"";position:absolute;left:2px;top:.28em;width:12px;height:12px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
+.size-note[data-ok="false"]::before{background:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 22%,transparent)}
 #tools.nudge{animation:nudge .9s ease}
 @keyframes nudge{0%,100%{box-shadow:0 0 0 0 transparent}25%,60%{box-shadow:0 0 0 3px var(--accent)}}
 @media (prefers-reduced-motion:reduce){#tools.nudge{animation:none;box-shadow:0 0 0 3px var(--accent)}}
@@ -280,7 +285,7 @@ body.modal-open{overflow:hidden}
           <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
           <input type="file" id="fileVid" accept="video/*" capture="environment" hidden>
           <input type="file" id="fileUp" accept="image/*,video/*" hidden>
-          <p class="hint">Stand back so the whole route and the floor fit in frame. Hold the phone upright, face the wall straight on, and skip the flash.</p>
+          <p class="hint">Stand back so the whole wall fits in frame, from the mats to its top edge: Rocksane uses both to draw the climber at your real size. Hold the phone upright, face the wall straight on, and skip the flash.</p>
           <p class="hint" data-only="artifact">Inside Claude the page can't open a live camera feed, so <b>Record video</b> films a short clip and reads the wall frame by frame as it plays. For a true live view, use the standalone page.</p>
           <p class="hint" data-only="standalone"><b>Live camera</b> reads the wall as you point the phone. Hold steady for a second and the moves appear. <b>Freeze frame</b> keeps the current view so you can edit holds or mark the wall.</p>
         </div>
@@ -317,6 +322,7 @@ body.modal-open{overflow:hidden}
               <button data-mode="type" aria-pressed="false" disabled>Hold type</button>
               <button data-mode="start" aria-pressed="false" disabled>Set start</button>
               <button data-mode="top" aria-pressed="false" disabled>Set top</button>
+              <button data-mode="size" aria-pressed="false">Check size</button>
             </div>
           </div>
           <p class="hint" id="modeHint">Tap one hold of your route to pick its colour.</p>
@@ -362,11 +368,14 @@ body.modal-open{overflow:hidden}
               </select>
             </div>
           </div>
-          <div class="btn-row">
-            <button class="btn" id="markWall">Mark wall bottom and top</button>
-            <button class="btn" id="clearMarks" hidden>Clear marks</button>
+          <div class="size-box">
+            <span class="lbl">Real size</span>
+            <p class="size-note" id="sizeNote" data-ok="true"></p>
+            <div class="btn-row">
+              <button class="btn" id="sizeBtn" aria-pressed="false">Check size</button>
+              <button class="btn" id="sizeReset" hidden>Use the edges it found</button>
+            </div>
           </div>
-          <p class="hint" id="markHint">Without marks, the whole picture counts as the wall: bottom edge is the floor, top edge is the top of the wall.</p>
           <div class="field">
             <label class="lbl" for="feet">Feet rule</label>
             <select id="feet">
@@ -375,7 +384,7 @@ body.modal-open{overflow:hidden}
             </select>
           </div>
           <label class="check"><input type="checkbox" id="callout">Call out each move aloud</label>
-          <p class="hint">Bouldering walls are usually 4 to 4.5 m tall. Wall angle is how far the wall leans: a slab leans back, an overhang leans out over you. On an angled wall the holds are further apart than they look from the floor, and the coaching changes with the angle.</p>
+          <p class="hint">Wall height is from the mats to the top edge; most bouldering walls are 4 to 4.5 m, and gyms often post it. Rocksane finds the floor and the top of the wall in the picture and uses this height to draw the climber at your real size. Wall angle is how far the wall leans: a slab leans back, an overhang leans out over you. On an angled wall the holds are further apart than they look from the floor, and the coaching changes with the angle.</p>
         </div>
 
         <div class="blk">

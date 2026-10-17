@@ -11,7 +11,11 @@
      WALL=300 FEET=open node test/plan.js
      ANGLE=30 SPAN=180 node test/plan.js   wall angle in degrees (+ overhang), arm span in cm
      OTHER=path/to/solver.js node test/plan.js   also report another planner's top count
-     TYPES=guess node test/plan.js     give every hold its guessed type (TYPES=sloper: every hold a sloper) */
+     TYPES=guess node test/plan.js     give every hold its guessed type (TYPES=sloper: every hold a sloper)
+     SCALE=auto node test/plan.js      real size, as the app does it: the wall's floor and top found in the
+                                       photo (VisionCore.wallFrame) are WALL cm apart; a missing edge is the
+                                       photo's border. Without it the whole photo is WALL cm of wall, which
+                                       draws the climber about 1.6x too big on these photos (test/scale.js). */
 const {load,V}=require('./harness.js');
 const fs=require('fs'),path=require('path');
 const ROOT=path.join(__dirname,'..');
@@ -24,12 +28,12 @@ const grab=name=>{ const i=app.indexOf('function '+name+'('); let d=0; for(let k
 const fig=new Function(['ik','bend3d','upperBody','elbowAt','reachJoint','chooseBody'].map(grab).join('\n')+'\nvar bodyMemo=new Map();return {upperBody,elbowAt,reachJoint,chooseBody,bodyMemo};')();
 const dir=process.env.RCC_DIR||path.join(__dirname,'data','rcc','datasets','orig_dataset_yolo');
 const WALL=+(process.env.WALL||420),FEET=process.env.FEET||'rules',H=170,TORSO=0.3*H;
-const TYPES=process.env.TYPES||'',ANGLE=+(process.env.ANGLE||0),SPAN=+(process.env.SPAN||0),COS=Math.cos(Math.abs(ANGLE)*Math.PI/180);
+const AUTO=process.env.SCALE==='auto',TYPES=process.env.TYPES||'',ANGLE=+(process.env.ANGLE||0),SPAN=+(process.env.SPAN||0),COS=Math.cos(Math.abs(ANGLE)*Math.PI/180);
 (async()=>{
   const files=[];
   for(const s of ['train','valid','test']) for(const f of fs.readdirSync(path.join(dir,s,'images'))) files.push([s,f]);
   files.sort((a,b)=>a[1]<b[1]?-1:1);
-  const T={routes:0,top:0,strictTop:0,stretchTop:0,smearTop:0,otherTop:0,moves:0,handCross:0,footCross:0,footAboveHip:0,flags:0,handMatch:0,footMatch:0,held:0,bigLean:0,handOnHead:0,armBehind:0,ms:0};
+  const T={routes:0,top:0,strictTop:0,stretchTop:0,smearTop:0,otherTop:0,moves:0,handCross:0,footCross:0,footAboveHip:0,flags:0,handMatch:0,footMatch:0,held:0,bigLean:0,handOnHead:0,armBehind:0,ms:0,auto:{edges:0,floor:0,top:0,none:0}};
   for(const [s,f] of files){
     const img=await load(path.join(dir,s,'images',f));
     const I=V.prepare(img.rgba,img.w,img.h);
@@ -44,7 +48,11 @@ const TYPES=process.env.TYPES||'',ANGLE=+(process.env.ANGLE||0),SPAN=+(process.e
       let res=V.classify(I,pk.model,5,{}); res=V.classify(I,V.refine(I,pk.model,res),5,{});
       const holds=res.blobs.filter(b=>b.status==='hold'); if(holds.length<2) continue;
       /* the photo shows the wall's height; distances along an angled wall are longer */
-      const k=img.h/WALL,hs=holds.map((b,i)=>({id:i,X:b.x/k,Y:(img.h-b.y)/k/COS,r:b.r/k,elong:b.elong,angle:b.angle}));
+      let F=img.h,Tp=0;
+      if(AUTO){ const fr=V.wallFrame(I,{W:pk.model.wall,holds:holds.map(b=>({x:b.x,y:b.y,r:b.r,ring:b.ring}))}),xm=holds.reduce((a,b)=>a+b.x,0)/holds.length;
+        if(fr.floor) F=fr.floor.c+fr.floor.m*xm; if(fr.top) Tp=fr.top.c+fr.top.m*xm; T.auto[fr.floor&&fr.top?'edges':fr.floor?'floor':fr.top?'top':'none']++; }
+      const k=(F-Tp)/WALL,hs=holds.filter(b=>!AUTO||b.y<=F+0.005*img.h).map((b,i)=>({id:i,X:b.x/k,Y:(F-b.y)/k/COS,r:b.r/k,elong:b.elong,angle:b.angle}));
+      if(hs.length<2) continue;
       for(const h of hs) h.type=TYPES==='guess'?NEW.guessType({rCm:h.r,elong:h.elong,angle:h.angle}):TYPES||null;
       T.routes++;
       const opt={H,feet:FEET,angle:ANGLE,span:SPAN};
@@ -89,4 +97,5 @@ const TYPES=process.env.TYPES||'',ANGLE=+(process.env.ANGLE||0),SPAN=+(process.e
   console.log(`\nWALL ${WALL} cm, angle ${ANGLE}°, span ${SPAN||H} cm, feet ${FEET}${TYPES?', hold types '+TYPES:''}: ${T.routes} routes, top ${T.top} (strict ${T.strictTop}, deadpoint ${T.stretchTop})${FEET!=='open'?`, ${T.top+T.smearTop} with the app's smear fallback`:''}${OTHER?`, other planner top ${T.otherTop}`:''}, ${T.ms} ms planning`);
   console.log(`moves ${T.moves}: crossed hands ${T.handCross}, crossed feet ${T.footCross}, foot above hips ${T.footAboveHip}, flags ${T.flags}, matched hands ${T.handMatch}, matched feet ${T.footMatch}`);
   console.log(`figure at ${T.held} held positions: lean over 0.45 rad ${T.bigLean}, hand on the head ${T.handOnHead}, arm behind the head ${T.armBehind}`);
+  if(AUTO) console.log(`real size: both wall edges found on ${T.auto.edges} routes, floor only ${T.auto.floor}, top only ${T.auto.top}, none ${T.auto.none}`);
 })();
