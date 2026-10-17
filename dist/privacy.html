@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Privacy · Rocksane</title>
+<meta name="description" content="Rocksane collects no personal data. Pictures of the wall are read on your phone and never leave it.">
+<link rel="icon" type="image/png" href="favicon-48.png">
+<style>
+@font-face{font-family:"Barlow";font-weight:400;font-display:swap;src:url(fonts/barlow-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow";font-weight:600;font-display:swap;src:url(fonts/barlow-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:700;font-display:swap;src:url(fonts/barlow-condensed-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Permanent Marker";font-weight:400;font-display:swap;src:url(fonts/permanent-marker-latin-400-normal.woff2) format("woff2")}
+:root{--wall:#e7eaed;--panel:#fff;--ink:#14181c;--muted:#57626c;--line:#cfd5db;--accent:#1662b8;--tape:#ffd43b;--tape-ink:#211c0a;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--wall:#101316;--panel:#181c20;--ink:#e6e9ec;--muted:#98a2ac;--line:#2b3137;--accent:#6aaef5;color-scheme:dark}}
+:root[data-theme="dark"]{--wall:#101316;--panel:#181c20;--ink:#e6e9ec;--muted:#98a2ac;--line:#2b3137;--accent:#6aaef5;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--wall);color:var(--ink);font:400 17px/1.55 "Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:720px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top,0px)) 16px calc(48px + env(safe-area-inset-bottom,0px))}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:30px}
+.logo{display:inline-block;background:var(--tape);color:var(--tape-ink);font:400 22px/1 "Permanent Marker","Marker Felt",cursive;text-transform:uppercase;text-decoration:none;padding:.42em .9em .3em;transform:rotate(-1.6deg);clip-path:polygon(1.5% 6%,99% 0,97.5% 34%,100% 62%,98% 100%,2% 95%,0 66%,2% 38%)}
+nav{display:flex;gap:18px;font:700 1rem/1 "Barlow Condensed","Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:.07em}
+nav a{color:var(--muted);text-decoration:none;padding:6px 0}
+nav a[aria-current="page"]{color:var(--ink);box-shadow:inset 0 -3px 0 var(--tape)}
+h1{font:700 2.5rem/1.02 "Barlow Condensed","Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:.01em;margin:0 0 6px}
+h2{font:700 1.35rem/1.15 "Barlow Condensed","Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:.04em;margin:34px 0 8px}
+.date{color:var(--muted);margin:0 0 22px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:0 0 8px}
+.card p{margin:0}
+p,li{max-width:66ch}
+ul{padding-left:1.2em}
+li{margin:.3em 0}
+a{color:var(--accent)}
+b{font-weight:600}
+footer{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:.95rem;display:flex;flex-wrap:wrap;gap:8px 18px}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <a class="logo" href="./">Rocksane</a>
+    <nav aria-label="Pages"><a href="privacy.html" aria-current="page">Privacy</a><a href="terms.html">Terms</a><a href="support.html">Support</a></nav>
+  </header>
+
+  <h1>Privacy policy</h1>
+  <p class="date">Last updated 17 October 2026</p>
+
+  <div class="card"><p><b>In short:</b> Rocksane collects no personal data. Pictures and videos of the wall are read on your phone and never leave it. There are no accounts, no ads, no analytics and no tracking.</p></div>
+
+  <h2>Who we are</h2>
+  <p>Rocksane is made by an independent developer (<a href="https://github.com/nabilhzq13">nabilhzq13 on GitHub</a>). This policy covers the Rocksane app for iPhone and Android and the website at <a href="./">nabilhzq13.github.io/RockyMate</a>.</p>
+
+  <h2>Camera, photos and videos</h2>
+  <p>When you take or choose a photo or a video, or use the live camera, Rocksane reads the picture on your device to find the holds and plan the moves. Nothing is uploaded, kept on a server or shared with anyone.</p>
+  <ul>
+    <li>The app asks for camera access the first time you use the camera. You can turn it off any time in your phone's settings; photos you choose still work.</li>
+    <li>A video you record can include sound. Rocksane only reads the picture, and it doesn't save the clip anywhere.</li>
+  </ul>
+
+  <h2>What stays on your device</h2>
+  <p>Your settings (height, arm span, wall height and angle, the feet rule) and whether Rocksane Pro is unlocked are saved in the app's own storage on your phone, or in your browser for the website. Deleting the app, or clearing the website's data, removes them.</p>
+
+  <h2>Purchases</h2>
+  <p>Rocksane Pro is bought through the App Store or Google Play. Apple or Google take the payment; we never see your card or account details. The app asks the store whether Pro was bought, only to unlock it on your phone. <a href="https://www.apple.com/legal/privacy/">Apple's privacy policy</a> or <a href="https://policies.google.com/privacy">Google's privacy policy</a> covers the payment.</p>
+
+  <h2>The website</h2>
+  <p>The website is hosted on GitHub Pages. GitHub may keep technical logs, such as IP addresses, to run and protect the service (see the <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement">GitHub privacy statement</a>). The website loads no scripts, fonts or trackers from anyone else. Links to climbing articles open other sites, which have their own policies.</p>
+
+  <h2>Children</h2>
+  <p>Rocksane collects no personal data from anyone, including children.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, the new version is posted on this page with a new date.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about privacy? See <a href="support.html">Support</a>.</p>
+
+  <footer><span>Rocksane</span><a href="./">Try it in your browser</a><a href="terms.html">Terms of use</a><a href="support.html">Support</a></footer>
+</main>
+</body>
+</html>

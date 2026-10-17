@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Support · Rocksane</title>
+<meta name="description" content="Help with Rocksane: holds, size, the camera, Rocksane Pro, refunds and how to get in touch.">
+<link rel="icon" type="image/png" href="favicon-48.png">
+<style>
+@font-face{font-family:"Barlow";font-weight:400;font-display:swap;src:url(fonts/barlow-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow";font-weight:600;font-display:swap;src:url(fonts/barlow-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:700;font-display:swap;src:url(fonts/barlow-condensed-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Permanent Marker";font-weight:400;font-display:swap;src:url(fonts/permanent-marker-latin-400-normal.woff2) format("woff2")}
+:root{--wall:#e7eaed;--panel:#fff;--ink:#14181c;--muted:#57626c;--line:#cfd5db;--accent:#1662b8;--tape:#ffd43b;--tape-ink:#211c0a;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--wall:#101316;--panel:#181c20;--ink:#e6e9ec;--muted:#98a2ac;--line:#2b3137;--accent:#6aaef5;color-scheme:dark}}
+:root[data-theme="dark"]{--wall:#101316;--panel:#181c20;--ink:#e6e9ec;--muted:#98a2ac;--line:#2b3137;--accent:#6aaef5;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--wall);color:var(--ink);font:400 17px/1.55 "Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:720px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top,0px)) 16px calc(48px + env(safe-area-inset-bottom,0px))}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:30px}
+.logo{display:inline-block;background:var(--tape);color:var(--tape-ink);font:400 22px/1 "Permanent Marker","Marker Felt",cursive;text-transform:uppercase;text-decoration:none;padding:.42em .9em .3em;transform:rotate(-1.6deg);clip-path:polygon(1.5% 6%,99% 0,97.5% 34%,100% 62%,98% 100%,2% 95%,0 66%,2% 38%)}
+nav{display:flex;gap:18px;font:700 1rem/1 "Barlow Condensed","Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:.07em}
+nav a{color:var(--muted);text-decoration:none;padding:6px 0}
+nav a[aria-current="page"]{color:var(--ink);box-shadow:inset 0 -3px 0 var(--tape)}
+h1{font:700 2.5rem/1.02 "Barlow Condensed","Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:.01em;margin:0 0 6px}
+h2{font:700 1.35rem/1.15 "Barlow Condensed","Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:.04em;margin:34px 0 8px}
+.date{color:var(--muted);margin:0 0 22px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:0 0 8px}
+.card p{margin:0}
+p,li{max-width:66ch}
+ul{padding-left:1.2em}
+li{margin:.3em 0}
+a{color:var(--accent)}
+b{font-weight:600}
+footer{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:.95rem;display:flex;flex-wrap:wrap;gap:8px 18px}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <a class="logo" href="./">Rocksane</a>
+    <nav aria-label="Pages"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="support.html" aria-current="page">Support</a></nav>
+  </header>
+
+  <h1>Support</h1>
+  <p class="date">Help with Rocksane on iPhone, Android and the web</p>
+
+  <h2>It picked the wrong holds</h2>
+  <p>Tap one hold of your route, ideally a big one in good light. Then use <b>Add</b> for a hold it missed and <b>Remove</b> for one that isn't part of the route. If the start or the finish is wrong, use <b>Start</b> and <b>Top</b>. A straight-on photo of the whole route works best.</p>
+
+  <h2>The climber looks too big or too small</h2>
+  <p>Rocksane draws the climber at your real size from where it finds the floor and the top of the wall. Tap <b>Size</b> and drag the two lines onto the floor (where the wall meets the mats) and the top of the wall. Set your height, arm span and the wall's height in Settings.</p>
+
+  <h2>The camera doesn't start</h2>
+  <ul>
+    <li>iPhone: Settings → Apps → Rocksane → turn on Camera.</li>
+    <li>Android: Settings → Apps → Rocksane → Permissions → Camera → Allow.</li>
+    <li>Website: allow the camera when the browser asks. Browsers only allow it on https pages.</li>
+  </ul>
+
+  <h2>Restore Rocksane Pro</h2>
+  <p>Open Settings in the app, then Rocksane Pro → <b>Restore purchase</b>. Use the same Apple Account or Google account you bought it with. Restoring needs an internet connection; everything else works offline.</p>
+
+  <h2>Refunds</h2>
+  <p>Apple and Google handle payments and refunds. On iPhone, ask at <a href="https://reportaproblem.apple.com">reportaproblem.apple.com</a>. On Android, see <a href="https://support.google.com/googleplay/answer/2479637">Google Play's refund help</a>.</p>
+
+  <h2>Get in touch</h2>
+  <p>Found a bug or have an idea? <a href="https://github.com/nabilhzq13/RockyMate/issues/new">Open an issue on GitHub</a>. Say which phone you use and what you tapped, and add a screenshot if you can. Please don't post photos of other people.</p>
+
+  <footer><span>Rocksane</span><a href="./">Try it in your browser</a><a href="privacy.html">Privacy policy</a><a href="terms.html">Terms of use</a></footer>
+</main>
+</body>
+</html>

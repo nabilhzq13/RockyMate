@@ -1,31 +1,37 @@
 # Rocksane
 
-Point your phone at a bouldering wall, tap one hold of your route, and Rocksane finds the rest of that colour and shows the hand and foot moves to the top.
+Point your phone at a bouldering wall, tap one hold of your route, and Rocksane finds the rest of that colour and shows the hand and foot moves to the top, on a climber drawn at your real size.
 
-**Open it:** https://nabilhzq13.github.io/RockyMate/
+**Try it free in your browser:** https://nabilhzq13.github.io/RockyMate/
+The iPhone and Android app is on its way to the App Store and Google Play (see `PUBLISHING.md`).
 
 ## On your phone
 
 1. Open the link above in Safari (iPhone) or Chrome (Android).
-2. Tap **Live camera** and allow the camera. Stand back so the whole route and the floor fit in frame.
-3. Tap one hold of your route. Hold the phone steady for a second and the moves appear.
+2. Tap the camera icon, then **Take photo**. Stand back so the whole route fits, from the mats to the top of the wall.
+3. Tap one hold of your route. The moves appear; tap **Play moves**, or the arrows to step through them.
 4. To keep it on your home screen: Share → **Add to Home Screen**.
+
+## Free and Pro
+
+- **Free, everywhere:** photos, the colour reader, real-size planning, every move with tips, the Learn guide, and three technique examples (jug, crimp, sloper).
+- **Rocksane Pro** (in the app, one purchase, no subscription): the live camera, recorded video, the Hold type tool and all nine technique examples. In the browser these buttons point to the app.
 
 ## Tips
 
-- Turn on **Show what matched** to see what was kept as a hold, what was the wall, and what was rejected.
-- Tap **Mark wall bottom and top**, then tap where the wall meets the mat and the top of the wall, for correctly sized moves.
-- After picking the colour, choose **Add hold**, **Remove hold**, **Hold type**, **Set start** or **Set top**, then tap the hold. Tap **Pick colour** first if you want a different colour.
-- **Hold type**: tap a hold and say what it is (jug, crimp, sloper, pinch, pocket, sidepull, gaston, undercling, volume). The plan and the tips change, and **Show how** plays an animated example of the technique. Every type is also in **Learn to climb**.
-- Set **Wall angle** for slabs and overhangs, and **Arm span** if your arms are longer or shorter than your height.
-- **Freeze frame** stops on the current view so you can add holds by hand.
+- **Size:** Rocksane finds the floor and the top of the wall to draw the climber at your real size. If a photo is unusual, tap **Size** and drag the two lines onto the floor and the top of the wall.
+- After picking the colour, choose **Add**, **Remove**, **Type**, **Start** or **Top**, then tap a hold. Tap **Colour** to pick a different route.
+- **Show what matched** (pull up the sheet under the wall, Route colour) shows what was kept as a hold, what was the wall, and what was rejected.
+- Set your height, **arm span**, the wall's height and its **angle** (slab or overhang) in Settings (on a computer: the About you box).
+- **Hold type** (Pro): tap a hold and say what it is (jug, crimp, sloper, pinch, pocket, sidepull, gaston, undercling, volume). The plan and the tips change, and **Show how** plays an animated example. Every type is also in **Learn to climb**.
 
 ## Files
 
-- `docs/index.html` is the site GitHub Pages serves.
-- `dist/beta-lens-live.html` is the same page for running locally: on Windows double-click `serve.bat`, then open http://localhost:8000/beta-lens-live.html.
+- `docs/` is the site GitHub Pages serves: the free web demo, plus the privacy, terms and support pages.
+- `dist/beta-lens-live.html` is the full version (everything unlocked) for running locally: on Windows double-click `serve.bat`, then open http://localhost:8000/beta-lens-live.html.
 - `dist/beta-lens.html` is the version that runs inside Claude (photo and recorded clip, no live camera).
+- `app/` is the iPhone and Android app (`app/README.md`), and `PUBLISHING.md` is the step-by-step guide to both stores.
 
 ## Working on it
 
-See `CLAUDE.md` for the architecture, commands and tests. In short: edit files in `src/`, run `python build.py`, run `python test/e2e.py`, then commit and push.
+See `CLAUDE.md` for the architecture, commands and tests. In short: edit files in `src/`, run `python build.py`, run the tests, then commit and push.

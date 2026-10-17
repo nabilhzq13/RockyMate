@@ -4,13 +4,13 @@
 # Start a build by hand: Codemagic → the app → Start new build → pick a workflow.
 # PUBLISHING.md walks through the one-time setup.
 #
-#   ios-testflight  signs the iPhone app and uploads it to App Store Connect.
-#                   It shows up in TestFlight for you to install; you then
-#                   submit it for review on the App Store Connect website.
-#   android-play    signs the Android bundle and uploads it to Google Play's
-#                   internal testing track as a draft. The very first bundle
-#                   has to be uploaded by hand in Play Console (Google's rule);
-#                   GitHub Actions makes that one (.github/workflows/app.yml).
+#   ios-testflight   signs the iPhone app and uploads it to App Store Connect.
+#                    It shows up in TestFlight for you to install; you then
+#                    submit it for review on the App Store Connect website.
+#   android-bundle   signs the Android bundle (.aab) for you to download and
+#                    upload in Play Console (the first upload must be by hand)
+#   android-play     the same, then uploads it to Google Play's internal
+#                    testing track as a draft (needs a Google service account)
 #
 # Secrets, set in Codemagic (the app's Environment variables tab, marked Secret):
 #   group app_store    APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_IDENTIFIER,
@@ -20,6 +20,25 @@
 #   group google_play  GCLOUD_SERVICE_ACCOUNT_CREDENTIALS (the service account's JSON key)
 #   Android keystore   Team settings → codemagic.yaml settings → Code signing
 #                      identities → Android keystores, reference name rocksane_upload
+
+definitions:
+  android_env: &android_env
+    android_signing:
+      - rocksane_upload
+    node: 22
+    java: 21
+  android_scripts: &android_scripts
+    - name: Install
+      script: cd app && npm ci
+    - name: Build the web app and copy it into the Android project
+      script: cd app && npm run web && npx cap sync android
+    - name: Signed bundle
+      script: |
+        echo "sdk.dir=$ANDROID_SDK_ROOT" > app/android/local.properties
+        BUILD=$(( ($(date -u +%s) - 1767225600) / 60 ))
+        cd app/android && ./gradlew bundleRelease -PversionCode=$BUILD
+  android_artifacts: &android_artifacts
+    - app/android/app/build/outputs/bundle/release/*.aab
 
 workflows:
   ios-testflight:
@@ -64,29 +83,24 @@ workflows:
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: false
 
+  android-bundle:
+    name: Android bundle to download
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    environment: *android_env
+    scripts: *android_scripts
+    artifacts: *android_artifacts
+
   android-play:
     name: Android to Google Play (internal testing)
     instance_type: mac_mini_m2
     max_build_duration: 45
     environment:
-      android_signing:
-        - rocksane_upload
+      <<: *android_env
       groups:
         - google_play
-      node: 22
-      java: 21
-    scripts:
-      - name: Install
-        script: cd app && npm ci
-      - name: Build the web app and copy it into the Android project
-        script: cd app && npm run web && npx cap sync android
-      - name: Signed bundle
-        script: |
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > app/android/local.properties
-          BUILD=$(( ($(date -u +%s) - 1767225600) / 60 ))
-          cd app/android && ./gradlew bundleRelease -PversionCode=$BUILD
-    artifacts:
-      - app/android/app/build/outputs/bundle/release/*.aab
+    scripts: *android_scripts
+    artifacts: *android_artifacts
     publishing:
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS

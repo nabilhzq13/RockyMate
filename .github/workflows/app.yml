@@ -19,9 +19,9 @@ name: Phone app
 on:
   push:
     branches: [main, rocksane-app]
-    paths: ['src/**', 'app/**', 'build.py', '.github/workflows/app.yml']
+    paths: ['src/**', 'app/**', 'web/**', 'build.py', '.github/workflows/app.yml']
   pull_request:
-    paths: ['src/**', 'app/**', 'build.py', '.github/workflows/app.yml']
+    paths: ['src/**', 'app/**', 'web/**', 'build.py', '.github/workflows/app.yml']
   workflow_dispatch:
 
 permissions:

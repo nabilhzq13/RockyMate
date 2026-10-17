@@ -2162,6 +2162,8 @@ $('#coachStop').addEventListener('click',()=>{ if(coachCtl) coachCtl.abort(); })
    then lowers the sheet; otherwise the app goes to the background. */
 if(NATIVE){
   document.documentElement.classList.add('native',NATIVE.platform||'');
+  /* name only this phone's store account (App Review: no other platforms in the app) */
+  $('#payFine').textContent=`One-time purchase. It stays with your ${NATIVE.platform==='android'?'Google account':'Apple Account'}, so Restore brings it back on a new phone.`;
   const dark=matchMedia('(prefers-color-scheme: dark)');
   const bar=()=>{ try{ NATIVE.statusBar(dark.matches); }catch(e){} };
   bar(); dark.addEventListener('change',bar);

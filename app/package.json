@@ -6,7 +6,7 @@
   "scripts": {
     "fonts": "node scripts/make-fonts.mjs",
     "bridge": "esbuild build/bridge.src.js --bundle --format=iife --minify --target=es2019,safari15 --outfile=build/bridge.js",
-    "web": "npm run fonts && npm run bridge && node scripts/build-web.mjs",
+    "web": "npm run bridge && node scripts/build-web.mjs",
     "sync": "npm run web && cap sync",
     "assets": "capacitor-assets generate --ios --android --iconBackgroundColor '#ffd43b' --iconBackgroundColorDark '#ffd43b' --splashBackgroundColor '#e7eaed' --splashBackgroundColorDark '#101316'",
     "ios": "npm run sync && cap open ios",
@@ -30,5 +30,7 @@
     "@fontsource/permanent-marker": "5.3.0",
     "esbuild": "0.25.10"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  }
 }
