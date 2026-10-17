@@ -1,0 +1,124 @@
+# Builds the Rocksane phone app in the cloud, so no Mac is needed.
+#
+#   android  a test APK you can install on an Android phone, and, once the
+#            upload key is in the repository secrets, the signed bundle (.aab)
+#            to upload to Google Play
+#   ios      compiles the iPhone app for the simulator (no signing), to show
+#            the Xcode project still builds; signed TestFlight builds are made
+#            by Codemagic (codemagic.yaml)
+#
+# Download the results from the run's page (Actions tab → the run → Artifacts).
+# Secrets for the signed Android bundle (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_BASE64    the upload keystore (.jks), base64-encoded
+#   ANDROID_KEYSTORE_PASSWORD  its password
+#   ANDROID_KEY_ALIAS          the key's alias (for example: upload)
+#   ANDROID_KEY_PASSWORD       the key's password
+# PUBLISHING.md explains how to make the key.
+name: Phone app
+
+on:
+  push:
+    branches: [main, rocksane-app]
+    paths: ['src/**', 'app/**', 'build.py', '.github/workflows/app.yml']
+  pull_request:
+    paths: ['src/**', 'app/**', 'build.py', '.github/workflows/app.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HAS_UPLOAD_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - name: Install
+        run: npm ci
+      - name: Build the web app and copy it into the Android project
+        run: |
+          npm run web
+          npx cap sync android
+      - name: Version
+        run: |
+          # every build gets a higher number: minutes since 2026-01-01
+          echo "BUILD=$(( ($(date -u +%s) - 1767225600) / 60 ))" >> "$GITHUB_ENV"
+          echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+      - name: Test APK
+        working-directory: app/android
+        run: |
+          ./gradlew --no-daemon assembleDebug -PversionCode=$BUILD -PversionName=$VERSION
+          mv app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/rocksane-$VERSION-test.apk"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rocksane-android-test-apk
+          path: ${{ runner.temp }}/rocksane-*-test.apk
+          retention-days: 30
+      - name: Signed bundle for Google Play
+        if: env.HAS_UPLOAD_KEY == 'true'
+        working-directory: app/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ROCKSANE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ROCKSANE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ROCKSANE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          export ROCKSANE_KEYSTORE="$RUNNER_TEMP/upload.jks"
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$ROCKSANE_KEYSTORE"
+          ./gradlew --no-daemon bundleRelease -PversionCode=$BUILD -PversionName=$VERSION
+          rm -f "$ROCKSANE_KEYSTORE"
+          mv app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/rocksane-$VERSION-$BUILD.aab"
+      - if: env.HAS_UPLOAD_KEY == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rocksane-android-play-bundle
+          path: ${{ runner.temp }}/rocksane-*.aab
+          retention-days: 30
+
+  ios:
+    name: iOS
+    runs-on: macos-26
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Build the web app and copy it into the iOS project
+        run: |
+          npm run web
+          npx cap sync ios
+      - name: Compile for the iPhone simulator (unsigned)
+        working-directory: app/ios/App
+        run: |
+          xcodebuild -version
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" CODE_SIGNING_ALLOWED=NO build
